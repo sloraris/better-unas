@@ -218,8 +218,12 @@ class ConfigTests(unittest.TestCase):
             c = ss.Config(f.name)
         finally:
             os.unlink(f.name)
-        self.assertEqual(len(c.errors), 3)
-        self.assertEqual(c.overrides, {"SERIAL6": 14})
+        self.assertEqual(c.errors, [
+            "INTERVAL_DAYS: want a whole number, got 'abc'",
+            "INTERVAL_OVERRIDES: bad entry 'bad' (want SERIAL:DAYS)",
+            "NOPE: unknown setting"])
+        # A bad entry rejects the whole setting (the schema rule), so the default applies.
+        self.assertEqual(c.overrides, {})
         self.assertEqual(c.int("INTERVAL_DAYS"), 90)
         self.assertTrue(ss.in_window(c, NIGHT.replace(hour=23)))
         self.assertEqual(ss.night_key(c, NIGHT.replace(hour=2)), "2026-11-21")
