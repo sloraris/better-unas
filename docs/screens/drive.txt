@@ -1,0 +1,24 @@
+ 1 Home │ 2 Calendar │ 3 Drives │ 4 Settings │ 5 Alerts │ 6 Tools
+ Drives › Slot 4: WDC WD4002FYYZ-01B7CB0 (SERIAL4) ──────────── smart-scheduler
+ Schedule                                       SMART
+ Last test  none passed yet                     Temperature          48 C
+ Next test  Tue 24 Nov 00:00 (planned)          Power-on hours     59,052
+ Interval   60 days: 59,052 power-on hours        5 Reallocated         -
+ Why        retrying: last test ended           187 Uncorrectable       -
+            failed/failed                       197 Pending             -
+ Snooze     none                                198 Offline uncorr.     -
+ Excluded   no                                  199 CRC errors          -
+
+
+ UniFi test history
+  Type      Started          Finished         Result
+  extended  Thu 12 Nov 01:00 Thu 12 Nov 03:10 failed (failed/failed)
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+ t test  z snooze  x exclude  … ?       Esc back  1-6/Tab tabs  ? help  q quit
