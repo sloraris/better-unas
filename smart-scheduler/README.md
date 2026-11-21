@@ -42,7 +42,10 @@ The most urgent due drive gets a test only when all of these hold:
 - the drive isn't busy (more than 20 MB/s of reads and writes)
 
 `python3 smart_scheduler.py status` shows each drive's last test, its next due
-date and why.
+date and why, then the plan: the night each drive's next test will start,
+assuming every test passes, and any night skipped because of a scrub. The plan
+comes from `planner.py`, the same code the hourly run uses to decide whether to
+start a test, so the two always agree as long as nothing on the NAS changes.
 
 ## Install
 

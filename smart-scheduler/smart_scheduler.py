@@ -36,6 +36,8 @@ import urllib.parse
 import urllib.request
 
 BASE = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, BASE)
+import planner  # noqa: E402  (lives next to this file)
 CONFIG_FILE = os.path.join(BASE, "config")
 STATE_FILE = os.path.join(BASE, "state.json")
 MANIFEST_FILE = os.path.join(BASE, "manifest.sha256")
@@ -78,7 +80,7 @@ DEFAULTS = {
     "HEARTBEAT_FAIL_URL": "",
 }
 
-RUNNING_STATUSES = {"running", "inprogress", "in_progress", "pending", "queued", "testing"}
+RUNNING_STATUSES = planner.RUNNING_STATUSES
 
 
 # --------------------------------------------------------------------------- helpers
@@ -87,13 +89,7 @@ def now():
     return dt.datetime.now().astimezone()
 
 
-def parse_time(value):
-    if not value:
-        return None
-    try:
-        return dt.datetime.fromisoformat(value)
-    except ValueError:
-        return None
+parse_time = planner.parse_time
 
 
 def log(msg, level=syslog.LOG_INFO):
@@ -454,12 +450,8 @@ def get_history(slot, serial, user_id):
     return data
 
 
-def is_running(test):
-    return not test.get("finishedAt") or str(test.get("status", "")).lower() in RUNNING_STATUSES
-
-
-def is_good(test):
-    return str(test.get("status")).lower() == "successful" and str(test.get("result")).lower() == "optimal"
+is_running = planner.is_running
+is_good = planner.is_good
 
 
 # --------------------------------------------------------------------------- self-check and healing
@@ -547,19 +539,10 @@ def remove_triggers(dry):
 
 # --------------------------------------------------------------------------- scheduling
 
-def in_window(cfg, t):
-    start, end = cfg.window
-    cur = t.time()
-    if start <= end:
-        return start <= cur < end
-    return cur >= start or cur < end
-
-
-def night_key(cfg, t):
-    start, end = cfg.window
-    if start > end and t.time() < end:
-        return (t - dt.timedelta(days=1)).date().isoformat()
-    return t.date().isoformat()
+# The rules themselves live in planner.py, shared with the TUI's calendar.
+in_window = planner.in_window
+night_key = planner.night_key
+start_gate = planner.start_gate
 
 
 def evaluate_drives(cfg, storage, user_id, state, alerts, report=True):
@@ -593,11 +576,8 @@ def evaluate_drives(cfg, storage, user_id, state, alerts, report=True):
             info["error"] = True
             continue
         extended = [h for h in history if str(h.get("type")).lower() == "extended"]
-        info["running"] = any(is_running(h) for h in history)
         finished = sorted((h for h in extended if not is_running(h)),
                           key=lambda h: h.get("finishedAt") or "", reverse=True)
-        last_good = next((h for h in finished if is_good(h)), None)
-        latest = finished[0] if finished else None
 
         minutes, attrs = (None, {})
         if serial in devices:
@@ -620,74 +600,14 @@ def evaluate_drives(cfg, storage, user_id, state, alerts, report=True):
             elif cfg.yes("NOTIFY_SUCCESS"):
                 alerts.info(f"Extended SMART test on slot {slot} ({serial}) passed.")
 
-        # Interval selection.
-        warn = [f"SMART attribute {k} is {v}" for k, v in sorted(attrs.items()) if v]
-        if d.get("riskReasons"):
-            warn.append("UniFi risk: " + ", ".join(map(str, d["riskReasons"])))
-        if d.get("state") not in (None, "optimal"):
-            warn.append(f"UniFi state {d.get('state')}")
-        increased = [k for k, v in attrs.items() if baseline is not None and v > baseline.get(k, 0)]
-        if serial in cfg.overrides:
-            interval, why = cfg.overrides[serial], "set in config"
-        elif warn:
-            interval, why = cfg.int("WARN_INTERVAL_DAYS"), "; ".join(warn)
-        elif (d.get("powerOnHours") or 0) >= cfg.int("OLD_DRIVE_HOURS"):
-            interval, why = cfg.int("OLD_INTERVAL_DAYS"), f"{d['powerOnHours']:,} power-on hours"
-        else:
-            interval, why = cfg.int("INTERVAL_DAYS"), "healthy"
-        info["interval"] = interval
-
-        if latest is not None and not is_good(latest):
-            info["due"] = parse_time(latest["finishedAt"]) + dt.timedelta(days=cfg.int("RETRY_FAILED_DAYS"))
-            info["reason"] = f"retrying: last test ended {latest.get('status')}/{latest.get('result')}"
-        elif last_good is None:
-            info["due"] = t
-            info["reason"] = "never tested; first test sets a baseline"
-        elif increased:
-            info["due"] = t
-            info["reason"] = "SMART attribute rose since last test: " + ", ".join(
-                f"{k} went {baseline.get(k, 0)} -> {attrs[k]}" for k in increased)
-        else:
-            info["due"] = parse_time(last_good["finishedAt"]) + dt.timedelta(days=interval)
-            info["reason"] = f"every {interval} days ({why})"
-        info["last"] = last_good.get("finishedAt") if last_good else None
+        info.update(planner.assess(cfg, d, history, attrs, baseline, t))
     return result
-
-
-def start_gate(cfg, storage, drives, state, t):
-    """Return None if a test may start now, otherwise the reason it may not."""
-    if not in_window(cfg, t):
-        return "outside start window"
-    if cfg.int("MAX_STARTS_PER_NIGHT") == 0:
-        return "paused (MAX_STARTS_PER_NIGHT=0 in config)"
-    if state.get("starts", {}).get(night_key(cfg, t), 0) >= cfg.int("MAX_STARTS_PER_NIGHT"):
-        return "already started tonight's test(s)"
-    if sum(1 for d in drives if d.get("running")) >= cfg.int("MAX_CONCURRENT"):
-        return "a SMART test is already running"
-    for p in storage["pools"]:
-        if p.get("status") != "fullyOperational":
-            return f"pool {p.get('number', p['id'])} is {p.get('status')}"
-        for rg in p.get("raidGroups") or []:
-            if rg.get("currentProtection", 1) < rg.get("expectedProtection", 0) or rg.get("progress"):
-                return f"pool {p.get('number', p['id'])} RAID group is degraded or resyncing"
-        if (p.get("dataScrubbing") or {}).get("status", "idle") != "idle":
-            return f"pool {p.get('number', p['id'])} is scrubbing"
-    return None
 
 
 def scrub_conflict(cfg, storage, minutes, t):
     """Return a reason if a test of this length would run into a scheduled scrub."""
-    end = t + dt.timedelta(minutes=minutes * cfg.float("DURATION_FACTOR"))
-    margin = dt.timedelta(hours=cfg.int("SCRUB_MARGIN_HOURS"))
-    for p in storage["pools"]:
-        sc = p.get("dataScrubbing") or {}
-        nxt = parse_time(sc.get("nextRun"))
-        if not (sc.get("schedule") or {}).get("enabled") or not nxt:
-            continue
-        # The +1h covers UniFi's nextRun being an hour early across a DST change.
-        if t < nxt + dt.timedelta(hours=1) and end > nxt - margin:
-            return f"would overlap pool {p.get('number', p['id'])} scrub at {nxt:%a %d %b %H:%M}"
-    return None
+    until = t + planner.test_length(cfg, minutes)
+    return planner.conflict(cfg, planner.scrub_windows(cfg, storage, until), minutes, t)
 
 
 # --------------------------------------------------------------------------- commands
@@ -798,24 +718,15 @@ def cmd_run(cfg, args):
     storage, user_id = self_check(cfg, state, alerts, dry)
     if storage is not None and user_id:
         drives = evaluate_drives(cfg, storage, user_id, state, alerts)
-        gate = start_gate(cfg, storage, drives, state, t)
-        due = sorted((d for d in drives if not d["excluded"] and d.get("due") and d["due"] <= t
-                      and not d.get("error")), key=lambda d: (d["interval"], d["due"]))
-        if gate:
-            if due and gate not in ("outside start window",):
-                log(f"{len(due)} drive(s) due; not starting: {gate}")
+        decision = planner.decide(cfg, storage, drives, state, t)
+        if decision.gate:
+            if decision.due and decision.gate != "outside start window":
+                log(f"{len(decision.due)} drive(s) due; not starting: {decision.gate}")
         else:
-            for d in due:
-                busy = cfg.int("BUSY_KBPS")
-                if busy and d["kbps"] > busy:
-                    log(f"slot {d['slot']} ({d['serial']}) due; not starting: drive busy ({d['kbps']} KB/s)")
-                    continue
-                conflict = scrub_conflict(cfg, storage, d["minutes"], t)
-                if conflict:
-                    log(f"slot {d['slot']} ({d['serial']}) due; not starting: {conflict}")
-                    continue
-                start_test(cfg, d, user_id, state, alerts, dry, t)
-                break
+            for d, why in decision.skipped:
+                log(f"slot {d['slot']} ({d['serial']}) due; not starting: {why}")
+            if decision.start:
+                start_test(cfg, decision.start, user_id, state, alerts, dry, t)
         if state.pop("version_changed", False):
             alerts.info("Self-check after the update passed: API, identity and triggers all OK."
                         if not alerts.has_errors() else "Self-check after the update found problems (see alerts).")
@@ -883,6 +794,15 @@ def cmd_status(cfg, args):
         print(f"  Last test: {f'{last:%a %d %b %Y}' if last else 'never'}")
         print(f"  Next test: {nxt}")
         print(f"  Why:       {d.get('reason', '')}")
+        print()
+    plan = planner.plan(storage, drives, state, cfg, t)
+    if plan:
+        print("Plan (assuming each test passes):")
+        rows = [(e["night"], f"{e['start']:%a %d %b %H:%M}  slot {e['slot']} ({e['serial']})") for e in plan]
+        rows += [(s["night"], f"{dt.date.fromisoformat(s['night']):%a %d %b}        skipped: "
+                  + "; ".join(s["reasons"])) for s in plan.skipped]
+        for _, row in sorted(rows, key=lambda r: r[0]):
+            print("  " + row)
         print()
     gate = start_gate(cfg, storage, drives, state, t)
     print(f"Tests start between {cfg['START_WINDOW'].replace('-', ' and ')}.")
