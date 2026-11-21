@@ -249,6 +249,14 @@ caches the result until the Home screen is opened again or refreshed.
 `tone` is one of the theme tones in section 7. Labels should be at most 16
 characters so the card lines up.
 
+An item may also name a `tab` (optional, e.g. `"tab": "Calendar"` on "Next
+test", `"tab": "Drives"` on "Last result"): Enter on that row of the Home
+dashboard switches to that tab. Without it, or if no tab has that title, the
+row leads to the tool's first own tab (or Tools, for a tool without screens).
+The dashboard shows the card under the suite's update line and the active
+alerts, so items are where a tool puts its next planned test, last results,
+next scrub and next backup window.
+
 ### `alerts(ctx)`: active and recent alerts
 
 ```python

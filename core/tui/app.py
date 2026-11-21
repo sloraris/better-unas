@@ -19,6 +19,7 @@ import traceback
 
 from .. import plugins as P
 from . import screens as core
+from .home import HomeScreen
 from . import tools as tools_screen
 from . import widgets
 from .keys import RESIZE
@@ -148,7 +149,7 @@ class App:
         grouped = {}
         for title, label, ctx, make in tool_tabs:
             grouped.setdefault(title, []).append((label, ctx, make))
-        self.tabs = [Tab("Home", [("Home", self.core_ctx, core.HomeScreen)])]
+        self.tabs = [Tab("Home", [("Home", self.core_ctx, HomeScreen)])]
         self.tabs += [Tab(title, entries) for title, entries in grouped.items()]
         self.tabs += [Tab("Settings", [("Settings", self.core_ctx, core.SettingsScreen)]),
                       Tab("Alerts", [("Alerts", self.core_ctx, core.AlertsScreen)]),

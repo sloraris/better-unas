@@ -1,8 +1,9 @@
 """The core's own screens.
 
-Home, Settings and Alerts here are first versions built only on the
-plugin contract; #9, #12 and #13 grow them into the real thing. The Tools
-screen lives in tools.py (#14). The small helpers (detail, help, chooser, error, too-small) stay.
+Settings and Alerts here are first versions built only on the plugin
+contract; #12 and #13 grow them into the real thing. Home lives in home.py
+(#9) and Tools in tools.py (#14). The small helpers (detail, help, chooser,
+error, too-small) stay.
 """
 
 import datetime as dt
@@ -111,57 +112,6 @@ class ChooserScreen:
             self.ctx.push(app.make(self.tab, label, ctx, make))
             return True
         return self.list.key(k)
-
-
-class HomeScreen:
-    """Every tool's card from summary(ctx), read when the tab opens."""
-
-    title = "Home"
-
-    def __init__(self, ctx):
-        self.ctx = ctx
-        self.text = W.ScrollText([])
-
-    def keys(self):
-        return [("r", "refresh")] + self.text.keys()
-
-    def show(self):
-        app = self.ctx.app
-        lines = []
-        for tool in app.tools:
-            mod = app.plugins.get(tool.name)
-            head = f"{tool.name}  {tool.manifest.get('VERSION', '')}"
-            if tool.name in app.broken:
-                lines += [(f"{head}  [broken]", "bad"), ("  See the Tools tab.", "dim"), ""]
-                continue
-            if mod is None:
-                lines += [(head, "normal"), ("  No status available.", "dim"), ""]
-                continue
-            tctx = app.contexts[tool.name]
-            try:
-                s = tctx.run_slow(lambda: mod.summary(tctx), f"Reading {tool.name}")
-                problems = P.check_summary(s)
-            except Exception as e:
-                s, problems = None, [f"{type(e).__name__}: {e}"]
-            if problems:
-                lines += [(f"{head}  [error]", "bad")] + [(f"  {p}", "bad") for p in problems] + [""]
-                continue
-            lines.append((f"{head}  [{s['state']}]  {s['headline']}", state_tone(s["state"])))
-            for it in s.get("items", [])[:6]:
-                lines.append((f"  {it['label']:<16} {it['value']}", it.get("tone", "normal")))
-            lines.append("")
-        if not app.tools:
-            lines = [("No tools are installed yet.", "dim")]
-        self.text.set_text(lines)
-
-    def render(self, canvas):
-        self.text.render(canvas)
-
-    def key(self, k):
-        if k == "r":
-            self.show()
-            return True
-        return self.text.key(k)
 
 
 class AlertsScreen:
