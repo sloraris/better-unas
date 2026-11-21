@@ -37,7 +37,7 @@ from core.tui.theme import Theme, color_wanted              # noqa: E402
 
 SNAPSHOTS = os.path.join(HERE, "snapshots")
 EXAMPLE = os.path.join(ROOT, "docs", "examples", "space-watch")
-SS_SCHEMA = os.path.join(ROOT, "docs", "examples", "smart-scheduler.settings.json")
+SS_SCHEMA = os.path.join(ROOT, "smart-scheduler", "settings.json")
 CLOCK = dt.datetime(2026, 11, 22, 1, 0, tzinfo=dt.timezone(dt.timedelta(hours=-7)))
 
 
