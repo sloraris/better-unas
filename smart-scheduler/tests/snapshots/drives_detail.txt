@@ -1,0 +1,24 @@
+ 1 Home │ 2 Calendar │ 3 Drives │ 4 Settings │ 5 Alerts │ 6 Tools
+ Drives › Slot 5: WDC WD4002FYYZ-01B7CB0 (SERIAL5) ──────────── smart-scheduler
+ Schedule                                       SMART
+ Last test  Tue 20 Oct (passed)                 Temperature          48 C
+ Next test  Mon 23 Nov 00:00 (planned)          Power-on hours     59,080
+ Interval   30 days: SMART attribute 197 is 3     5 Reallocated         0
+ Why        SMART attribute rose since last     187 Uncorrectable       0
+            test: 197 went 0 -> 3               197 Pending             3 +3
+ Snooze     none                                198 Offline uncorr.     0
+ Excluded   no                                  199 CRC errors          2
+
+                                                +N: rose since last test
+ UniFi test history
+  Type      Started          Finished         Result
+  quick     Sat 21 Nov 09:00 Sat 21 Nov 09:02 passed
+  extended  Tue 20 Oct 01:00 Tue 20 Oct 11:00 passed
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+ t test  z snooze  x exclude  … ?       Esc back  1-6/Tab tabs  ? help  q quit
