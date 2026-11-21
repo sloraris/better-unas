@@ -1,0 +1,67 @@
+{
+  "contract": 1,
+  "groups": [
+    {
+      "id": "general",
+      "title": "General",
+      "fields": [
+        {
+          "key": "ENABLED",
+          "type": "bool",
+          "label": "Enabled",
+          "default": "yes",
+          "help": "Set to no to stop checking."
+        }
+      ]
+    },
+    {
+      "id": "watch",
+      "title": "What to watch",
+      "fields": [
+        {
+          "key": "WATCH_PATH",
+          "type": "text",
+          "label": "Folder to watch",
+          "default": "/",
+          "pattern": "/[^\\s]*",
+          "required": true,
+          "essential": true,
+          "help": "Any folder on the volume to watch, starting with /."
+        },
+        {
+          "key": "WARN_PERCENT",
+          "type": "int",
+          "label": "Warn above",
+          "unit": "%",
+          "min": 50,
+          "max": 99,
+          "default": "90",
+          "essential": true,
+          "help": "Warn when the volume is fuller than this."
+        }
+      ]
+    },
+    {
+      "id": "notifications",
+      "title": "Notifications",
+      "fields": [
+        {
+          "key": "WEBHOOK_URL",
+          "type": "url",
+          "label": "Webhook URL",
+          "default": "",
+          "secret": true,
+          "essential": true,
+          "help": "Where warnings go. Empty = journal only."
+        },
+        {
+          "key": "QUIET_HOURS",
+          "type": "time_window",
+          "label": "Quiet hours",
+          "default": "22:00-07:00",
+          "help": "Don't send warnings in this window (local time). May cross midnight."
+        }
+      ]
+    }
+  ]
+}

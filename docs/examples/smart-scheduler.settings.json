@@ -1,0 +1,226 @@
+{
+  "contract": 1,
+  "groups": [
+    {
+      "id": "general",
+      "title": "General",
+      "fields": [
+        {
+          "key": "ENABLED",
+          "type": "bool",
+          "label": "Enabled",
+          "default": "yes",
+          "help": "Set to no to stop: the next run removes the timer and cron line. To turn it back on, set yes and reinstall."
+        },
+        {
+          "key": "DRIVE_USER",
+          "type": "text",
+          "label": "UniFi OS account",
+          "default": "",
+          "pattern": "[A-Za-z0-9._@-]+",
+          "help": "Account the tests run as. Empty = the console owner, which needs no setup. Another account must be an admin with UniFi Drive management rights."
+        }
+      ]
+    },
+    {
+      "id": "intervals",
+      "title": "How often each drive gets an extended test",
+      "fields": [
+        {
+          "key": "INTERVAL_DAYS",
+          "type": "int",
+          "label": "Healthy drive",
+          "unit": "days",
+          "min": 1,
+          "max": 3650,
+          "default": "90",
+          "essential": true,
+          "help": "Days between tests on a healthy drive."
+        },
+        {
+          "key": "WARN_INTERVAL_DAYS",
+          "type": "int",
+          "label": "Drive with warning signs",
+          "unit": "days",
+          "min": 1,
+          "max": 3650,
+          "default": "30",
+          "essential": true,
+          "help": "Any warning attribute above zero, a UniFi risk reason, or a UniFi state other than optimal."
+        },
+        {
+          "key": "OLD_INTERVAL_DAYS",
+          "type": "int",
+          "label": "Old drive",
+          "unit": "days",
+          "min": 1,
+          "max": 3650,
+          "default": "60",
+          "essential": true,
+          "help": "Drive older than the old-drive age below."
+        },
+        {
+          "key": "OLD_DRIVE_HOURS",
+          "type": "int",
+          "label": "Old-drive age",
+          "unit": "power-on hours",
+          "min": 0,
+          "default": "43800",
+          "help": "43800 h is about 5 years."
+        },
+        {
+          "key": "RETRY_FAILED_DAYS",
+          "type": "int",
+          "label": "Retry after a failure",
+          "unit": "days",
+          "min": 1,
+          "max": 365,
+          "default": "7",
+          "help": "After a test fails or is aborted, try again this many days later (and alert)."
+        },
+        {
+          "key": "WARN_ATTRIBUTES",
+          "type": "int_list",
+          "label": "Warning attributes",
+          "min": 1,
+          "max": 255,
+          "default": "5,187,197,198",
+          "help": "SMART attribute IDs that count as warning signs. If one rises since the last test, that drive is tested on the next eligible night. 5 reallocated, 187 reported uncorrectable, 197 pending, 198 offline uncorrectable."
+        },
+        {
+          "key": "INTERVAL_OVERRIDES",
+          "type": "serial_map",
+          "label": "Per-drive intervals",
+          "unit": "days",
+          "min": 1,
+          "max": 3650,
+          "default": "",
+          "help": "Intervals for single drives, by serial number."
+        },
+        {
+          "key": "EXCLUDE_SERIALS",
+          "type": "serial_list",
+          "label": "Never test",
+          "default": "",
+          "help": "Drives to never test, by serial number."
+        }
+      ]
+    },
+    {
+      "id": "timing",
+      "title": "When tests may start",
+      "fields": [
+        {
+          "key": "START_WINDOW",
+          "type": "time_window",
+          "label": "Start window",
+          "default": "00:00-05:00",
+          "essential": true,
+          "help": "Local time (the NAS's timezone). May cross midnight, e.g. 22:00-04:00."
+        },
+        {
+          "key": "MAX_CONCURRENT",
+          "type": "int",
+          "label": "Tests at once",
+          "min": 1,
+          "max": 64,
+          "default": "1",
+          "help": "Never run more than this many tests at once."
+        },
+        {
+          "key": "MAX_STARTS_PER_NIGHT",
+          "type": "int",
+          "label": "Starts per night",
+          "min": 0,
+          "max": 64,
+          "default": "1",
+          "help": "0 pauses new tests (everything else keeps running)."
+        },
+        {
+          "key": "SCRUB_MARGIN_HOURS",
+          "type": "int",
+          "label": "Scrub margin",
+          "unit": "hours",
+          "min": 0,
+          "max": 168,
+          "default": "2",
+          "help": "Don't start a test that could still be running this many hours before a scheduled scrub."
+        },
+        {
+          "key": "DURATION_FACTOR",
+          "type": "float",
+          "label": "Duration factor",
+          "min": 1,
+          "max": 10,
+          "default": "1.5",
+          "help": "A test's length is the drive's own estimate times this."
+        },
+        {
+          "key": "BUSY_KBPS",
+          "type": "int",
+          "label": "Busy drive above",
+          "unit": "KB/s",
+          "min": 0,
+          "default": "20000",
+          "help": "Skip a drive busier than this (read + write) when the test would start. 0 turns the check off."
+        }
+      ]
+    },
+    {
+      "id": "notifications",
+      "title": "Notifications",
+      "fields": [
+        {
+          "key": "WEBHOOK_URL",
+          "type": "url",
+          "label": "Webhook URL",
+          "default": "",
+          "secret": true,
+          "essential": true,
+          "help": "Where alerts go. Empty = journal/syslog only."
+        },
+        {
+          "key": "WEBHOOK_FORMAT",
+          "type": "choice",
+          "label": "Webhook format",
+          "choices": ["text", "json", "slack", "discord"],
+          "default": "text",
+          "essential": true,
+          "help": "text is a plain body (ntfy and most receivers)."
+        },
+        {
+          "key": "NOTIFY_SUCCESS",
+          "type": "bool",
+          "label": "Notify on pass",
+          "default": "no",
+          "help": "Also notify when a test passes (UniFi already shows results in Health Monitor)."
+        },
+        {
+          "key": "ALERT_REPEAT_HOURS",
+          "type": "int",
+          "label": "Repeat alerts every",
+          "unit": "hours",
+          "min": 1,
+          "default": "72",
+          "help": "Repeat a still-active alert after this many hours."
+        },
+        {
+          "key": "HEARTBEAT_URL",
+          "type": "url",
+          "label": "Heartbeat URL",
+          "default": "",
+          "secret": true,
+          "help": "Pinged (GET) after every healthy hourly run: a dead-man's switch such as healthchecks.io or an Uptime Kuma push monitor."
+        },
+        {
+          "key": "HEARTBEAT_FAIL_URL",
+          "type": "url",
+          "label": "Heartbeat URL on failure",
+          "default": "",
+          "secret": true,
+          "help": "Optional: pinged instead when a run ends with active errors."
+        }
+      ]
+    }
+  ]
+}

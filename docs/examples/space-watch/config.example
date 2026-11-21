@@ -1,0 +1,17 @@
+# space-watch settings. Every line is optional; an empty file uses the defaults
+# shown here.
+
+# Set to "no" to stop checking.
+ENABLED=yes
+
+# --- What to watch -------------------------------------------------------------
+# Folder on the volume to watch.
+WATCH_PATH=/
+# Warn when the volume is fuller than this, in percent.
+WARN_PERCENT=90
+
+# --- Notifications ---------------------------------------------------------------
+# Where warnings go. Empty = journal only.
+WEBHOOK_URL=
+# Don't send warnings in this window (local time). May cross midnight.
+QUIET_HOURS=22:00-07:00
