@@ -956,6 +956,12 @@ class PluginLoadingTests(AppFixture, unittest.TestCase):
     def test_tool_without_plugin_gets_a_plain_card(self):
         shutil.copytree(os.path.join(ROOT, "smart-scheduler"), os.path.join(self.home, "smart-scheduler"),
                         ignore=shutil.ignore_patterns("__pycache__", "tests", "config", "state.json"))
+        # smart-scheduler has a plugin since #10; drop it from the copy's manifest.
+        conf = os.path.join(self.home, "smart-scheduler", "tool.conf")
+        with open(conf) as f:
+            lines = [line for line in f if not line.startswith("PLUGIN=")]
+        with open(conf, "w") as f:
+            f.writelines(lines)
         app = self.make_app()
         self.assertIn("No status available.", self.term.text())
         self.assertNotIn("smart-scheduler", app.broken)

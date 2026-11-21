@@ -1,0 +1,24 @@
+ 1 Home │ 2 Calendar │ 3 Settings │ 4 Alerts │ 5 Tools
+ Calendar › Mon 23 Nov 2026 ─────────────────────────────────── smart-scheduler
+ Planned (assuming earlier tests pass)
+   Slot 4  WDC WD4002FYYZ-01B7CB0 (SERIAL4)
+     starts 03:00, ends about 17:16
+     why: never tested; first test sets a baseline
+     waited for: waiting its turn (1 start(s) per night, most urgent first);
+     would overlap UniFi Cloud backup “Offsite” at Mon 23 Nov 01:00
+
+ Scrubs and backups
+   - UniFi Cloud backup “Offsite” at Mon 23 Nov 01:00. No test may be running
+   00:00 to 02:50 (including the 1 h margin).
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+ ↑↓ scroll                              Esc back  1-5/Tab tabs  ? help  q quit

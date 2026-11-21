@@ -1,0 +1,24 @@
+ 1 Home │ 2 Settings │ 3 Alerts │ 4 Tools
+ Tools › Update ──────────────────────────────────────────────────────────────
+Updated from v0.2.0 to v0.3.0.
+
+alpha: installed
+  alpha installed
+
+Quit (q) and start better-unas again to load the change.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ Updated to v0.3.0. Quit (q) and start better-unas again to load the change.
+ ↑↓ scroll                              Esc back  1-4/Tab tabs  ? help  q quit

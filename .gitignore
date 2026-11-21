@@ -9,3 +9,7 @@ __pycache__/
 
 # TUI log (python3 -m core.tui)
 tui.log
+
+# Update check cache and the kept release (core/updates.py)
+.update-check.json
+.release/

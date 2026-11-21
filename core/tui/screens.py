@@ -1,8 +1,9 @@
 """The core's own screens.
 
-Settings, Alerts and Tools here are first versions built only on the
-plugin contract; #12, #13 and #14 grow them into the real thing (Home
-lives in home.py, #9). The small helpers (detail, help, chooser, error, too-small) stay.
+Settings and Alerts here are first versions built only on the plugin
+contract; #12 and #13 grow them into the real thing. Home lives in home.py
+(#9) and Tools in tools.py (#14). The small helpers (detail, help, chooser,
+error, too-small) stay.
 """
 
 import datetime as dt
@@ -168,74 +169,6 @@ class AlertsScreen:
             return True
         if k == "r":
             self.show()
-            return True
-        return self.table.key(k)
-
-
-class ToolsScreen:
-    """Installed tools, their status(ctx), and tools that failed to load."""
-
-    title = "Tools"
-
-    def __init__(self, ctx):
-        self.ctx = ctx
-        self.rows = []
-        self.table = W.Table([("Tool", 18), ("Version", 9), ("State", 8), ("Summary", None)],
-                             empty="No tools found.")
-
-    def keys(self):
-        return [("Enter", "details")] + self.table.keys()
-
-    def show(self):
-        app = self.ctx.app
-        self.rows = []
-        names = [t.name for t in app.tools] + [n for n in app.broken if n not in app.contexts]
-        for name in names:
-            tool = next((t for t in app.tools if t.name == name), None)
-            status, problems = None, list(app.broken.get(name, []))
-            mod = app.plugins.get(name)
-            if mod is not None:
-                try:
-                    status = mod.status(app.contexts[name])
-                    problems += P.check_status(status)
-                except Exception as e:
-                    problems.append(f"status: {type(e).__name__}: {e}")
-            self.rows.append((name, tool, status, problems))
-        cells = []
-        for name, tool, status, problems in self.rows:
-            version = tool.manifest["VERSION"] if tool else "-"
-            if name in app.broken:
-                state, tone = "broken", "bad"
-            elif status and not problems:
-                state, tone = status["state"], state_tone(status["state"])
-            elif problems:
-                state, tone = "error", "bad"
-            else:
-                state, tone = "-", "dim"
-            summary = tool.manifest["SUMMARY"] if tool else (problems[0] if problems else "")
-            cells.append([name, version, (state, tone), summary])
-        self.table.set_rows(cells)
-
-    def render(self, canvas):
-        self.table.render(canvas)
-
-    def key(self, k):
-        if k == "enter" and self.rows:
-            name, tool, status, problems = self.rows[self.table.index]
-            lines = []
-            if tool:
-                m = tool.manifest
-                lines += [(m["SUMMARY"], "normal"), "", f"Version:  {m['VERSION']}",
-                          f"Folder:   {tool.path}", f"Changes:  {m['CHANGES']}"]
-                if m.get("SETUP"):
-                    lines.append(f"Setup:    {m['SETUP']}")
-            if status:
-                lines += ["", (f"State: {status['state']}", state_tone(status["state"]))]
-                lines += [(f"  {p}", "warn") for p in status.get("problems", [])]
-                lines += [f"  {d}" for d in status.get("detail", [])]
-            if problems:
-                lines += ["", ("Problems", "bad")] + [(f"  {p}", "bad") for p in problems]
-            self.ctx.push(DetailScreen(name, lines))
             return True
         return self.table.key(k)
 
