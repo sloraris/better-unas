@@ -24,7 +24,7 @@ P = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(P)
 
 EXAMPLE = os.path.join(ROOT, "docs", "examples", "space-watch")
-SS_SCHEMA = os.path.join(ROOT, "docs", "examples", "smart-scheduler.settings.json")
+SS_SCHEMA = os.path.join(ROOT, "smart-scheduler", "settings.json")
 SS_EXAMPLE = os.path.join(ROOT, "smart-scheduler", "config.example")
 
 
@@ -186,7 +186,8 @@ class Manifest(unittest.TestCase):
         values, problems = P.read_keyvalue(os.path.join(ROOT, "smart-scheduler", "tool.conf"))
         self.assertEqual(problems, [])
         m = P.check_manifest(values, os.path.join(ROOT, "smart-scheduler"))
-        self.assertEqual(m["SCHEMA"], "")   # pre-contract tool: no settings, no plugin
+        self.assertEqual(m["SCHEMA"], "settings.json")
+        self.assertEqual(P.check_tool(os.path.join(ROOT, "smart-scheduler")), [])
 
     def test_rules(self):
         self.assertEqual(self.problems(), [])
