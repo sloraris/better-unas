@@ -16,6 +16,7 @@ import sys
 import tempfile
 
 from .. import plugins as P
+from .. import updates
 from . import demo
 from .app import App
 from .terminal import HeadlessTerminal, ScriptDone, run_curses
@@ -66,7 +67,9 @@ def main(argv=None, out=sys.stdout):
         tools, broken = P.discover(home)
 
         def build(term):
-            return App(term, tools, broken, extra_tabs=extra, dry_run=args.dry_run, log_path=log_path)
+            app = App(term, tools, broken, extra_tabs=extra, dry_run=args.dry_run, log_path=log_path)
+            app.home = home     # read by the Tools screen (#14)
+            return app
 
         if args.headless:
             w, h = parse_size(args.headless)
@@ -79,6 +82,10 @@ def main(argv=None, out=sys.stdout):
             app.draw()
             print(term.text(), file=out)
         else:
+            if not args.demo:
+                # Cached for a few hours, so this rarely touches the network;
+                # Home and Tools read the answer with updates.cached_status().
+                updates.check_in_background(home)
             run_curses(build)
         return 0
     finally:
