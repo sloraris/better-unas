@@ -1,0 +1,24 @@
+ 1 Home │ 2 Board │ 3 Space │ 4 Settings │ 5 Alerts │ 6 Tools
+ Settings › space-watch ──────────────────────────────────────────────────────
+space-watch/config                                      kept as is: LEGACY_THING
+General
+  Enabled                     [x] yes
+
+What to watch
+  Folder to watch             /volume1
+  Warn above                  80 %
+
+Notifications
+  Webhook URL                 (none)
+  Quiet hours                 22:00 to 07:00
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+Warn when the volume is fuller than this.
+
+ Saved 1 setting(s) to space-watch/config.
+ s save  ↑↓ move  Enter edit            Esc back  1-6/Tab tabs  ? help  q quit

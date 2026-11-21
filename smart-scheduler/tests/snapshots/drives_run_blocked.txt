@@ -1,0 +1,24 @@
+ 1 Home │ 2 Calendar │ 3 Drives │ 4 Settings │ 5 Alerts │ 6 Tools
+ Drives › Can't start an extended test on slot 5 (SERIAL5) ──── smart-scheduler
+ Safety checks for starting a test now:
+
+   BLOCKS        a SMART test is already running on slot 1
+   can override  drive busy (160128 KB/s)
+
+ A running test, an unhealthy pool, or a drive or identity problem always
+ blocks; fix that first. A busy drive, a coming scrub or backup, or the start
+ window can be overridden with a second confirm.
+
+
+
+
+
+
+
+
+
+
+
+
+ Can't start an extended test on slot 5 (SERIAL5): a SMART test is already runn…
+ ↑↓ scroll                              Esc back  1-6/Tab tabs  ? help  q quit

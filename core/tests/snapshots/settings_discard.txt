@@ -1,0 +1,24 @@
+ 1 Home │ 2 Board │ 3 Space │ 4 Settings │ 5 Alerts │ 6 Tools
+ Settings › space-watch ──────────────────────────────────────────────────────
+space-watch/config                    1 unsaved change(s); s saves, Esc discards
+General
+  Enabled                     [x] yes
+
+What to watch
+  F┌─ Confirm ──────────────────────────────────────────────────────────────┐
+* W│                                                                        │
+   │ Discard your changes?                                                  │
+Not│                                                                        │
+  W│ 1 setting(s) were edited and not saved. The config file stays as it    │
+  Q│ was.                                                                   │
+   │                                                                        │
+   │                            [ Yes ]   [ No ]                            │
+   │                                                                        │
+   └────────────────────────────────────────────────────────────────────────┘
+
+
+────────────────────────────────────────────────────────────────────────────────
+Warn when the volume is fuller than this.
+
+────────────────────────────────────────────────────────────────────────────────
+ y yes  n no  ←→ choose  Enter pick  Esc no

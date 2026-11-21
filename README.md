@@ -92,6 +92,21 @@ less /tmp/better-unas-bootstrap.sh
 sh /tmp/better-unas-bootstrap.sh
 ```
 
+`better-unas` with no arguments opens the terminal app. With a command it
+prints plain text and exits, for scripts and quick checks:
+```bash
+better-unas status                    # what each installed tool is doing
+better-unas smart-scheduler status    # one tool's own commands (here: the drive schedule)
+better-unas update                    # update to the latest release (--check: only check, --yes: don't ask)
+better-unas list                      # available and installed tools
+better-unas install <tool>            # install a tool from the installed release
+better-unas uninstall <tool>          # add --purge to also delete its config
+better-unas --help                    # every command and the exit codes
+```
+Exit codes: 0 ok, 1 a problem was found or a command failed, 2 usage
+error, 3 an update is available (`update --check`). An uninstalled tool stays
+off: `update` won't turn it back on.
+
 **Installed with the old `install.sh`?** Run the command above. The wizard
 finds the old install, keeps smart-scheduler's `config`, `state.json` and lock
 as they are, and moves it to the new layout once you confirm.

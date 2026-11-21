@@ -1,0 +1,24 @@
+ 1 Home │ 2 Calendar │ 3 Drives │ 4 Settings │ 5 Alerts │ 6 Tools
+ Drives ─────────────────────────────────────────────────────── smart-scheduler
+  Slot Serial        Temp Last test  Next test   Every Status
+     1 SERIAL1       41 C never      Thu 26 Nov    90d due
+›    2 SERIAL2       42 C never      Fri 27 Nov    90d due
+     3 SERIAL3       38 C never      Sat 28 Nov    90d due
+     4 SERIAL┌─ Confirm ──────────────────────────────────────────┐
+     5 SERIAL│                                                    │
+     6 SERIAL│ Start an extended test on slot 2 (SERIAL2) anyway? │
+     7 SERIAL│                                                    │
+             │ These checks fail:                                 │
+ Slot 2  ST40│ can override  drive busy (160128 KB/s)             │
+   never test│ can override  would overlap pool 2's data scrub    │
+             │                                                    │
+             │                  [ Yes ]   [ No ]                  │
+             │                                                    │
+             └────────────────────────────────────────────────────┘
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+ y yes  n no  ←→ choose  Enter pick  Esc no
