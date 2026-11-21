@@ -1,4 +1,4 @@
- 1 Home │ 2 Calendar │ 3 Settings │ 4 Alerts │ 5 Tools
+ 1 Home │ 2 Calendar │ 3 Drives │ 4 Settings │ 5 Alerts │ 6 Tools
  Settings › smart-scheduler ──────────────────────────────────────────────────
 smart-scheduler/config                                        no unsaved changes
 General
@@ -21,4 +21,4 @@ When tests may start
 Set to no to stop: the next run removes the timer and cron line. To turn it
 back on, set yes and reinstall.
 ────────────────────────────────────────────────────────────────────────────────
- s save  p preview  ↑↓ move  … ?        Esc back  1-5/Tab tabs  ? help  q quit
+ s save  p preview  ↑↓ move  … ?        Esc back  1-6/Tab tabs  ? help  q quit
