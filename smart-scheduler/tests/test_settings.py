@@ -260,17 +260,17 @@ class Writer(unittest.TestCase):
     def test_a_new_setting_needs_only_the_schema(self):
         schema = copy.deepcopy(SCHEMA)
         timing = next(g for g in schema["groups"] if g["id"] == "timing")
-        timing["fields"].append({"key": "BACKUP_MARGIN_HOURS", "type": "int", "label": "Backup margin",
+        timing["fields"].append({"key": "EXAMPLE_MARGIN_HOURS", "type": "int", "label": "Example margin",
                                  "unit": "hours", "min": 0, "max": 48, "default": "1"})
         P.check_schema(schema)
-        new = S.apply_edits(EXAMPLE, {"BACKUP_MARGIN_HOURS": "3"}, schema)
-        self.assertIn("BUSY_KBPS=20000\nBACKUP_MARGIN_HOURS=3\n", new)
+        new = S.apply_edits(EXAMPLE, {"EXAMPLE_MARGIN_HOURS": "3"}, schema)
+        self.assertIn("BUSY_KBPS=20000\nEXAMPLE_MARGIN_HOURS=3\n", new)
         with tempfile.NamedTemporaryFile("w", suffix=".conf", delete=False) as f:
             f.write(new)
         self.addCleanup(os.unlink, f.name)
-        self.assertEqual(ss.Config(f.name, schema).int("BACKUP_MARGIN_HOURS"), 3)
-        self.assertEqual(ss.Config("/nonexistent", schema).int("BACKUP_MARGIN_HOURS"), 1)
-        self.assertEqual(S.defaults(schema)["BACKUP_MARGIN_HOURS"], "1")
+        self.assertEqual(ss.Config(f.name, schema).int("EXAMPLE_MARGIN_HOURS"), 3)
+        self.assertEqual(ss.Config("/nonexistent", schema).int("EXAMPLE_MARGIN_HOURS"), 1)
+        self.assertEqual(S.defaults(schema)["EXAMPLE_MARGIN_HOURS"], "1")
 
 
 class Save(unittest.TestCase):

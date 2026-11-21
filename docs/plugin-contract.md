@@ -467,6 +467,10 @@ also drives the tool's own config loader and writer from it. Summary:
 | | `SCRUB_MARGIN_HOURS` | int | 0-168 hours | |
 | | `DURATION_FACTOR` | float | 1-10 | |
 | | `BUSY_KBPS` | int | min 0 (0 = off) | |
+| Backups | `BACKUP_AVOID` | bool | | |
+| | `BACKUP_MARGIN_HOURS` | int | 0-168 hours | |
+| | `BACKUP_DEFAULT_HOURS` | float | 0.1-168 hours | |
+| | `BACKUP_UPLOAD_MBPS` | int | min 0 Mbit/s (0 = unknown) | |
 | Notifications | `WEBHOOK_URL` | url | secret, may be empty | yes |
 | | `WEBHOOK_FORMAT` | choice | text, json, slack, discord | yes |
 | | `NOTIFY_SUCCESS` | bool | | |

@@ -1,16 +1,16 @@
-  Old-drive age               43800 power-on hours                             ↑
-  Retry after a failure       7 days
-  Warning attributes          5,187,197,198
-  Per-drive intervals         (none)
-  Never test                  (none)
-
-When tests may start
+When tests may start                                                           ↑
   Start window                00:00 to 05:00
   Tests at once               1
   Starts per night            1
-  Scrub margin                ┌─ Webhook format ─┐
-  Duration factor             │  text            │
-  Busy drive above            │› json            │
+  Scrub margin                2 hours
+  Duration factor             1.5
+  Busy drive above            20000 KB/s
+
+UniFi backups and replication
+  Avoid backup tasks          [x] yes
+  Backup margin               ┌─ Webhook format ─┐
+  Default backup length       │  text            │
+  Upload speed                │› json            │
                               │  slack           │
 Notifications                 │  discord         │
   Webhook URL                 └──────────────────┘

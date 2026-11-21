@@ -47,6 +47,20 @@ DURATION_FACTOR=1.5
 # would start. 0 turns the check off.
 BUSY_KBPS=20000
 
+# --- UniFi backups and replication ---------------------------------------------
+# Keep tests clear of UniFi Drive's scheduled backup and replication tasks
+# (UniFi Cloud backups, UNAS-to-UNAS, local copies), read from Drive's own
+# task list. Only the schedules and run times are read, never credentials.
+BACKUP_AVOID=yes
+# Don't start a test that could still be running this many hours before a
+# task starts, or until this many hours after its estimated end.
+BACKUP_MARGIN_HOURS=1
+# How long a task with no run history is assumed to take, in hours.
+BACKUP_DEFAULT_HOURS=4
+# Upload speed to the backup provider in Mbit/s, used with no run history when
+# the task has no bandwidth limit. 0 = unknown (BACKUP_DEFAULT_HOURS applies).
+BACKUP_UPLOAD_MBPS=0
+
 # --- Notifications ---------------------------------------------------------------
 # Where alerts go. Empty = journal/syslog only.
 WEBHOOK_URL=

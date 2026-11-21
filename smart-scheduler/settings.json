@@ -167,6 +167,48 @@
       ]
     },
     {
+      "id": "backups",
+      "title": "UniFi backups and replication",
+      "fields": [
+        {
+          "key": "BACKUP_AVOID",
+          "type": "bool",
+          "label": "Avoid backup tasks",
+          "default": "yes",
+          "help": "Keep tests clear of UniFi Drive's scheduled backup and replication tasks. Only schedules and run times are read, never credentials."
+        },
+        {
+          "key": "BACKUP_MARGIN_HOURS",
+          "type": "int",
+          "label": "Backup margin",
+          "unit": "hours",
+          "min": 0,
+          "max": 168,
+          "default": "1",
+          "help": "Don't start a test that could still be running this many hours before a task starts, or until this long after its estimated end."
+        },
+        {
+          "key": "BACKUP_DEFAULT_HOURS",
+          "type": "float",
+          "label": "Default backup length",
+          "unit": "hours",
+          "min": 0.1,
+          "max": 168,
+          "default": "4",
+          "help": "How long a task with no run history is assumed to take."
+        },
+        {
+          "key": "BACKUP_UPLOAD_MBPS",
+          "type": "int",
+          "label": "Upload speed",
+          "unit": "Mbit/s",
+          "min": 0,
+          "default": "0",
+          "help": "Upload speed to the backup provider, used with no run history when the task has no bandwidth limit. 0 = unknown."
+        }
+      ]
+    },
+    {
       "id": "notifications",
       "title": "Notifications",
       "fields": [

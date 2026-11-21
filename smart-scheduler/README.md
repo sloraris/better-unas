@@ -39,13 +39,41 @@ The most urgent due drive gets a test only when all of these hold:
 - no other SMART test is running
 - every pool is fully operational: not degraded, rebuilding, resyncing or scrubbing
 - the test, at the drive's own estimated length × 1.5, would end at least 2 hours before the next scheduled scrub
+- the test would stay clear of UniFi Drive's scheduled backup and replication tasks (see below)
 - the drive isn't busy (more than 20 MB/s of reads and writes)
 
 `python3 smart_scheduler.py status` shows each drive's last test, its next due
 date and why, then the plan: the night each drive's next test will start,
-assuming every test passes, and any night skipped because of a scrub. The plan
+assuming every test passes, and any night skipped because of a scrub or a
+backup task, followed by the backup tasks it avoids. The plan
 comes from `planner.py`, the same code the hourly run uses to decide whether to
 start a test, so the two always agree as long as nothing on the NAS changes.
+
+### Backups and replication
+
+UniFi Drive's own backup tasks (UniFi Cloud backups, UNAS-to-UNAS replication,
+local copies) are read from Drive's task list every run, and tests are kept
+clear of them the same way as scrubs. Only enabled tasks count; a task's days,
+first run time and repeat interval give its upcoming runs.
+
+How long a run takes is estimated from, in order:
+
+1. the longest of its last 10 successful or partial runs;
+2. without history, the source size over the task's bandwidth limit or
+   `BACKUP_UPLOAD_MBPS` (not used yet: Drive's tables don't give a source size
+   we can rely on yet; see [#5](https://github.com/sloraris/better-unas/issues/5));
+3. otherwise `BACKUP_DEFAULT_HOURS` (4 h).
+
+A test may not start if it could still be running `BACKUP_MARGIN_HOURS` (1 h)
+before a task starts, or before that margin has passed after its estimated end.
+A run already going on blocks from its real start. A task that repeats every
+hour or so leaves no gap long enough for an extended test; set
+`BACKUP_AVOID=no` if you'd rather let tests overlap it.
+
+Only the schedule and timing columns are read. The access keys, secrets,
+usernames and addresses stored next to them are never selected. If Drive's
+tables change shape, you get a warning and tests carry on without avoiding
+backups until it is fixed.
 
 ## Install
 
@@ -138,6 +166,7 @@ python3 -m unittest discover -s tests        # logic tests (any machine, no NAS 
 | SMART history | `GET /api/v2/storage/disks/{slot}/smart-tests?serial=…` with `X-UserId` |
 | Start a test | `POST /api/v2/storage/disks/{slot}/smart-tests` `{"type":"extended"}` with `X-UserId` |
 | Account ID | read-only lookup in UniFi OS's user database |
+| Backup tasks and runs | read-only lookup of schedule and timing columns in Drive's `remote_backup_tasks` and `remote_backup_task_runs` |
 
 These are the same calls the Drive web UI makes.
 
