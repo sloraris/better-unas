@@ -1,14 +1,12 @@
 """The core's own screens.
 
-Settings is a first version built only on the plugin contract; #12 grows
-it into the real thing. Home lives in home.py (#9), Alerts in alerts.py (#13)
-and Tools in tools.py (#14). The small helpers (detail, help, chooser, error,
-too-small) stay.
+Home lives in home.py (#9), Settings in settings.py (#12), Alerts in
+alerts.py (#13) and Tools in tools.py (#14). The small helpers (detail, help,
+chooser, error, too-small) stay.
 """
 
 import datetime as dt
 
-from .. import plugins as P
 from . import widgets as W
 
 
@@ -112,74 +110,3 @@ class ChooserScreen:
             self.ctx.push(app.make(self.tab, label, ctx, make))
             return True
         return self.list.key(k)
-
-
-class SettingsScreen:
-    """Pick a tool to see its settings form. Saving arrives with #12."""
-
-    title = "Settings"
-
-    def __init__(self, ctx):
-        self.ctx = ctx
-        app = ctx.app
-        self.tools = [t for t in app.tools if t.schema]
-        self.list = W.ListView([f"{t.name:<20} {len(P.fields(t.schema))} settings" for t in self.tools],
-                               empty="No installed tool has settings.")
-
-    def keys(self):
-        return [("Enter", "open")] + self.list.keys()
-
-    def render(self, canvas):
-        canvas.text(0, 0, "Settings by tool. The config files stay the source of truth.", "dim")
-        self.list.render(canvas.sub(2, 0, canvas.height - 2, canvas.width))
-
-    def key(self, k):
-        if k == "enter" and self.tools:
-            tool = self.tools[self.list.index]
-            app = self.ctx.app
-            self.ctx.push(FormScreen(app.contexts[tool.name], app.plugins.get(tool.name)))
-            return True
-        return self.list.key(k)
-
-
-class FormScreen:
-    """One tool's settings as a form (read-only for now: `s` explains)."""
-
-    def __init__(self, ctx, plugin=None):
-        self.ctx, self.plugin = ctx, plugin
-        self.title = ctx.tool.name
-        try:
-            raw, _ = P.read_keyvalue(ctx.tool.file("CONFIG"))
-        except FileNotFoundError:
-            raw = {}
-        self.form = W.Form(ctx.tool.schema, raw)
-        self.revalidate()
-
-    def keys(self):
-        ks = self.form.keys()
-        return ks if self.form.editing else ks + [("s", "save")]
-
-    def revalidate(self):
-        if self.plugin is not None and hasattr(self.plugin, "validate"):
-            try:
-                self.form.set_extra_errors(self.plugin.validate(self.form.values()))
-            except Exception as e:
-                self.ctx.message(f"validate: {type(e).__name__}: {e}", "bad")
-
-    def render(self, canvas):
-        self.form.render(canvas)
-
-    def key(self, k):
-        if not self.form.editing and k == "s":
-            n = len(self.form.changed())
-            self.ctx.message(f"Saving arrives with the Settings screen (#12); {n} field(s) changed.", "warn")
-            return True
-        used = self.form.key(k)
-        if used:
-            self.revalidate()
-        return used
-
-    def can_leave(self):
-        if not self.form.changed():
-            return True
-        return self.ctx.confirm("Discard your changes?", [f"{len(self.form.changed())} setting(s) were edited and not saved."])
