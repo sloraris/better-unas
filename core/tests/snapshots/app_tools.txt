@@ -1,0 +1,24 @@
+ 1 Home │ 2 Board │ 3 Space │ 4 Settings │ 5 Alerts │ 6 Tools
+ Tools ───────────────────────────────────────────────────────────────────────
+  Tool               Version   State    Summary
+› fixture            1.2.3     warn     Fixture tool for the TUI tests
+  space-watch        0.1.0     ok       Warns when a volume is nearly full (co…
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+ Enter details  ↑↓ move                           1-6/Tab tabs  ? help  q quit

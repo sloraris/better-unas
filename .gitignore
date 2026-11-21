@@ -6,3 +6,6 @@
 
 __pycache__/
 .DS_Store
+
+# TUI log (python3 -m core.tui)
+tui.log

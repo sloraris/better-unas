@@ -312,6 +312,9 @@ class DrivesScreen:
 
     def key(self, k):                      # return True if handled
         ...
+
+    def can_leave(self):                   # optional: False keeps the user here
+        return True
 ```
 
 - **`show()`** is where reads happen (via `ctx.run_slow`), so the calendar is
@@ -324,11 +327,18 @@ class DrivesScreen:
 - **`key(k)`** gets one key name: a printable character (`"t"`, `"Z"`, `"?"`)
   or one of `up down left right enter esc tab backtab pgup pgdn home end
   backspace delete f1`...`f12`. Return `True` if the screen used it.
-- **Keys the core keeps.** `1`-`9` and `tab`/`backtab` switch tabs, `q` quits,
-  `?` shows help, and `esc` goes back (pops a pushed screen; on a tab's root
-  screen it does nothing). A screen sees these keys first only while a core
-  text field it opened is being edited. Everything else goes to the screen
-  first; if it returns `False`, the core may use it.
+- **Keys the core keeps.** `1`-`9` and `tab`/`backtab` switch tabs, `q` quits
+  and `?` shows help. A screen sees these keys first only while a core field
+  it opened is being edited (the core knows, because the field registers
+  itself while editing). Everything else, `esc` included, goes to the screen
+  first; if it returns `False`, the core may use it. For `esc` that means going
+  back: it pops a pushed screen, and on a tab's root screen does nothing. (A
+  screen gets `esc` first so the Settings screen, a tab's root, can offer to
+  discard, and so a screen can close something of its own before going back.)
+- **`can_leave()`** (optional) is called before the core takes the user away
+  from the screen: switching tabs, `esc` popping it, or `q`. Return `False` to
+  stay. It may ask first (`return self.ctx.confirm("Discard your changes?")`).
+  Without it, leaving is always allowed.
 - A screen opens a sub-screen (a drive's details, a day's details) with
   `ctx.push(screen)`; the pushed object follows the same interface.
 
@@ -352,6 +362,8 @@ function and screen. In tests, a small fake stands in for it (see
 | `ctx.push(screen)` / `ctx.pop()` | Screen stack within the current tab. |
 | `ctx.theme` | The theme (section 7). Screens usually just pass tone names to the canvas. |
 | `ctx.log(text)` | Appends to the TUI's own log (not the journal) for debugging. Never pass secrets. |
+| `ctx.LockBusy` | The exception `ctx.lock()` raises, so a screen can catch it without importing the core. |
+| `ctx.widgets` | The core's widget module (`core/tui/widgets.py`): `ListView`, `Table`, `ScrollText`, `Form` and the rest, so a plugin uses them without relying on `sys.path`. |
 
 The core implements this context (#4). Functions beyond this list are the
 core's business and may change; a tool that needs more should ask for it in a
@@ -385,7 +397,8 @@ own background is always used, and with `NO_COLOR` set every tone draws as
 plain text (with `bad` and `warn` bold), so a screen must never carry meaning
 in color alone: say "failed", not just a red mark.
 
-Screens draw with `text` and the core's widgets (list, table, form, from #4),
+Screens draw with `text` and the core's widgets (list, table, form, from #4,
+reached through `ctx.widgets`),
 which take a canvas the same way.
 
 ## 8. CLI
@@ -473,7 +486,7 @@ Notes for #7:
 
 ## What this leaves to other issues
 
-- **#4** implements the context, canvas (curses and headless), widgets and
+- **#4** (`core/tui/`) implements the context, canvas (curses and headless), widgets and
   the tab placement rules above, and loads tools with `discover()`.
 - **#7** adds smart-scheduler's `settings.json`, `plugin.py` and the
   comment-keeping config writer, and decides whether the tool's own `Config`

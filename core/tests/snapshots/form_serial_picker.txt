@@ -1,0 +1,20 @@
+General
+  Enabled                     [x] yes
+  UniFi OS account            (none)
+
+How often each drive gets an extended test
+  Healthy drive               90 days
+  Drive with warning signs    30 days
+  Old drive                   ┌─ Add a drive ────────────────────────────────┐
+  Old-drive age               │› ZL2                                         │
+  Retry after a failure       │  ZL3                                         │
+  Warning attributes          │  Other...                                    │
+  Per-drive intervals         └──────────────────────────────────────────────┘
+  Never test                  ZL1
+
+When tests may start
+  Start window                00:00 to 05:00
+  Tests at once               1                                                ↓
+────────────────────────────────────────────────────────────────────────────────
+Drives to never test, by serial number.
+
