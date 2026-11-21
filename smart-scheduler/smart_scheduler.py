@@ -44,6 +44,7 @@ BASE = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, BASE)
 import planner  # noqa: E402  (lives next to this file)
 import backups  # noqa: E402
+import settings  # noqa: E402
 CONFIG_FILE = os.path.join(BASE, "config")
 STATE_FILE = os.path.join(BASE, "state.json")
 MANIFEST_FILE = os.path.join(BASE, "manifest.sha256")
@@ -61,34 +62,11 @@ TRIGGERS = {
 }
 TIMER_UNIT = "smart-scheduler.timer"
 
-DEFAULTS = {
-    "ENABLED": "yes",
-    "DRIVE_USER": "",
-    "INTERVAL_DAYS": "90",
-    "WARN_INTERVAL_DAYS": "30",
-    "OLD_INTERVAL_DAYS": "60",
-    "OLD_DRIVE_HOURS": "43800",
-    "RETRY_FAILED_DAYS": "7",
-    "WARN_ATTRIBUTES": "5,187,197,198",
-    "START_WINDOW": "00:00-05:00",
-    "MAX_CONCURRENT": "1",
-    "MAX_STARTS_PER_NIGHT": "1",
-    "SCRUB_MARGIN_HOURS": "2",
-    "DURATION_FACTOR": "1.5",
-    "BUSY_KBPS": "20000",
-    "BACKUP_AVOID": "yes",
-    "BACKUP_MARGIN_HOURS": "1",
-    "BACKUP_DEFAULT_HOURS": "4",
-    "BACKUP_UPLOAD_MBPS": "0",
-    "EXCLUDE_SERIALS": "",
-    "INTERVAL_OVERRIDES": "",
-    "WEBHOOK_URL": "",
-    "WEBHOOK_FORMAT": "text",
-    "NOTIFY_SUCCESS": "no",
-    "ALERT_REPEAT_HOURS": "72",
-    "HEARTBEAT_URL": "",
-    "HEARTBEAT_FAIL_URL": "",
-}
+# Every setting, its default, type and range live in settings.json (the
+# plugin contract's settings schema). Adding a setting means adding it there.
+SCHEMA_FILE = os.path.join(BASE, "settings.json")
+SCHEMA = settings.load_schema(SCHEMA_FILE)
+DEFAULTS = settings.defaults(SCHEMA)
 
 RUNNING_STATUSES = planner.RUNNING_STATUSES
 
@@ -166,57 +144,23 @@ def api(method, path, user_id=None, body=None, timeout=15):
 # --------------------------------------------------------------------------- config and state
 
 class Config:
-    def __init__(self, path):
-        self.values = dict(DEFAULTS)
-        self.errors = []
-        if os.path.exists(path):
-            with open(path) as f:
-                for n, line in enumerate(f, 1):
-                    line = line.strip()
-                    if not line or line.startswith("#"):
-                        continue
-                    if "=" not in line:
-                        self.errors.append(f"config line {n}: expected KEY=VALUE")
-                        continue
-                    k, v = line.split("=", 1)
-                    k, v = k.strip(), v.strip().strip('"').strip("'")
-                    if k not in DEFAULTS:
-                        self.errors.append(f"config line {n}: unknown setting {k}")
-                        continue
-                    self.values[k] = v
-        self.overrides = {}
-        for item in filter(None, (x.strip() for x in self.values["INTERVAL_OVERRIDES"].split(","))):
-            serial, _, days = item.rpartition(":")
-            if serial and days.isdigit():
-                self.overrides[serial] = int(days)
-            else:
-                self.errors.append(f"INTERVAL_OVERRIDES: bad entry {item!r} (want SERIAL:DAYS)")
-        try:
-            self.window = self._window(self.values["START_WINDOW"])
-        except ValueError:
-            self.errors.append("START_WINDOW: want HH:MM-HH:MM")
-            self.window = self._window(DEFAULTS["START_WINDOW"])
-        for key in ("INTERVAL_DAYS", "WARN_INTERVAL_DAYS", "OLD_INTERVAL_DAYS", "OLD_DRIVE_HOURS",
-                    "RETRY_FAILED_DAYS", "MAX_CONCURRENT", "MAX_STARTS_PER_NIGHT",
-                    "SCRUB_MARGIN_HOURS", "ALERT_REPEAT_HOURS", "BUSY_KBPS", "BACKUP_MARGIN_HOURS",
-                    "BACKUP_UPLOAD_MBPS"):
-            if not self.values[key].isdigit():
-                self.errors.append(f"{key}: want a whole number, got {self.values[key]!r}")
-                self.values[key] = DEFAULTS[key]
-        try:
-            if float(self.values["BACKUP_DEFAULT_HOURS"]) <= 0:
-                raise ValueError
-        except ValueError:
-            self.errors.append(f"BACKUP_DEFAULT_HOURS: want a number of hours, got {self.values['BACKUP_DEFAULT_HOURS']!r}")
-            self.values["BACKUP_DEFAULT_HOURS"] = DEFAULTS["BACKUP_DEFAULT_HOURS"]
-        if self.values["DRIVE_USER"] and not re.fullmatch(r"[A-Za-z0-9._@-]+", self.values["DRIVE_USER"]):
-            self.errors.append("DRIVE_USER: letters, digits and . _ @ - only")
-            self.values["DRIVE_USER"] = DEFAULTS["DRIVE_USER"]
+    """The config file, checked against settings.json (see settings.py).
 
-    @staticmethod
-    def _window(text):
-        a, b = text.split("-")
-        return dt.time.fromisoformat(a.strip()), dt.time.fromisoformat(b.strip())
+    values holds each setting's text in canonical form ("yes", "5,187");
+    typed holds the parsed values. A bad or unknown line is reported in errors
+    ("KEY: message") and the default is used instead.
+    """
+
+    def __init__(self, path, schema=None):
+        self.schema = schema or SCHEMA
+        raw, problems = settings.read(path)
+        self.typed, self.field_errors = settings.validate(self.schema, raw)
+        self.errors = [f"config {p}" for p in problems]
+        self.errors += [f"{k}: {m}" for k, m in self.field_errors.items()]
+        self.values = {f["key"]: settings.format_value(f, self.typed[f["key"]])
+                       for f in settings.fields(self.schema)}
+        self.overrides = dict(self.typed["INTERVAL_OVERRIDES"])
+        self.window = self.typed["START_WINDOW"]
 
     def __getitem__(self, k):
         return self.values[k]
@@ -225,10 +169,7 @@ class Config:
         return int(self.values[k])
 
     def float(self, k):
-        try:
-            return float(self.values[k])
-        except ValueError:
-            return float(DEFAULTS[k])
+        return float(self.values[k])
 
     def yes(self, k):
         return self.values[k].lower() in ("yes", "true", "1", "on")

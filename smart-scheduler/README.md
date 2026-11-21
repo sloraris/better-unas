@@ -99,12 +99,14 @@ No UniFi setup is needed. It runs as the console owner (see
    heartbeat URL. Every setting is explained there.
 
 `install.sh` is safe to re-run at any time. It never touches an existing `config`.
+The better-unas TUI's Settings screen edits the same file and changes only the
+lines you edit, so hand edits and comments survive.
 
 ## What it puts on the NAS
 
 | Where | What |
 |---|---|
-| `/persistent/better-unas/smart-scheduler/` | the script, `config`, `state.json`, trigger templates, `manifest.sha256` |
+| `/persistent/better-unas/smart-scheduler/` | the scripts, `config`, `settings.json` (every setting's default and allowed values), `state.json`, trigger templates, `manifest.sha256` |
 | `/etc/systemd/system/smart-scheduler.{service,timer}` | main trigger: hourly, 10 min after boot, catches up on missed runs |
 | `/etc/cron.d/smart-scheduler` | backup trigger |
 
