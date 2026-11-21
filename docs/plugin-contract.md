@@ -206,6 +206,7 @@ def summary(ctx): ...     # required
 def alerts(ctx): ...      # required
 def validate(values): ... # optional
 def screens(ctx): ...     # optional
+def send_test(ctx, key, values): ...  # optional
 ```
 
 Every function except `validate` gets the context described in section 6. They must not write
@@ -260,13 +261,18 @@ characters so the card lines up.
     "active": True,            # False for recently resolved ones
     "since": "2026-11-20T01:04:00-07:00",   # ISO 8601 with offset
     "last": "2026-11-21T01:00:00-07:00",    # optional: last time it was raised
+    "resolved": None,          # optional: when it cleared, for active False ones
   },
 ]
 ```
 
-The Alerts screen merges every tool's list, active first, newest first. Home
-shows the count of active ones. smart-scheduler's `state["alerts"]` entries map
-straight across: key to `id`, `msg` to `message`, `sent` to `last`.
+The Alerts screen merges every tool's list, active first, newest first, and
+shows `resolved` for the resolved ones. Home shows the count of active ones.
+smart-scheduler's `state["alerts"]` entries map straight across: key to `id`,
+`msg` to `message`, `sent` to `last`, and its level `warning` to `warn`. Its
+`state["resolved"]` list (the last 20 cleared alerts, oldest first, each
+`{key, msg, level, since, sent, resolved}`) gives the recent ones with
+`active: False`; skip an entry whose key is active again.
 
 ### `validate(values)`: cross-field rules (optional)
 
@@ -275,6 +281,25 @@ unsaved edits applied) and returns `{KEY: message}` for fields that break a
 rule spanning several settings, e.g. `{"WARN_INTERVAL_DAYS": "should be
 shorter than the healthy interval"}`. Empty dict when fine. No context: it must
 be pure.
+
+### `send_test(ctx, key, values)`: "send test" for a URL setting (optional)
+
+The Alerts screen's notification setup shows the schema groups that hold `url`
+fields and lets the user press `t` on one of them. The core then calls
+`send_test(ctx, key, values)` through `ctx.run_slow`, after a confirm:
+
+- `key` is the `url` field's key, e.g. `WEBHOOK_URL` or `HEARTBEAT_URL`.
+- `values` are the typed settings with the user's unsaved edits applied, so
+  the test uses the URL and format on screen, not the saved ones.
+- Return a short success text (`"test alert sent (slack format)"`), shown in
+  green. Raise an exception whose message says what went wrong (`"HTTP 404
+  Not Found"`, `"timed out"`); the core shows it in red without the exception
+  type. Return `None` for a key that has no test; the core says so.
+
+It must send exactly what the tool's own sender sends, so the user tests the
+real format. It writes nothing locally and takes no lock. Without the
+function, `t` says the tool can't send a test. smart-scheduler's
+implementation is one line: `smart_scheduler.send_test(values, key)`.
 
 ### `screens(ctx)`: the tool's own screens (optional)
 

@@ -19,6 +19,7 @@ import traceback
 
 from .. import plugins as P
 from . import screens as core
+from .alerts import AlertsScreen
 from . import widgets
 from .keys import RESIZE
 from .lock import LockBusy, run_lock
@@ -150,7 +151,7 @@ class App:
         self.tabs = [Tab("Home", [("Home", self.core_ctx, core.HomeScreen)])]
         self.tabs += [Tab(title, entries) for title, entries in grouped.items()]
         self.tabs += [Tab("Settings", [("Settings", self.core_ctx, core.SettingsScreen)]),
-                      Tab("Alerts", [("Alerts", self.core_ctx, core.AlertsScreen)]),
+                      Tab("Alerts", [("Alerts", self.core_ctx, AlertsScreen)]),
                       Tab("Tools", [("Tools", self.core_ctx, core.ToolsScreen)])]
         self.current = 0
 

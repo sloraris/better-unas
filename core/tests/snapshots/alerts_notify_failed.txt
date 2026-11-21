@@ -1,0 +1,24 @@
+ 1 Home │ 2 Settings │ 3 Alerts │ 4 Tools
+ Alerts › Notifications ──────────────────────────────────────────────────────
+Notifications
+  Webhook URL                 (none)
+  Webhook format              ‹ text ›
+  Notify on pass              [ ] no
+  Repeat alerts every         72 hours
+* Heartbeat URL               ••••••••
+  Heartbeat URL on failure    (none)
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+Pinged (GET) after every healthy hourly run: a dead-man's switch such as
+healthchecks.io or an Uptime Kuma push monitor.
+Last test, Heartbeat URL: failed: HTTP 404 Not Found
+────────────────────────────────────────────────────────────────────────────────
+ Enter edit  t test  s save  ↑↓ move    Esc back  1-4/Tab tabs  ? help  q quit

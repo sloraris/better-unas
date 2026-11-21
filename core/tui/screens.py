@@ -1,7 +1,8 @@
 """The core's own screens.
 
-Home, Settings, Alerts and Tools here are first versions built only on the
-plugin contract; #9, #12, #13 and #14 grow them into the real thing. The
+Home, Settings and Tools here are first versions built only on the plugin
+contract; #9, #12 and #14 grow them into the real thing. Alerts (#13) lives
+in alerts.py. The
 small helpers (detail, help, chooser, error, too-small) stay.
 """
 
@@ -162,65 +163,6 @@ class HomeScreen:
             self.show()
             return True
         return self.text.key(k)
-
-
-class AlertsScreen:
-    """Every tool's alerts merged: active first, newest first."""
-
-    title = "Alerts"
-    LEVEL_TONE = {"error": "bad", "warn": "warn", "info": "normal"}
-
-    def __init__(self, ctx):
-        self.ctx = ctx
-        self.alerts = []
-        self.table = W.Table([("Level", 7), ("Tool", 16), ("Since", 16), ("Message", None)],
-                             empty="No alerts.")
-
-    def keys(self):
-        return [("Enter", "details"), ("r", "refresh")] + self.table.keys()
-
-    def show(self):
-        app = self.ctx.app
-        found = []
-        for name, mod in app.plugins.items():
-            tctx = app.contexts[name]
-            try:
-                alerts = tctx.run_slow(lambda: mod.alerts(tctx), f"Reading {name}")
-                problems = P.check_alerts(alerts)
-            except Exception as e:
-                alerts, problems = [], [f"{type(e).__name__}: {e}"]
-            if problems:
-                found.append((name, {"level": "error", "active": True, "since": "",
-                                     "message": "; ".join(problems), "id": "plugin"}))
-            found += [(name, a) for a in alerts]
-        found.sort(key=lambda na: na[1].get("since") or "", reverse=True)
-        found.sort(key=lambda na: not na[1]["active"])
-        self.alerts = found
-        self.table.set_rows([
-            [(a["level"] if a["active"] else "past", self.LEVEL_TONE[a["level"]] if a["active"] else "dim"),
-             name, when(a["since"]), (a["message"], "normal" if a["active"] else "dim")]
-            for name, a in found])
-
-    def render(self, canvas):
-        active = sum(1 for _, a in self.alerts if a["active"])
-        canvas.text(0, 0, f"{active} active, {len(self.alerts) - active} recent", "bad" if active else "dim")
-        self.table.render(canvas.sub(2, 0, canvas.height - 2, canvas.width))
-
-    def key(self, k):
-        if k == "enter" and self.alerts:
-            name, a = self.alerts[self.table.index]
-            lines = [(a["message"], self.LEVEL_TONE[a["level"]]), "",
-                     f"Tool:     {name}", f"Level:    {a['level']}",
-                     f"Active:   {'yes' if a['active'] else 'no (resolved)'}",
-                     f"Since:    {when(a['since'])}"]
-            if a.get("last"):
-                lines.append(f"Last:     {when(a['last'])}")
-            self.ctx.push(DetailScreen(f"Alert {a['id']}", lines))
-            return True
-        if k == "r":
-            self.show()
-            return True
-        return self.table.key(k)
 
 
 class ToolsScreen:
