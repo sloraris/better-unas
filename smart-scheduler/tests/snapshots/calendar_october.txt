@@ -1,0 +1,24 @@
+ 1 Home │ 2 Calendar │ 3 Settings │ 4 Alerts │ 5 Tools
+ Calendar ───────────────────────────────────────────────────── smart-scheduler
+ ‹ October 2026 ›                                         plan until Sun 21 Feb
+  Mon        Tue        Wed        Thu        Fri        Sat        Sun
+                                    1          2          3          4
+
+   5          6          7          8          9         10         11
+
+  12         13         14         15         16         17         18
+
+  19         20         21         22         23         24         25
+             S5
+  26         27         28         29         30         31
+
+
+ Thu 22 Oct 2026
+   No test on record.
+
+
+
+
+ S6 planned   S6 passed   S6! failed   S6* running   sc scrub   bk backup
+────────────────────────────────────────────────────────────────────────────────
+ Arrows day  PgUp/Dn month  Enter details  … ?    1-5/Tab tabs  ? help  q quit

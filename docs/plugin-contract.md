@@ -78,7 +78,7 @@ CONFIG=config
 CONFIG_EXAMPLE=config.example
 ```
 
-`PLUGIN=plugin.py` follows when its plugin module lands.
+and `PLUGIN=plugin.py` since #10 (Home card, alerts and the Calendar screen).
 
 ## 2. Config file
 
