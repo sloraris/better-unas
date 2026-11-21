@@ -47,13 +47,19 @@ HISTORY_DAYS = 180
 # An unfinished run older than this is treated as a leftover record.
 STALE_RUN = dt.timedelta(days=2)
 
+# Verified on hardware (Drive 4.4.x): started_at/finished_at/deleted_at are
+# timestamptz; id/task_id uuid; schedule_enable boolean; schedule_interval and
+# bw_limit integer; status, remote_type, name and schedule_* text. The other
+# accepted types only keep a later change from breaking the read.
 TIME_TYPES = ("timestamp with time zone", "timestamp without time zone", "timestamp", "date")
 NUMBER_TYPES = ("bigint", "integer", "smallint", "numeric", "double precision", "real")
 
 SHAPE_QUERY = (f"SELECT table_name, column_name, data_type FROM information_schema.columns "
                f"WHERE table_schema = current_schema() AND table_name IN ('{TASKS_TABLE}', '{RUNS_TABLE}')")
 
-REMOTE_LABELS = {"cloud": "UniFi Cloud backup", "unifi_cloud": "UniFi Cloud backup", "unas": "replication",
+# Drive's remote_type values seen on hardware: ucs (UniFi Cloud Storage), unas
+# (replication to another UNAS) and local. The rest are fallbacks.
+REMOTE_LABELS = {"ucs": "UniFi Cloud backup", "cloud": "UniFi Cloud backup", "unifi_cloud": "UniFi Cloud backup", "unas": "replication",
                  "replication": "replication", "local": "local backup", "smb": "network backup",
                  "nfs": "network backup", "s3": "S3 backup"}
 
@@ -257,7 +263,8 @@ def run_times(task, start, until):
 # --------------------------------------------------------------------------- duration
 
 def _good(status):
-    return any(w in status for w in ("success", "partial", "complete", "done", "finish"))
+    # Drive's run statuses on hardware: "succeeded" and "partially-successful".
+    return any(w in status for w in ("succeed", "success", "partial", "complete", "done", "finish"))
 
 
 def estimate(cfg, task, runs, size_bytes=None):
