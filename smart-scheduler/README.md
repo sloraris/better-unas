@@ -49,11 +49,10 @@ date and why.
 1. In UniFi OS, create a user for the scheduler, e.g. `smart-scheduler`. A
    basic user with no admin role and no file access is enough; Drive only needs
    it to exist.
-2. Copy this folder to the NAS under `/persistent` (which survives firmware
-   updates):
+2. On the NAS, download Better UNAS to `/persistent` (which survives firmware
+   updates), if you haven't already:
    ```bash
-   ssh root@<nas> mkdir -p /persistent/better-unas
-   scp -r smart-scheduler root@<nas>:/persistent/better-unas/
+   mkdir -p /persistent/better-unas && curl -fsSL https://github.com/sloraris/better-unas/archive/refs/heads/main.tar.gz | tar -xz --strip-components=1 -C /persistent/better-unas
    ```
 3. On the NAS:
    ```bash

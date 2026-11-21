@@ -49,6 +49,28 @@ When a second tool exists, code they truly share (API client, alerts,
 self-heal) may move into a common module. Until then each tool carries its own
 copy, so installing one never requires another.
 
+## Install
+SSH into your UNAS if you haven't already:
+1. Go to UniFi Drive Settings -> Management -> SSH
+2. Enable SSH and set a password
+3. Log into your UNAS using `root@<YOUR_UNAS_IP>`
+
+Download Better UNAS to `/persistent`, which survives firmware updates:
+```bash
+mkdir -p /persistent/better-unas && curl -fsSL https://github.com/sloraris/better-unas/archive/refs/heads/main.tar.gz | tar -xz --strip-components=1 -C /persistent/better-unas
+```
+
+Downloading does not install or run anything. Each tool installs on its own,
+so set up only the ones you want. Follow the tool's README; some need a step
+in the UniFi UI first. For example, smart-scheduler needs its UniFi user
+created before you run:
+```bash
+cd /persistent/better-unas/smart-scheduler && ./install.sh
+```
+
+To update later, run the same download command again, then re-run each
+installed tool's `install.sh`. Your `config` and state files are kept.
+
 ## Compatibility
 
 Developed on a UNAS Pro, UniFi OS 6.0.18, UniFi Drive 4.4.31. Other UNAS
