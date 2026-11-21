@@ -67,6 +67,8 @@ backup and replication tasks as busy windows, the same way it treats scrubs.
   better-unas            the app (entry point; also the CLI)
   core/                  TUI framework, planner, update checker
   VERSION                installed suite version
+  .release/              the installed release, so a tool installs without a download
+  .update-check.json     the cached update check
   smart-scheduler/       tool: script, config, state, triggers, schema, screens
 /usr/local/bin/better-unas -> /persistent/better-unas/better-unas  (restored by update)
 ```
