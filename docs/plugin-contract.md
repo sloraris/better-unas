@@ -17,7 +17,7 @@ A tool is a folder with up to four contract pieces:
 | CLI | the tool's script (set by `CLI`) | `better-unas <tool> <command>` and the scheduled run. |
 
 A minimal working example lives in [examples/space-watch/](examples/space-watch/),
-and [examples/smart-scheduler.settings.json](examples/smart-scheduler.settings.json)
+and [smart-scheduler/settings.json](../smart-scheduler/settings.json)
 maps every smart-scheduler setting onto the schema. `core/plugins.py` loads
 and checks all of this; run it on a tool folder while you write one:
 
@@ -69,16 +69,16 @@ All paths are relative and must stay inside the tool folder. Unknown keys are
 an error, so a typo doesn't silently do nothing; new keys come with a new
 contract version.
 
-smart-scheduler's `tool.conf` today is a valid version-0 manifest (no schema,
-no plugin). Issue #7 adds:
+smart-scheduler's `tool.conf` has a schema since #7:
 
 ```
 CONTRACT=1
 SCHEMA=settings.json
 CONFIG=config
 CONFIG_EXAMPLE=config.example
-PLUGIN=plugin.py
 ```
+
+`PLUGIN=plugin.py` follows when its plugin module lands.
 
 ## 2. Config file
 
@@ -312,6 +312,9 @@ class DrivesScreen:
 
     def key(self, k):                      # return True if handled
         ...
+
+    def can_leave(self):                   # optional: False keeps the user here
+        return True
 ```
 
 - **`show()`** is where reads happen (via `ctx.run_slow`), so the calendar is
@@ -324,11 +327,18 @@ class DrivesScreen:
 - **`key(k)`** gets one key name: a printable character (`"t"`, `"Z"`, `"?"`)
   or one of `up down left right enter esc tab backtab pgup pgdn home end
   backspace delete f1`...`f12`. Return `True` if the screen used it.
-- **Keys the core keeps.** `1`-`9` and `tab`/`backtab` switch tabs, `q` quits,
-  `?` shows help, and `esc` goes back (pops a pushed screen; on a tab's root
-  screen it does nothing). A screen sees these keys first only while a core
-  text field it opened is being edited. Everything else goes to the screen
-  first; if it returns `False`, the core may use it.
+- **Keys the core keeps.** `1`-`9` and `tab`/`backtab` switch tabs, `q` quits
+  and `?` shows help. A screen sees these keys first only while a core field
+  it opened is being edited (the core knows, because the field registers
+  itself while editing). Everything else, `esc` included, goes to the screen
+  first; if it returns `False`, the core may use it. For `esc` that means going
+  back: it pops a pushed screen, and on a tab's root screen does nothing. (A
+  screen gets `esc` first so the Settings screen, a tab's root, can offer to
+  discard, and so a screen can close something of its own before going back.)
+- **`can_leave()`** (optional) is called before the core takes the user away
+  from the screen: switching tabs, `esc` popping it, or `q`. Return `False` to
+  stay. It may ask first (`return self.ctx.confirm("Discard your changes?")`).
+  Without it, leaving is always allowed.
 - A screen opens a sub-screen (a drive's details, a day's details) with
   `ctx.push(screen)`; the pushed object follows the same interface.
 
@@ -352,6 +362,8 @@ function and screen. In tests, a small fake stands in for it (see
 | `ctx.push(screen)` / `ctx.pop()` | Screen stack within the current tab. |
 | `ctx.theme` | The theme (section 7). Screens usually just pass tone names to the canvas. |
 | `ctx.log(text)` | Appends to the TUI's own log (not the journal) for debugging. Never pass secrets. |
+| `ctx.LockBusy` | The exception `ctx.lock()` raises, so a screen can catch it without importing the core. |
+| `ctx.widgets` | The core's widget module (`core/tui/widgets.py`): `ListView`, `Table`, `ScrollText`, `Form` and the rest, so a plugin uses them without relying on `sys.path`. |
 
 The core implements this context (#4). Functions beyond this list are the
 core's business and may change; a tool that needs more should ask for it in a
@@ -385,7 +397,8 @@ own background is always used, and with `NO_COLOR` set every tone draws as
 plain text (with `bad` and `warn` bold), so a screen must never carry meaning
 in color alone: say "failed", not just a red mark.
 
-Screens draw with `text` and the core's widgets (list, table, form, from #4),
+Screens draw with `text` and the core's widgets (list, table, form, from #4,
+reached through `ctx.widgets`),
 which take a canvas the same way.
 
 ## 8. CLI
@@ -430,10 +443,11 @@ exits 1 if any tool fails. Each tool's tests should include the same check
 
 ## 10. Worked example: smart-scheduler's settings
 
-[examples/smart-scheduler.settings.json](examples/smart-scheduler.settings.json)
+[smart-scheduler/settings.json](../smart-scheduler/settings.json)
 covers every key in `smart-scheduler/config.example`, grouped like it, and the
-tests check it against that file (keys and defaults). #7 moves it into the
-tool. Summary:
+tests check it against that file (keys and defaults). It started here as a
+worked example and moved into the tool in #7, where `smart-scheduler/settings.py`
+also drives the tool's own config loader and writer from it. Summary:
 
 | Group | Key | Type | Constraints | Essential |
 |---|---|---|---|---|
@@ -477,11 +491,12 @@ Notes for #7:
 
 ## What this leaves to other issues
 
-- **#4** implements the context, canvas (curses and headless), widgets and
+- **#4** (`core/tui/`) implements the context, canvas (curses and headless), widgets and
   the tab placement rules above, and loads tools with `discover()`.
-- **#7** adds smart-scheduler's `settings.json`, `plugin.py` and the
-  comment-keeping config writer, and decides whether the tool's own `Config`
-  loader shares validation with `core/plugins.py` (see open question 2).
+- **#7** adds smart-scheduler's `settings.json` and the comment-keeping
+  config writer (`smart-scheduler/settings.py`: `save(path, edits, schema)`),
+  and shares validation between the tool's `Config` loader and the writer
+  (see open question 2). smart-scheduler's `plugin.py` is still to come.
 - **#12** renders schemas as forms and calls `validate()`; **#15** uses
   `essential` fields and `CHANGES` for first-run setup.
 
@@ -491,12 +506,14 @@ Notes for #7:
    covers every tool. Should `tool.conf` keep its own `VERSION` (informational,
    or for a tool's own migrations), or drop it once #14 lands? This contract
    keeps it required so today's installer keeps working.
-2. **Sharing the validator with the scheduled run.** A tool must run without
-   the core, but #7 wants one validation implementation. Options: the tool
-   imports `core/plugins.py` when present and falls back to its own minimal
-   checks; or the core is always installed with the tools (true for anything
-   installed by the TUI) and tools may import it; or each tool vendors a copy.
-   Leaning to the second, since the TUI is now the only installer.
+2. **Sharing the validator with the scheduled run.** Decided in #7 for
+   smart-scheduler: the tool keeps a copy of the value rules
+   (`smart-scheduler/settings.py`) so the hourly run never imports the core,
+   and its tests check that copy against `core/plugins.py` field by field and
+   value by value, so the two can't drift. Inside the tool, the loader and the
+   writer share it and take every rule from `settings.json`. The schema is
+   therefore part of smart-scheduler itself, not an optional layer: it is in
+   the install manifest and the tool won't start without it.
 3. **Conditional fields.** Some settings only matter when another is set
    (`WEBHOOK_FORMAT` without `WEBHOOK_URL`). Version 1 has no `show_if`; the
    form shows every field. Add it if the Settings screen feels cluttered.

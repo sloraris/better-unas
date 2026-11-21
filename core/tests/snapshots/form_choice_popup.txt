@@ -1,0 +1,20 @@
+When tests may start                                                           ↑
+  Start window                00:00 to 05:00
+  Tests at once               1
+  Starts per night            1
+  Scrub margin                2 hours
+  Duration factor             1.5
+  Busy drive above            20000 KB/s
+
+UniFi backups and replication
+  Avoid backup tasks          [x] yes
+  Backup margin               ┌─ Webhook format ─┐
+  Default backup length       │  text            │
+  Upload speed                │› json            │
+                              │  slack           │
+Notifications                 │  discord         │
+  Webhook URL                 └──────────────────┘
+* Webhook format              ‹ json ›                                         ↓
+────────────────────────────────────────────────────────────────────────────────
+text is a plain body (ntfy and most receivers).
+
