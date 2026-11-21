@@ -38,6 +38,7 @@ import urllib.request
 BASE = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, BASE)
 import planner  # noqa: E402  (lives next to this file)
+import backups  # noqa: E402
 CONFIG_FILE = os.path.join(BASE, "config")
 STATE_FILE = os.path.join(BASE, "state.json")
 MANIFEST_FILE = os.path.join(BASE, "manifest.sha256")
@@ -70,6 +71,10 @@ DEFAULTS = {
     "SCRUB_MARGIN_HOURS": "2",
     "DURATION_FACTOR": "1.5",
     "BUSY_KBPS": "20000",
+    "BACKUP_AVOID": "yes",
+    "BACKUP_MARGIN_HOURS": "1",
+    "BACKUP_DEFAULT_HOURS": "4",
+    "BACKUP_UPLOAD_MBPS": "0",
     "EXCLUDE_SERIALS": "",
     "INTERVAL_OVERRIDES": "",
     "WEBHOOK_URL": "",
@@ -188,10 +193,17 @@ class Config:
             self.window = self._window(DEFAULTS["START_WINDOW"])
         for key in ("INTERVAL_DAYS", "WARN_INTERVAL_DAYS", "OLD_INTERVAL_DAYS", "OLD_DRIVE_HOURS",
                     "RETRY_FAILED_DAYS", "MAX_CONCURRENT", "MAX_STARTS_PER_NIGHT",
-                    "SCRUB_MARGIN_HOURS", "ALERT_REPEAT_HOURS", "BUSY_KBPS"):
+                    "SCRUB_MARGIN_HOURS", "ALERT_REPEAT_HOURS", "BUSY_KBPS", "BACKUP_MARGIN_HOURS",
+                    "BACKUP_UPLOAD_MBPS"):
             if not self.values[key].isdigit():
                 self.errors.append(f"{key}: want a whole number, got {self.values[key]!r}")
                 self.values[key] = DEFAULTS[key]
+        try:
+            if float(self.values["BACKUP_DEFAULT_HOURS"]) <= 0:
+                raise ValueError
+        except ValueError:
+            self.errors.append(f"BACKUP_DEFAULT_HOURS: want a number of hours, got {self.values['BACKUP_DEFAULT_HOURS']!r}")
+            self.values["BACKUP_DEFAULT_HOURS"] = DEFAULTS["BACKUP_DEFAULT_HOURS"]
         if self.values["DRIVE_USER"] and not re.fullmatch(r"[A-Za-z0-9._@-]+", self.values["DRIVE_USER"]):
             self.errors.append("DRIVE_USER: letters, digits and . _ @ - only")
             self.values["DRIVE_USER"] = DEFAULTS["DRIVE_USER"]
@@ -604,6 +616,61 @@ def evaluate_drives(cfg, storage, user_id, state, alerts, report=True):
     return result
 
 
+def read_backups(cfg, tz):
+    """UniFi Drive's backup tasks and recent runs, read-only.
+
+    Returns {"tasks", "runs", "problems": [(alert key, message)]}. Only the
+    schedule and timing columns named in backups.py are selected, never the
+    credential columns next to them. Any problem means no backup windows from
+    the affected part; the caller alerts and tests carry on without them."""
+    out = {"tasks": [], "runs": [], "problems": []}
+    rows, err = psql("unifi-drive", backups.SHAPE_QUERY)
+    if err:
+        out["problems"].append(("backups:read", f"Couldn't read UniFi Drive's backup tasks: {err}"))
+        return out
+    cols = backups.columns_by_table(rows)
+    shape = backups.shape_problems(cols)
+    if shape:
+        out["problems"].append(("backups:shape", "UniFi Drive's backup tables changed: " + "; ".join(shape)))
+        return out
+    query, names = backups.task_query(cols)
+    rows, err = psql("unifi-drive", query)
+    if err:
+        out["problems"].append(("backups:read", f"Couldn't read UniFi Drive's backup tasks: {err}"))
+        return out
+    out["tasks"] = backups.parse_tasks(rows, names)
+    rows, err = psql("unifi-drive", backups.run_query(cols))
+    if err:
+        out["problems"].append(("backups:read", f"Couldn't read UniFi Drive's backup history: {err}"))
+    else:
+        out["runs"] = backups.parse_runs(rows, tz)
+    for task in out["tasks"]:
+        bad = task["enabled"] and backups.schedule_problem(task)
+        if bad:
+            out["problems"].append((f"backups:schedule:{task['id']}",
+                                    f"Can't read the schedule of {backups.label(task)} (task {task['id']}): {bad}"))
+    return out
+
+
+def backup_windows(cfg, t, until, alerts=None):
+    """(planner.Windows for UniFi backup tasks between t and until, read_backups result).
+
+    With `alerts`, problems are raised as warnings and cleared once they go away."""
+    if not cfg.yes("BACKUP_AVOID"):
+        if alerts:
+            for key in [k for k in alerts.active if k.startswith("backups:")]:
+                alerts.clear(key)
+        return [], None
+    info = read_backups(cfg, t.tzinfo)
+    if alerts:
+        now_keys = {k for k, _ in info["problems"]}
+        for key, msg in info["problems"]:
+            alerts.raise_(key, msg + ". Tests won't avoid the backups it affects until this is fixed.", "warning")
+        for key in [k for k in alerts.active if k.startswith("backups:") and k not in now_keys]:
+            alerts.clear(key)
+    return backups.windows(cfg, info["tasks"], info["runs"], t, until), info
+
+
 def scrub_conflict(cfg, storage, minutes, t):
     """Return a reason if a test of this length would run into a scheduled scrub."""
     until = t + planner.test_length(cfg, minutes)
@@ -718,7 +785,9 @@ def cmd_run(cfg, args):
     storage, user_id = self_check(cfg, state, alerts, dry)
     if storage is not None and user_id:
         drives = evaluate_drives(cfg, storage, user_id, state, alerts)
-        decision = planner.decide(cfg, storage, drives, state, t)
+        longest = max((planner.test_length(cfg, d.get("minutes")) for d in drives), default=dt.timedelta(0))
+        windows, _ = backup_windows(cfg, t, t + longest, alerts)
+        decision = planner.decide(cfg, storage, drives, state, t, windows=windows)
         if decision.gate:
             if decision.due and decision.gate != "outside start window":
                 log(f"{len(decision.due)} drive(s) due; not starting: {decision.gate}")
@@ -795,7 +864,9 @@ def cmd_status(cfg, args):
         print(f"  Next test: {nxt}")
         print(f"  Why:       {d.get('reason', '')}")
         print()
-    plan = planner.plan(storage, drives, state, cfg, t)
+    horizon = t + dt.timedelta(days=planner.MAX_NIGHTS + 2)
+    windows, backup_info = backup_windows(cfg, t, horizon)
+    plan = planner.plan(storage, drives, state, cfg, t, windows=windows)
     if plan:
         print("Plan (assuming each test passes):")
         rows = [(e["night"], f"{e['start']:%a %d %b %H:%M}  slot {e['slot']} ({e['serial']})") for e in plan]
@@ -804,6 +875,7 @@ def cmd_status(cfg, args):
         for _, row in sorted(rows, key=lambda r: r[0]):
             print("  " + row)
         print()
+    print_backups(cfg, backup_info, t)
     gate = start_gate(cfg, storage, drives, state, t)
     print(f"Tests start between {cfg['START_WINDOW'].replace('-', ' and ')}.")
     print(f"Right now: {gate or 'a test could start'}.")
@@ -817,6 +889,38 @@ def cmd_status(cfg, args):
         for a in state["alerts"].values():
             print(f"  [{a['level']}] {a['msg']}")
     return 0
+
+
+def print_backups(cfg, info, t):
+    if not cfg.yes("BACKUP_AVOID"):
+        print("UniFi backup tasks: not avoided (BACKUP_AVOID=no).\n")
+        return
+    if not info["tasks"] and not info["problems"]:
+        print("UniFi backup tasks: none.\n")
+        return
+    print("UniFi backup tasks (tests avoid them):")
+    for task in info["tasks"]:
+        name = backups.label(task)
+        if not task["enabled"]:
+            print(f"  {name}: schedule off, ignored")
+            continue
+        bad = backups.schedule_problem(task)
+        if bad:
+            print(f"  {name}: can't read its schedule ({bad})")
+            continue
+        _, how = backups.estimate(cfg, task, info["runs"])
+        mine = backups.windows(cfg, [task], info["runs"], t, t + dt.timedelta(days=62))
+        if mine:
+            w = mine[0]
+            end = f"{w.end:%H:%M}" if w.end.date() == w.start.date() else f"{w.end:%a %d %b %H:%M}"
+            when = f"next blocks {w.start:%a %d %b %H:%M}-{end}"
+        else:
+            when = "no run in the next two months"
+        print(f"  {name}: {when}; estimate {how}")
+    for _, msg in info["problems"]:
+        if not msg.startswith("Can't read the schedule"):
+            print(f"  problem: {msg}")
+    print()
 
 
 def cmd_check(cfg, args):

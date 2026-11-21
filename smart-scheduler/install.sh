@@ -30,7 +30,7 @@ fi
 chmod 755 smart_scheduler.py install.sh uninstall.sh
 
 # Sentinel the script checks before trusting its trigger templates.
-sha256sum smart_scheduler.py planner.py install.sh uninstall.sh triggers/* > manifest.sha256
+sha256sum smart_scheduler.py planner.py backups.py install.sh uninstall.sh triggers/* > manifest.sha256
 
 python3 smart_scheduler.py heal
 echo
