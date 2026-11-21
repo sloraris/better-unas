@@ -36,6 +36,7 @@ EXCLUDE_SERIALS=
 # Local time (the NAS's timezone). May cross midnight, e.g. 22:00-04:00.
 START_WINDOW=00:00-05:00
 # Never run more than this many tests at once, or start more per night.
+# MAX_STARTS_PER_NIGHT=0 pauses new tests (everything else keeps running).
 MAX_CONCURRENT=1
 MAX_STARTS_PER_NIGHT=1
 # Don't start a test that could still be running this many hours before a

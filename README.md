@@ -73,12 +73,17 @@ less /tmp/better-unas-install.sh
 sh /tmp/better-unas-install.sh
 ```
 
-The installer keeps a copy of itself for later:
+The installer keeps a copy of itself as the `better-unas` command:
 ```bash
-/persistent/better-unas/better-unas update              # update installed tools to the latest release
-/persistent/better-unas/better-unas list                # available and installed tools
-/persistent/better-unas/better-unas uninstall <tool>    # add --purge to also delete its config
+better-unas status                    # what each installed tool is doing
+better-unas smart-scheduler status    # one tool's own commands (here: the drive schedule)
+better-unas update                    # update installed tools to the latest release
+better-unas list                      # available and installed tools
+better-unas uninstall <tool>          # add --purge to also delete its config
 ```
+The command itself lives at `/persistent/better-unas/better-unas`. The short
+name is a link in `/usr/local/bin`, which `better-unas update` restores if a
+firmware update removes it.
 Updates keep your `config` and state. An uninstalled tool stays off: `update`
 won't turn it back on.
 

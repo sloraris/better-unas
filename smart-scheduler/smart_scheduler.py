@@ -30,6 +30,7 @@ import socket
 import subprocess
 import sys
 import syslog
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -657,6 +658,8 @@ def start_gate(cfg, storage, drives, state, t):
     """Return None if a test may start now, otherwise the reason it may not."""
     if not in_window(cfg, t):
         return "outside start window"
+    if cfg.int("MAX_STARTS_PER_NIGHT") == 0:
+        return "paused (MAX_STARTS_PER_NIGHT=0 in config)"
     if state.get("starts", {}).get(night_key(cfg, t), 0) >= cfg.int("MAX_STARTS_PER_NIGHT"):
         return "already started tonight's test(s)"
     if sum(1 for d in drives if d.get("running")) >= cfg.int("MAX_CONCURRENT"):
@@ -951,12 +954,21 @@ def main():
         print("Run as root.", file=sys.stderr)
         return 2
     cfg = Config(CONFIG_FILE)
-    lock = open(LOCK_FILE, "w")
-    try:
-        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError:
-        print("Another run is in progress.")
-        return 0
+    # status and check only read, so they never wait. run and heal change state
+    # and take the lock: scheduled runs skip if one is already going, manual
+    # ones wait for it (a run normally takes a few seconds).
+    if args.command in ("run", "heal"):
+        lock = open(LOCK_FILE, "w")
+        deadline = time.monotonic() + (0 if args.source in ("timer", "cron") else 120)
+        while True:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    print("Another run is in progress; skipping this one.")
+                    return 0
+                time.sleep(1)
     return {"run": cmd_run, "status": cmd_status, "check": cmd_check, "heal": cmd_heal}[args.command](cfg, args)
 
 

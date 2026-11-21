@@ -10,6 +10,9 @@
 #   better-unas [install]           choose tools to install or update
 #   better-unas update              update every installed tool
 #   better-unas list                show available and installed tools
+#   better-unas status              show every installed tool's status
+#   better-unas <tool> <command>    run a tool's own command, e.g.
+#                                   better-unas smart-scheduler status
 #   better-unas uninstall <tool>    run that tool's uninstall.sh
 #
 # Options:
@@ -28,8 +31,10 @@ set -eu
 REPO="sloraris/better-unas"
 HOME_DIR="${BETTER_UNAS_HOME:-/persistent/better-unas}"
 SELF_NAME="better-unas"
+# Short command on PATH. Skipped when BETTER_UNAS_HOME points somewhere else (testing).
+LINK="/usr/local/bin/better-unas"
 
-CMD=install REF="" TOOLS="" YES=0 DRY=0 PURGE=0 FORCE=0 TARGET=""
+CMD=install EXPLICIT=0 REF="" TOOLS="" YES=0 DRY=0 PURGE=0 FORCE=0 TARGET=""
 SRC="" WORK="" AVAILABLE="" SELECTED="" DONE_OK="" DONE_FAILED="" REPLY=""
 
 say() { printf '%s\n' "$*"; }
@@ -49,13 +54,13 @@ usage() { sed -n '2,25s/^# \{0,1\}//p' "$0" 2>/dev/null || say "See https://gith
 # the script as $0, not as an argument. Put it back where it belongs.
 case "$0" in
   -|--) ;;
-  -*|install|update|list|uninstall) set -- "$0" "$@" ;;
+  -*|install|update|list|status|uninstall) set -- "$0" "$@" ;;
 esac
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --) ;;
-    install|update|list|uninstall) CMD=$1 ;;
+    install|update|list|status|uninstall) CMD=$1; EXPLICIT=1 ;;
     --ref) [ $# -ge 2 ] || die "--ref needs a value"; REF=$2; shift ;;
     --ref=*) REF=${1#*=} ;;
     --tools) [ $# -ge 2 ] || die "--tools needs a value"; TOOLS=$2; shift ;;
@@ -68,6 +73,9 @@ while [ $# -gt 0 ]; do
     -*) die "unknown option $1 (try --help)" ;;
     *)
       if [ "$CMD" = uninstall ] && [ -z "$TARGET" ]; then TARGET=$1
+      elif [ "$EXPLICIT" -eq 0 ] && [ -f "$HOME_DIR/$1/tool.conf" ]; then
+        # better-unas <tool> <args...>: everything after the tool name is the tool's.
+        CMD=tool; TARGET=$1; shift; break
       else die "unexpected argument $1 (try --help)"; fi ;;
   esac
   shift
@@ -138,6 +146,10 @@ fetch() {
   else
     if [ -z "$REF" ]; then
       REF=$(latest_release) || REF=""
+      if [ -z "$REF" ] && [ -f "$HOME_DIR/VERSION" ]; then
+        REF=$(head -n 1 "$HOME_DIR/VERSION")
+        [ -n "$REF" ] && say "No release published yet; using $REF, the version installed here."
+      fi
       [ -n "$REF" ] || die "couldn't find a release of $REPO (none published yet, or GitHub unreachable). For the development version, add: --ref main"
     fi
     case "$REF" in ""|*[!A-Za-z0-9._/-]*) die "invalid --ref $REF" ;; esac
@@ -165,6 +177,11 @@ installed_tools() {
     [ -f "$conf" ] || continue
     dir=${conf%/tool.conf}; printf '%s ' "${dir##*/}"
   done
+}
+
+cmd_name() {
+  if [ -z "${BETTER_UNAS_HOME:-}" ] && [ -L "$LINK" ]; then printf '%s' "$SELF_NAME"
+  else printf '%s' "$HOME_DIR/$SELF_NAME"; fi
 }
 
 installed_version() { conf_get "$HOME_DIR/$1/tool.conf" VERSION; }
@@ -210,9 +227,7 @@ select_tools() {
     return 0
   fi
   [ "$YES" -eq 1 ] && die "--yes needs --tools to know what to install"
-  printf '%s\n' "Which tools? Type numbers or names separated by spaces," \
-    "\"all\" for everything, or just press Enter to cancel." >/dev/tty
-  ask ">"
+  ask "Install which? (numbers or \"all\", blank to quit):"
   case "$REPLY" in *[!a-z0-9,\ -]*) die "didn't understand \"$REPLY\"" ;; esac
   for w in $(printf '%s' "$REPLY" | tr ',' ' '); do
     case "$w" in
@@ -223,6 +238,24 @@ select_tools() {
   done
 }
 
+confirm_plan() {
+  [ "$YES" -eq 1 ] && return 0
+  say ""
+  say "${BOLD}Ready to install:${OFF}"
+  for t in $SELECTED; do
+    new=$(conf_get "$SRC/$t/tool.conf" VERSION); have=$(installed_version "$t")
+    if [ -z "$have" ]; then what="new"; elif [ "$have" = "$new" ]; then what="reinstall"
+    else what="update from $have"; fi
+    say "  $t $new ($what)"
+    changes=$(conf_get "$SRC/$t/tool.conf" CHANGES)
+    [ -n "$changes" ] && say "    $changes"
+  done
+  say "Files go in $HOME_DIR/, then each tool's own"
+  say "installer runs."
+  ask "Continue? [Y/n]"
+  case "$REPLY" in ""|y|Y|yes|Yes|YES) return 0 ;; *) return 1 ;; esac
+}
+
 install_self() {
   if [ "$DRY" -eq 1 ]; then say "(dry-run) would save the installer as $HOME_DIR/$SELF_NAME"; return 0; fi
   mkdir -p "$HOME_DIR"
@@ -230,6 +263,9 @@ install_self() {
   chmod 755 "$HOME_DIR/$SELF_NAME.tmp"
   mv "$HOME_DIR/$SELF_NAME.tmp" "$HOME_DIR/$SELF_NAME"
   printf '%s\n' "$REF" > "$HOME_DIR/VERSION"
+  if [ -z "${BETTER_UNAS_HOME:-}" ] && [ -d "${LINK%/*}" ]; then
+    ln -sf "$HOME_DIR/$SELF_NAME" "$LINK" 2>/dev/null || true
+  fi
 }
 
 install_tool() {
@@ -271,10 +307,11 @@ summary() {
   for t in $DONE_OK; do say "  ${GREEN}OK${OFF}      $t $(installed_version "$t")"; done
   for t in $DONE_FAILED; do say "  ${RED}FAILED${OFF}  $t (see its output above)"; done
   say ""
-  say "To manage tools later:"
-  say "  $HOME_DIR/$SELF_NAME update"
-  say "  $HOME_DIR/$SELF_NAME list"
-  say "  $HOME_DIR/$SELF_NAME uninstall <tool>"
+  say "Later:"
+  say "  $(cmd_name) status      see what each tool is doing"
+  say "  $(cmd_name) update      update installed tools"
+  say "  $(cmd_name) list        see all tools"
+  say "  $(cmd_name) uninstall <tool>"
   [ -z "$DONE_FAILED" ]
 }
 
@@ -286,6 +323,7 @@ cmd_install() {
   show_tools
   select_tools
   if [ -z "$SELECTED" ]; then say "Nothing selected."; return 0; fi
+  confirm_plan || { say "Cancelled."; return 0; }
   install_self
   for t in $SELECTED; do install_tool "$t"; done
   summary
@@ -294,7 +332,7 @@ cmd_install() {
 cmd_update() {
   preflight
   have=$(installed_tools)
-  [ -n "$have" ] || { say "No tools installed yet. Run: $HOME_DIR/$SELF_NAME install"; return 0; }
+  [ -n "$have" ] || { say "No tools installed yet. Run: $(cmd_name) install"; return 0; }
   fetch
   for name in $have; do
     if ! has_word "$name" $AVAILABLE; then
@@ -342,8 +380,40 @@ cmd_uninstall() {
   fi
 }
 
+tool_cli() {  # print the tool's CLI path, or nothing
+  cli=$(conf_get "$HOME_DIR/$1/tool.conf" CLI)
+  case "$cli" in ""|*[!A-Za-z0-9._-]*) return 0 ;; esac
+  [ -f "$HOME_DIR/$1/$cli" ] && printf '%s' "$HOME_DIR/$1/$cli"
+  return 0
+}
+
+run_cli() {  # run_cli PATH ARGS...
+  p=$1; shift
+  case "$p" in *.py) python3 "$p" "$@" ;; *) sh "$p" "$@" ;; esac
+}
+
+cmd_tool() {
+  cli=$(tool_cli "$TARGET")
+  [ -n "$cli" ] || die "$TARGET has no commands to run"
+  run_cli "$cli" "$@"
+}
+
+cmd_status() {
+  have=$(installed_tools)
+  [ -n "$have" ] || { say "No tools installed yet. Run: $(cmd_name) install"; return 0; }
+  for name in $have; do
+    say ""
+    say "${BOLD}== $name $(installed_version "$name")${OFF}"
+    cli=$(tool_cli "$name")
+    if [ -n "$cli" ]; then run_cli "$cli" status || true
+    else say "(no status command)"; fi
+  done
+}
+
 case "$CMD" in
   install) cmd_install ;;
+  status) cmd_status ;;
+  tool) cmd_tool "$@" ;;
   update) cmd_update ;;
   list) cmd_list ;;
   uninstall) cmd_uninstall ;;

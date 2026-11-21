@@ -38,8 +38,9 @@ if python3 smart_scheduler.py check; then
   echo
   python3 smart_scheduler.py status || true
   echo
-  echo "Installed. Runs hourly; tests start only inside START_WINDOW."
-  echo "Logs: journalctl -t smart-scheduler"
+  echo "Installed. It checks hourly and starts tests only inside START_WINDOW."
+  echo "See the schedule any time:  better-unas smart-scheduler status"
+  echo "Logs:                       journalctl -t smart-scheduler"
 else
   echo
   echo "Installed, but the self-check found problems (above)."
