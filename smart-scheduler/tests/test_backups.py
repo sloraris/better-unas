@@ -5,6 +5,8 @@
 psql is faked with rows shaped like UniFi Drive's `remote_backup_tasks` and
 `remote_backup_task_runs`, modelled on a UNAS whose only enabled task is a
 weekly UniFi Cloud backup (Sundays 04:00; recent runs took 7 and 50 minutes).
+Column types, remote_type values (ucs, unas, local) and run statuses
+(succeeded, partially-successful) match a real NAS, checked read-only.
 Nothing touches a NAS.
 """
 
@@ -56,13 +58,13 @@ SHAPE = [[backups.TASKS_TABLE, c, t] for c, t in (
     ("finished_at", "timestamp with time zone"), ("status", "text"), ("error_message", "text"))]
 
 # id, remote_type, schedule_enable, first run time, weekdays, monthdays, interval, name, bw_limit
-WEEKLY = ["t-weekly", "cloud", "t", "4:00", "0", "", "0", "", ""]
+WEEKLY = ["t-weekly", "ucs", "t", "4:00", "0", "", "0", "", ""]
 MONTHLY = ["t-monthly", "unas", "t", "2:00", "*", "1", "0", "Office", ""]
-DISABLED = ["t-off", "cloud", "f", "1:00", "*", "", "0", "Old", ""]
+DISABLED = ["t-off", "local", "f", "1:00", "*", "", "0", "Old", ""]
 
 RUNS = [  # task_id, started, finished, status (newest first, as the query orders them)
-    ["t-weekly", epoch(2026, 11, 15, 4, 0), epoch(2026, 11, 15, 4, 7), "success"],
-    ["t-weekly", epoch(2026, 11, 8, 4, 0), epoch(2026, 11, 8, 4, 50), "partial_success"],
+    ["t-weekly", epoch(2026, 11, 15, 4, 0), epoch(2026, 11, 15, 4, 7), "succeeded"],
+    ["t-weekly", epoch(2026, 11, 8, 4, 0), epoch(2026, 11, 8, 4, 50), "partially-successful"],
     ["t-weekly", epoch(2026, 11, 1, 4, 0), epoch(2026, 11, 1, 9, 0), "failed"],   # failures don't count
 ]
 
@@ -105,18 +107,18 @@ class ScheduleTests(unittest.TestCase):
         self.assertEqual([x.strftime("%H:%M") for x in times], ["20:00", "21:30", "23:00"])
 
     def test_weekday_lists_ranges_and_sunday_as_7(self):
-        t = task(["x", "cloud", "t", "3:30", "1-2,7", "", "", "", ""])
+        t = task(["x", "ucs", "t", "3:30", "1-2,7", "", "", "", ""])
         times = backups.run_times(t, at(2026, 11, 22), at(2026, 11, 28))
         self.assertEqual([x.strftime("%a") for x in times], ["Sun", "Mon", "Tue"])
 
     def test_both_day_kinds_set_means_either(self):
-        t = task(["x", "cloud", "t", "3:00", "3", "1", "", "", ""])   # Wednesdays or the 1st
+        t = task(["x", "ucs", "t", "3:00", "3", "1", "", "", ""])   # Wednesdays or the 1st
         times = backups.run_times(t, at(2026, 11, 28), at(2026, 12, 3))
         self.assertEqual([x.date() for x in times], [dt.date(2026, 12, 1), dt.date(2026, 12, 2)])
 
     def test_unreadable_schedule(self):
-        self.assertIn("first run time", backups.schedule_problem(task(["x", "cloud", "t", "soon", "*", "", "", "", ""])))
-        self.assertIn("out of range", backups.schedule_problem(task(["x", "cloud", "t", "4:00", "9", "", "", "", ""])))
+        self.assertIn("first run time", backups.schedule_problem(task(["x", "ucs", "t", "soon", "*", "", "", "", ""])))
+        self.assertIn("out of range", backups.schedule_problem(task(["x", "ucs", "t", "4:00", "9", "", "", "", ""])))
         self.assertIsNone(backups.schedule_problem(task(WEEKLY)))
 
 
@@ -130,6 +132,19 @@ class EstimateTests(unittest.TestCase):
         self.assertEqual(length, dt.timedelta(minutes=50))
         self.assertEqual(how, "longest of the last 2 run(s): 50 min")
 
+    def test_real_drive_statuses(self):
+        runs = backups.parse_runs([
+            ["t-weekly", epoch(2026, 11, 15, 4), epoch(2026, 11, 15, 4, 30), "succeeded"],
+            ["t-weekly", epoch(2026, 11, 8, 4), epoch(2026, 11, 8, 5), "partially-successful"],
+            ["t-weekly", epoch(2026, 11, 1, 4), epoch(2026, 11, 1, 9), "failed"]], TZ)
+        self.assertEqual(backups.estimate(self.cfg, task(WEEKLY), runs[:1])[0], dt.timedelta(minutes=30))
+        self.assertEqual(backups.estimate(self.cfg, task(WEEKLY), runs)[0], dt.timedelta(hours=1))
+
+    def test_real_remote_types(self):
+        self.assertEqual([backups.label(task([i, t, "t", "4:00", "*", "", "", "", ""]))
+                          for i, t in (("a", "ucs"), ("b", "unas"), ("c", "local"))],
+                         ["UniFi Cloud backup", "replication", "local backup"])
+
     def test_task_with_no_history_uses_the_default(self):
         length, how = backups.estimate(self.cfg, task(MONTHLY), self.runs)
         self.assertEqual(length, dt.timedelta(hours=4))
@@ -138,7 +153,7 @@ class EstimateTests(unittest.TestCase):
         self.assertEqual(backups.estimate(cfg, task(MONTHLY), [])[0], dt.timedelta(hours=6.5))
 
     def test_size_over_bandwidth(self):
-        limited = task(["b", "cloud", "t", "4:00", "*", "", "", "", "100"])   # bw_limit 100 Mbit/s
+        limited = task(["b", "ucs", "t", "4:00", "*", "", "", "", "100"])   # bw_limit 100 Mbit/s
         length, how = backups.estimate(self.cfg, limited, [], size_bytes=90e9)
         self.assertEqual(length, dt.timedelta(hours=2))
         self.assertIn("the task's limit", how)
@@ -250,7 +265,7 @@ class ReadTests(unittest.TestCase):
         self.assertEqual(state["alerts"], {})
 
     def test_bad_schedule_alerts_for_that_task_only(self):
-        ss.psql = FakeDrive([WEEKLY, ["t-bad", "cloud", "t", "late", "*", "", "", "", ""]]).psql
+        ss.psql = FakeDrive([WEEKLY, ["t-bad", "ucs", "t", "late", "*", "", "", "", ""]]).psql
         windows, info = ss.backup_windows(self.cfg, NIGHT, at(2026, 11, 23))
         self.assertEqual(len(windows), 1)
         self.assertEqual([k for k, _ in info["problems"]], ["backups:schedule:t-bad"])
@@ -326,7 +341,7 @@ class PlannerTests(unittest.TestCase):
         self.assertIn("UniFi backup tasks (tests avoid them):", text)
         self.assertIn("UniFi Cloud backup: next blocks Sun 22 Nov 03:00-05:50; estimate longest of the last 2 "
                       "run(s): 50 min", text)
-        self.assertIn("UniFi Cloud backup “Old”: schedule off, ignored", text)
+        self.assertIn("local backup “Old”: schedule off, ignored", text)
 
 
 class ConfigTests(unittest.TestCase):
