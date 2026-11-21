@@ -84,6 +84,20 @@ the date comes, and `unsnooze` removes it early. `status` shows each active
 snooze, and the plan puts that drive on the first night after it. Both commands
 take the same lock as the hourly run, so they never collide with it.
 
+### Drive actions
+
+`run-now <slot|serial> [quick|extended]` starts a test straight away (extended
+unless you say quick), as the same account the hourly run uses. It first lists
+anything in the way. A busy drive, a scrub or UniFi backup the test would run
+into, or being outside `START_WINDOW` stops it unless you add `--override`. A
+test already running on any drive, an unhealthy or resyncing pool, a drive that
+can't run SMART tests, or Drive refusing the account always stops it.
+
+`exclude` / `include <slot|serial>` add or remove a drive in `EXCLUDE_SERIALS`,
+and `interval <slot|serial> <days|default>` sets or clears its entry in
+`INTERVAL_OVERRIDES`. They edit `config` in place, keeping your comments. All
+of these take the run lock, and `--dry-run` changes nothing.
+
 ## Install
 
 No UniFi setup is needed. It runs as the console owner (see
@@ -165,6 +179,9 @@ python3 smart_scheduler.py check             # self-check only
 python3 smart_scheduler.py heal              # restore triggers now
 python3 smart_scheduler.py snooze 3 2026-12-15 --note "waiting for a spare"
 python3 smart_scheduler.py unsnooze 3        # slot number or serial
+python3 smart_scheduler.py run-now 3 quick   # add --override past a busy drive, scrub, backup or window
+python3 smart_scheduler.py exclude 3         # include 3 undoes it
+python3 smart_scheduler.py interval 3 30     # interval 3 default undoes it
 python3 -m unittest discover -s tests        # logic tests (any machine, no NAS needed)
 ./uninstall.sh [--purge]                     # remove triggers (and the folder)
 ```

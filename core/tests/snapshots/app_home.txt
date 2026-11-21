@@ -1,18 +1,18 @@
  1 Home │ 2 Board │ 3 Space │ 4 Settings │ 5 Alerts │ 6 Tools
  Home ────────────────────────────────────────────────────────────────────────
-fixture  1.2.3  [warn]  3 drives scheduled, 1 overdue
-  Next test        Sat 22 Nov, slot 3
-  Last result      Passed, slot 5, Tue 18 Nov
-  Failed           slot 2, Thu 20 Nov
+›better-unas  Updates not checked yet.
 
-space-watch  0.1.0  [ok]  / is 42.0% full
-  Used             42.0%
+ Alerts  1 active
+   error fixture: Extended test on slot 2 (ZL2) failed: read failure.
 
+ fixture  1.2.3  warn  3 drives scheduled, 1 overdue
+   Next test        Sat 22 Nov, slot 3
+   Last result      Passed, slot 5, Tue 18 Nov
+   Failed           slot 2, Thu 20 Nov
+   ! Timer is missing.
 
-
-
-
-
+ space-watch  0.1.0  ok  / is 42.0% full
+   Used             42.0%
 
 
 
@@ -21,4 +21,4 @@ space-watch  0.1.0  [ok]  / is 42.0% full
 
 
 ────────────────────────────────────────────────────────────────────────────────
- r refresh  ↑↓ scroll                             1-6/Tab tabs  ? help  q quit
+ ↑↓ select  Enter open  a alerts  t tools  … ?    1-6/Tab tabs  ? help  q quit

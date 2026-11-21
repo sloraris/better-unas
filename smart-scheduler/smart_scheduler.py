@@ -13,11 +13,20 @@ Commands:
            don't start a test on that drive before that date; expires on its own
   unsnooze <slot|serial>
            remove a drive's snooze
+  run-now <slot|serial> [quick|extended] [--override]
+           start a test now (extended by default) if nothing stands in the way;
+           --override starts it despite a busy drive, a scrub or backup coming up,
+           or being outside the start window. A running test or bad pool always blocks.
+  exclude <slot|serial>     never test this drive (EXCLUDE_SERIALS)
+  include <slot|serial>     undo exclude
+  interval <slot|serial> <days|default>
+           this drive's interval (INTERVAL_OVERRIDES); default removes it
 
 Options:
   --dry-run   change nothing: no tests, no healing, no alerts, no state writes
   --source    who started this run (timer, cron, manual); set by the triggers
   --note      with snooze: why, shown by status
+  --override  with run-now: start despite checks that can be overridden
 
 Standard library only. Python 3 ships in the UniFi OS firmware image and
 UniFi's base packages depend on it.
@@ -45,6 +54,9 @@ sys.path.insert(0, BASE)
 import planner  # noqa: E402  (lives next to this file)
 import backups  # noqa: E402
 import settings  # noqa: E402
+if __name__ == "__main__":
+    # actions.py imports this module by name; give it this copy, not a second one.
+    sys.modules.setdefault("smart_scheduler", sys.modules[__name__])
 CONFIG_FILE = os.path.join(BASE, "config")
 STATE_FILE = os.path.join(BASE, "state.json")
 MANIFEST_FILE = os.path.join(BASE, "manifest.sha256")
@@ -1121,6 +1133,70 @@ def drive_for(target, state):
         raise
 
 
+def resolve_serial(target):
+    """A slot or serial -> (serial, label) for config edits. A target that
+    isn't a current slot is taken as a serial, so a drive that's gone (or an
+    API that's down) can still be removed from the config."""
+    try:
+        return resolve_drive(target, get_storage())
+    except (ApiError, ValueError):
+        if target.isdigit() and len(target) < 3:
+            raise ValueError(f"no drive in slot {target}")
+        return target, target
+
+
+def cmd_run_now(cfg, args):
+    import actions
+    kind = args.date or "extended"
+    if not args.target or kind not in actions.KINDS:
+        print("Usage: smart_scheduler.py run-now <slot|serial> [quick|extended] [--override]", file=sys.stderr)
+        return 2
+    try:
+        storage = get_storage()
+        slot = next((str(d["slotId"]) for d in storage["disks"] if d.get("serial") == args.target), args.target)
+    except ApiError:
+        slot = args.target   # check_run_now reports the API problem
+    try:
+        r = actions.run_now(slot, kind, override=args.override, cfg=cfg, dry_run=args.dry_run, wait=120)
+    except actions.LockBusy as e:
+        print(f"Not started: {e}.", file=sys.stderr)
+        return 1
+    for c in r.checks:
+        print(f"  {'override' if c.overridable else 'BLOCKS  '}  {c.reason}")
+    print(r.message)
+    return 0 if r.started else 1
+
+
+def cmd_config_edit(cfg, args):
+    import actions
+    usage = {"exclude": "exclude <slot|serial>", "include": "include <slot|serial>",
+             "interval": "interval <slot|serial> <days|default>"}[args.command]
+    if not args.target or (args.command == "interval") != bool(args.date):
+        print(f"Usage: smart_scheduler.py {usage}", file=sys.stderr)
+        return 2
+    try:
+        serial, label = resolve_serial(args.target)
+        if args.command == "interval":
+            days = None if args.date == "default" else int(args.date) if args.date.isdigit() else args.date
+            changed = actions.set_interval(serial, days, dry_run=args.dry_run, wait=120)
+            what = f"interval for {label}: " + ("the normal rules" if days is None else f"every {days} days")
+        else:
+            on = args.command == "exclude"
+            changed = actions.exclude(serial, on, dry_run=args.dry_run, wait=120)
+            what = f"{label} {'excluded from' if on else 'included in'} testing"
+    except settings.ValidationError as e:
+        print("; ".join(f"{k}: {m}" for k, m in e.errors.items()) + ".", file=sys.stderr)
+        return 1
+    except (ValueError, actions.LockBusy) as e:
+        print(f"{e}.", file=sys.stderr)
+        return 1
+    if not changed:
+        print(f"No change: {what} already.")
+    else:
+        print(f"{'(dry-run) would set' if args.dry_run else 'Set'} {what}.")
+    return 0
+
+
 def take_lock(wait):
     """The run lock, held until the returned file is closed, or None if it
     stayed busy for `wait` seconds. Anything that writes state takes it."""
@@ -1139,13 +1215,15 @@ def take_lock(wait):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=("run", "status", "check", "heal", "snooze", "unsnooze"))
+    ap.add_argument("command", choices=("run", "status", "check", "heal", "snooze", "unsnooze",
+                                        "run-now", "exclude", "include", "interval"))
     ap.add_argument("target", nargs="?", help=argparse.SUPPRESS)
     ap.add_argument("date", nargs="?", help=argparse.SUPPRESS)
     ap.add_argument("--note", default="", help=argparse.SUPPRESS)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--source", default="manual", choices=("timer", "cron", "manual"))
     ap.add_argument("--force", action="store_true", help=argparse.SUPPRESS)
+    ap.add_argument("--override", action="store_true", help=argparse.SUPPRESS)
     args = ap.parse_args()
     if os.geteuid() != 0:
         print("Run as root.", file=sys.stderr)
@@ -1154,6 +1232,7 @@ def main():
     # status and check only read, so they never wait. run, heal and the snooze
     # commands change state and take the lock: scheduled runs skip if one is
     # already going, manual ones wait for it (a run normally takes a few seconds).
+    # run-now, exclude, include and interval take it inside actions.py.
     lock = None
     if args.command in ("run", "heal", "snooze", "unsnooze"):
         lock = take_lock(0 if args.source in ("timer", "cron") else 120)
@@ -1162,7 +1241,9 @@ def main():
             return 0 if args.command in ("run", "heal") else 1
     try:
         return {"run": cmd_run, "status": cmd_status, "check": cmd_check, "heal": cmd_heal,
-                "snooze": cmd_snooze, "unsnooze": cmd_unsnooze}[args.command](cfg, args)
+                "snooze": cmd_snooze, "unsnooze": cmd_unsnooze, "run-now": cmd_run_now,
+                "exclude": cmd_config_edit, "include": cmd_config_edit,
+                "interval": cmd_config_edit}[args.command](cfg, args)
     finally:
         if lock:
             lock.close()

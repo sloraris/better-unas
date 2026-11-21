@@ -53,7 +53,7 @@ checker reports it.
 | Key | Required | Meaning |
 |---|---|---|
 | `NAME` | yes | Tool name: lowercase letters, digits and `-`. Must equal the folder name. Used on the command line (`better-unas <NAME> ...`). |
-| `VERSION` | yes | The tool's version. See open question 1 (one suite version). |
+| `VERSION` | yes | Informational only (#14): the suite version in the root `VERSION` file covers every tool, and updates compare that, never this. Still required so the old `install.sh` keeps working until #15 replaces it. |
 | `SUMMARY` | yes | One line, at most 60 characters, for the Tools screen and the setup picker. |
 | `CHANGES` | yes | One line shown on the review screen before installing: what changes on the NAS. |
 | `SETUP` | no | A step the user must do in the UniFi UI before the first install, or empty. |
@@ -78,7 +78,7 @@ CONFIG=config
 CONFIG_EXAMPLE=config.example
 ```
 
-`PLUGIN=plugin.py` follows when its plugin module lands.
+and `PLUGIN=plugin.py` since #10 (Home card, alerts and the Calendar screen).
 
 ## 2. Config file
 
@@ -249,6 +249,14 @@ caches the result until the Home screen is opened again or refreshed.
 
 `tone` is one of the theme tones in section 7. Labels should be at most 16
 characters so the card lines up.
+
+An item may also name a `tab` (optional, e.g. `"tab": "Calendar"` on "Next
+test", `"tab": "Drives"` on "Last result"): Enter on that row of the Home
+dashboard switches to that tab. Without it, or if no tab has that title, the
+row leads to the tool's first own tab (or Tools, for a tool without screens).
+The dashboard shows the card under the suite's update line and the active
+alerts, so items are where a tool puts its next planned test, last results,
+next scrub and next backup window.
 
 ### `alerts(ctx)`: active and recent alerts
 
@@ -527,10 +535,10 @@ Notes for #7:
 
 ## Open questions
 
-1. **`VERSION` with one suite version.** The design says one suite version
-   covers every tool. Should `tool.conf` keep its own `VERSION` (informational,
-   or for a tool's own migrations), or drop it once #14 lands? This contract
-   keeps it required so today's installer keeps working.
+1. **`VERSION` with one suite version.** Decided in #14: one suite version
+   in the root `VERSION` file (e.g. `v0.2.0`) covers better-unas and every
+   tool, and updates go by it (`core/updates.py`). A `tool.conf` `VERSION` is
+   informational; it can go once #15 retires the old `install.sh`.
 2. **Sharing the validator with the scheduled run.** Decided in #7 for
    smart-scheduler: the tool keeps a copy of the value rules
    (`smart-scheduler/settings.py`) so the hourly run never imports the core,
