@@ -65,7 +65,7 @@ TYPE_ATTRS = {
 EMPTY_OK = {"text", "url", "serial_list", "int_list", "serial_map"}
 
 PLUGIN_REQUIRED = ("summary", "alerts", "status")
-PLUGIN_OPTIONAL = ("screens", "validate")
+PLUGIN_OPTIONAL = ("screens", "validate", "send_test")
 STATES = ("ok", "warn", "error", "off", "unknown")
 TONES = ("normal", "good", "warn", "bad", "dim")
 LEVELS = ("error", "warn", "info")
@@ -557,10 +557,11 @@ def check_alerts(alerts):
     for i, a in enumerate(alerts):
         ok = (isinstance(a, dict) and isinstance(a.get("id"), str) and a.get("level") in LEVELS
               and isinstance(a.get("message"), str) and isinstance(a.get("active"), bool)
-              and _iso(a.get("since")) and (a.get("last") is None or _iso(a.get("last"))))
+              and _iso(a.get("since")) and (a.get("last") is None or _iso(a.get("last")))
+              and (a.get("resolved") is None or _iso(a.get("resolved"))))
         if not ok:
             p.append(f"alerts: alert {i + 1} needs id, level ({'/'.join(LEVELS)}), message, "
-                     "active, and since/last as ISO 8601 times")
+                     "active, and since/last/resolved as ISO 8601 times")
     return p
 
 

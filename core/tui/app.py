@@ -19,6 +19,7 @@ import traceback
 
 from .. import plugins as P
 from . import screens as core
+from .alerts import AlertsScreen
 from .home import HomeScreen
 from . import tools as tools_screen
 from . import widgets
@@ -152,7 +153,7 @@ class App:
         self.tabs = [Tab("Home", [("Home", self.core_ctx, HomeScreen)])]
         self.tabs += [Tab(title, entries) for title, entries in grouped.items()]
         self.tabs += [Tab("Settings", [("Settings", self.core_ctx, core.SettingsScreen)]),
-                      Tab("Alerts", [("Alerts", self.core_ctx, core.AlertsScreen)]),
+                      Tab("Alerts", [("Alerts", self.core_ctx, AlertsScreen)]),
                       Tab("Tools", [("Tools", self.core_ctx, tools_screen.ToolsScreen)])]
         self.current = 0
 

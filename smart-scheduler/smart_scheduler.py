@@ -289,6 +289,12 @@ class Alerts:
     def clear(self, key, msg=None):
         a = self.active.pop(key, None)
         if a:
+            # Kept so the TUI's Alerts screen can list recent alerts with resolve times.
+            recent = self.state.setdefault("resolved", [])
+            recent.append({"key": key, "msg": a["msg"], "level": a["level"],
+                           "since": a.get("since", a["sent"]), "sent": a["sent"],
+                           "resolved": now().isoformat()})
+            del recent[:-RESOLVED_KEEP]
             text = msg or f"Resolved: {a['msg']}"
             log(f"[resolved] {text}")
             self._queue("resolved", text)
@@ -322,34 +328,99 @@ class Alerts:
             self.outbox.pop(0)
 
     def _send(self, url, m):
-        title = f"{self.host} {NAME}: {m['level']}"
-        fmt = self.cfg["WEBHOOK_FORMAT"].lower()
-        if fmt == "json":
-            body, ctype = json.dumps({"host": self.host, "source": NAME, "level": m["level"],
-                                      "message": m["msg"], "at": m["at"]}), "application/json"
-        elif fmt == "slack":
-            body, ctype = json.dumps({"text": f"*{title}*\n{m['msg']}"}), "application/json"
-        elif fmt == "discord":
-            body, ctype = json.dumps({"content": f"**{title}**\n{m['msg']}"}), "application/json"
-        else:  # plain text; works with ntfy, Gotify-style relays and most generic receivers
-            body, ctype = f"{title}\n{m['msg']}", "text/plain; charset=utf-8"
-        req = urllib.request.Request(url, data=body.encode(), method="POST")
-        req.add_header("Content-Type", ctype)
-        req.add_header("Title", title)
-        try:
-            with urllib.request.urlopen(req, timeout=10) as r:
-                return 200 <= r.status < 300
-        except (urllib.error.URLError, OSError):
-            return False
+        return send_webhook(url, self.cfg["WEBHOOK_FORMAT"], m, self.host) is None
+
+
+RESOLVED_KEEP = 20       # resolved alerts kept in state for the TUI's Alerts screen
+TEST_MESSAGE = ("Test message from better-unas. If you can read this, "
+                "smart-scheduler's alerts will arrive here.")
+
+
+def webhook_request(url, fmt, m, host):
+    """The POST for one outbox message m ({level, msg, at}) in WEBHOOK_FORMAT fmt.
+    The scheduled run and the TUI's "send test" both build it here."""
+    title = f"{host} {NAME}: {m['level']}"
+    fmt = (fmt or "text").lower()
+    if fmt == "json":
+        body, ctype = json.dumps({"host": host, "source": NAME, "level": m["level"],
+                                  "message": m["msg"], "at": m["at"]}), "application/json"
+    elif fmt == "slack":
+        body, ctype = json.dumps({"text": f"*{title}*\n{m['msg']}"}), "application/json"
+    elif fmt == "discord":
+        body, ctype = json.dumps({"content": f"**{title}**\n{m['msg']}"}), "application/json"
+    else:  # plain text; works with ntfy, Gotify-style relays and most generic receivers
+        body, ctype = f"{title}\n{m['msg']}", "text/plain; charset=utf-8"
+    req = urllib.request.Request(url, data=body.encode(), method="POST")
+    req.add_header("Content-Type", ctype)
+    req.add_header("Title", title)
+    return req
+
+
+def http_error(e):
+    """A short description of a failed request, for the journal and the TUI."""
+    if isinstance(e, urllib.error.HTTPError):
+        return f"HTTP {e.code} {e.reason}".strip()
+    if isinstance(e, urllib.error.URLError):
+        e = e.reason
+    if isinstance(e, socket.timeout) or "timed out" in str(e):
+        return "timed out"
+    return str(e) or type(e).__name__
+
+
+def open_url(req, timeout=10):
+    """Fetch req (a URL or Request). Returns None on a 2xx answer, else a short error."""
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            r.read()
+            if 200 <= r.status < 300:
+                return None
+            return f"HTTP {r.status} {r.reason}".strip()
+    except (urllib.error.URLError, OSError, ValueError) as e:
+        return http_error(e)
+
+
+def send_webhook(url, fmt, m, host=None, timeout=10):
+    """POST one message to the webhook. Returns None if it was accepted, else why not."""
+    try:
+        req = webhook_request(url, fmt, m, host or socket.gethostname())
+    except ValueError as e:      # not a URL urllib can use
+        return str(e)
+    return open_url(req, timeout)
 
 
 def ping(url):
     if not url:
         return
-    try:
-        urllib.request.urlopen(url, timeout=10).read()
-    except (urllib.error.URLError, OSError) as e:
-        log(f"heartbeat ping failed: {e}", syslog.LOG_WARNING)
+    err = open_url(url)
+    if err:
+        log(f"heartbeat ping failed: {err}", syslog.LOG_WARNING)
+
+
+class SendError(Exception):
+    """A test send failed; the message is shown as is (e.g. "HTTP 404 Not Found")."""
+
+
+def send_test(values, key, host=None, timeout=10):
+    """The TUI's "send test" for one URL setting, using values (typed settings,
+    unsaved edits included). WEBHOOK_URL gets a test alert in WEBHOOK_FORMAT,
+    exactly as the scheduled run would send it; HEARTBEAT_URL and
+    HEARTBEAT_FAIL_URL get the same GET the run makes. Returns a short success
+    text, or None for a key with no test; raises SendError with the reason."""
+    if key not in ("WEBHOOK_URL", "HEARTBEAT_URL", "HEARTBEAT_FAIL_URL"):
+        return None
+    url = values.get(key) or ""
+    if not url:
+        raise SendError("no URL set")
+    if key == "WEBHOOK_URL":
+        m = {"level": "info", "msg": TEST_MESSAGE, "at": now().isoformat()}
+        err = send_webhook(url, values.get("WEBHOOK_FORMAT", "text"), m, host, timeout)
+        what = f"test alert sent ({(values.get('WEBHOOK_FORMAT') or 'text').lower()} format)"
+    else:
+        err = open_url(url, timeout)
+        what = "heartbeat ping answered" if key == "HEARTBEAT_URL" else "fail ping answered"
+    if err:
+        raise SendError(err)
+    return what
 
 
 # --------------------------------------------------------------------------- NAS facts
