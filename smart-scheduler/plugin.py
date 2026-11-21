@@ -158,3 +158,9 @@ def preview_calendar(ctx, values):
     screen = _calendar(_PreviewContext(ctx, values))
     screen.title = "Calendar preview (unsaved settings)"
     return screen
+
+
+def preview(ctx, values):
+    """The contract's optional preview hook (docs/plugin-contract.md section 4):
+    `p` on the Settings screen opens the calendar planned with the unsaved values."""
+    return preview_calendar(ctx, values)

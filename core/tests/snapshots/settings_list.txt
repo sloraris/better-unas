@@ -1,0 +1,24 @@
+ 1 Home │ 2 Board │ 3 Space │ 4 Settings │ 5 Alerts │ 6 Tools
+ Settings ────────────────────────────────────────────────────────────────────
+Settings by tool. The config files stay the source of truth.
+
+› space-watch          5 settings, 1 problem(s) in the config file
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+ Enter open  ↑↓ move                              1-6/Tab tabs  ? help  q quit
