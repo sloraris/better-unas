@@ -37,8 +37,16 @@ die() { printf 'better-unas: %s\n' "$*" >&2; exit 1; }
 
 usage() { sed -n '2,25s/^# \{0,1\}//p' "$0" 2>/dev/null || say "See https://github.com/$REPO"; }
 
+# With sh -c "$(curl ...)" --ref main, the shell takes the first word after
+# the script as $0, not as an argument. Put it back where it belongs.
+case "$0" in
+  -|--) ;;
+  -*|install|update|list|uninstall) set -- "$0" "$@" ;;
+esac
+
 while [ $# -gt 0 ]; do
   case "$1" in
+    --) ;;
     install|update|list|uninstall) CMD=$1 ;;
     --ref) [ $# -ge 2 ] || die "--ref needs a value"; REF=$2; shift ;;
     --ref=*) REF=${1#*=} ;;
