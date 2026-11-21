@@ -11,6 +11,7 @@ Settings preview with unsaved values flows through everything here.
 
 import importlib.util
 import os
+import sys
 
 CONTRACT = 1
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -25,6 +26,22 @@ def _load(name, filename):
 
 ss = _load("better_unas_smart_scheduler", "smart_scheduler.py")
 calendar_screen = _load("better_unas_smart_scheduler_calendar", "screens_calendar.py")
+drives_screen = _load("better_unas_smart_scheduler_drives", "screens_drives.py")
+
+
+def _load_actions():
+    # actions.py does `import smart_scheduler`; hand it our copy rather than a second one.
+    added = "smart_scheduler" not in sys.modules
+    if added:
+        sys.modules["smart_scheduler"] = ss
+    try:
+        return _load("better_unas_smart_scheduler_actions", "actions.py")
+    finally:
+        if added:
+            del sys.modules["smart_scheduler"]
+
+
+actions = _load_actions()
 
 LEVELS = {"error": "error", "warning": "warn", "warn": "warn"}
 
@@ -129,8 +146,19 @@ def _calendar(ctx):
     return calendar_screen.CalendarScreen(ctx, lambda: calendar_screen.gather(ss, ctx))
 
 
+def _env():
+    # Looked up on each use, so tests can swap in a faked `ss` or `actions`.
+    actions.ss = ss
+    return ss, actions, calendar_screen
+
+
+def _drives(ctx):
+    return drives_screen.DrivesScreen(ctx, _env)
+
+
 def screens(ctx):
-    return [{"id": "calendar", "tab": "Calendar", "make": _calendar}]
+    return [{"id": "calendar", "tab": "Calendar", "make": _calendar},
+            {"id": "drives", "tab": "Drives", "make": _drives}]
 
 
 class _PreviewContext:
