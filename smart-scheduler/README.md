@@ -46,16 +46,16 @@ date and why.
 
 ## Install
 
-1. In UniFi OS, create a user for the scheduler, e.g. `smart-scheduler`. A
-   basic user with no admin role and no file access is enough; Drive only needs
-   it to exist.
-2. On the NAS, run the [better-unas installer](../README.md#install) and pick
+No UniFi setup is needed. It runs as the console owner (see
+[Which account it uses](#which-account-it-uses)).
+
+1. On the NAS, run the [better-unas installer](../README.md#install) and pick
    smart-scheduler. To install by hand instead, put this folder at
    `/persistent/better-unas/smart-scheduler/` and run:
    ```bash
    cd /persistent/better-unas/smart-scheduler && ./install.sh
    ```
-3. Optional: edit `/persistent/better-unas/smart-scheduler/config` to add a webhook and a
+2. Optional: edit `/persistent/better-unas/smart-scheduler/config` to add a webhook and a
    heartbeat URL. Every setting is explained there.
 
 `install.sh` is safe to re-run at any time. It never touches an existing `config`.
@@ -81,12 +81,12 @@ firmware: Python 3 (a dependency of UniFi's own base packages), `smartctl`,
   `manifest.sha256` first. If they don't match, it doesn't self-heal; it alerts
   you until you re-run `install.sh`.
 - **It reports what it doesn't own and never repairs it.** If `smartctl`,
-  `psql`, the Drive API or the Drive user disappears, it alerts you and starts
-  no tests.
+  `psql`, the Drive API or the account it uses stops working, it alerts you and
+  starts no tests.
 - **Firmware updates are noticed.** When the firmware or Drive version changes,
   it runs a full self-check and tells you whether everything survived.
 - **It respects deliberate shutdowns:**
-  - Deleting the Drive user counts as "turned off on purpose": one notice, no tests, nothing recreated.
+  - If you set `DRIVE_USER` and later delete that account, that counts as "turned off on purpose": one notice, no tests, nothing recreated.
   - `ENABLED=no` in `config` removes the triggers on the next run.
   - `./uninstall.sh` removes everything cleanly.
 
@@ -106,7 +106,7 @@ Set `WEBHOOK_URL` and `WEBHOOK_FORMAT` (`text` for ntfy and most receivers, or
 `json`, `slack`, `discord`). You'll hear about:
 
 - a failed or aborted extended test
-- the API, Drive user or required tools going missing
+- the API, the account it uses, or required tools going missing
 - triggers it restored, and firmware updates it noticed
 - problems clearing (a "Resolved:" message)
 
@@ -132,8 +132,27 @@ python3 -m unittest discover -s tests        # logic tests (any machine, no NAS 
 | Drives, pools, scrub schedule | `GET /api/v2/storage` |
 | SMART history | `GET /api/v2/storage/disks/{slot}/smart-tests?serial=…` with `X-UserId` |
 | Start a test | `POST /api/v2/storage/disks/{slot}/smart-tests` `{"type":"extended"}` with `X-UserId` |
-| User ID | read-only lookup in Drive's `users` table |
+| Account ID | read-only lookup in UniFi OS's user database |
 
-These are the same calls the Drive web UI makes. `X-UserId` is how Drive
-identifies the user behind a request; it is why the scheduler user has to
-exist.
+These are the same calls the Drive web UI makes.
+
+## Which account it uses
+
+UniFi Drive runs every SMART call as a UniFi OS account, given in the
+`X-UserId` header. Drive only accepts admins with Drive management rights;
+anyone else gets `403 Forbidden`. A basic user won't work, and basic users
+can't be local-only accounts anyway.
+
+By default the scheduler uses the **console owner**, which always exists and
+always has those rights. It reads the owner's ID from UniFi OS's own database
+(read-only) on every run, so nothing needs to be created or kept in sync. The
+owner's password is never read or used: as root on the NAS, the script talks to
+Drive's local API directly.
+
+To use a different admin instead (for example a local "custom administrator"
+with Drive management, so you can turn the scheduler off by deleting it), set
+`DRIVE_USER` to that account's username. `check` and every run confirm that
+Drive accepts the account before starting anything.
+
+UniFi doesn't record which account started a test, so tests look the same in
+Health Monitor either way.

@@ -43,6 +43,7 @@ if python3 smart_scheduler.py check; then
 else
   echo
   echo "Installed, but the self-check found problems (above)."
-  echo "Most common: the Drive user in config doesn't exist yet. Create it in UniFi OS."
+  echo "If the identity check failed and DRIVE_USER is set in config, that account must"
+  echo "be a UniFi OS admin with Drive management. Clear DRIVE_USER to use the console owner."
   exit 1
 fi

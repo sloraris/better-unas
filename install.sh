@@ -33,7 +33,15 @@ CMD=install REF="" TOOLS="" YES=0 DRY=0 PURGE=0 FORCE=0 TARGET=""
 SRC="" WORK="" AVAILABLE="" SELECTED="" DONE_OK="" DONE_FAILED="" REPLY=""
 
 say() { printf '%s\n' "$*"; }
-die() { printf 'better-unas: %s\n' "$*" >&2; exit 1; }
+die() { printf '%sbetter-unas:%s %s\n' "$RED" "$OFF" "$*" >&2; exit 1; }
+
+# Bold and color only on a real terminal (NO_COLOR turns them off).
+if [ -t 1 ] && [ "${TERM:-dumb}" != dumb ] && [ -z "${NO_COLOR:-}" ]; then
+  BOLD=$(printf '\033[1m'); DIM=$(printf '\033[2m'); GREEN=$(printf '\033[32m')
+  YELLOW=$(printf '\033[33m'); RED=$(printf '\033[31m'); OFF=$(printf '\033[0m')
+else
+  BOLD="" DIM="" GREEN="" YELLOW="" RED="" OFF=""
+fi
 
 usage() { sed -n '2,25s/^# \{0,1\}//p' "$0" 2>/dev/null || say "See https://github.com/$REPO"; }
 
@@ -163,20 +171,28 @@ installed_version() { conf_get "$HOME_DIR/$1/tool.conf" VERSION; }
 
 show_tools() {
   say ""
-  say "better-unas $REF"
+  say "${BOLD}Better UNAS${OFF} ($REF)"
   i=1
   for name in $AVAILABLE; do
     ver=$(conf_get "$SRC/$name/tool.conf" VERSION)
     summary=$(conf_get "$SRC/$name/tool.conf" SUMMARY)
     have=$(installed_version "$name")
-    if [ -z "$have" ]; then state="not installed"
-    elif [ "$have" = "$ver" ]; then state="installed $have"
-    else state="installed $have -> $ver"; fi
-    printf '  [%d] %-18s %-52s %s\n' "$i" "$name" "$summary" "$state"
+    if [ -z "$have" ]; then state="${DIM}Not installed${OFF}"
+    elif [ "$have" = "$ver" ]; then state="${GREEN}Installed ($have)${OFF}"
+    else state="${YELLOW}Update available: $have -> $ver${OFF}"; fi
+    say ""
+    say "  ${BOLD}$i. $name${OFF}"
+    say "     $summary"
+    say "     $state"
     i=$((i + 1))
   done
   for name in $(installed_tools); do
-    has_word "$name" $AVAILABLE || printf '      %-18s %-52s %s\n' "$name" "(not in this release)" "installed $(installed_version "$name")"
+    if ! has_word "$name" $AVAILABLE; then
+      say ""
+      say "  ${BOLD}-  $name${OFF}"
+      say "     Not in this release; left as it is."
+      say "     ${GREEN}Installed ($(installed_version "$name"))${OFF}"
+    fi
   done
   say ""
 }
@@ -194,7 +210,9 @@ select_tools() {
     return 0
   fi
   [ "$YES" -eq 1 ] && die "--yes needs --tools to know what to install"
-  ask "Install or update which? (numbers or names, \"all\", or Enter to cancel):"
+  printf '%s\n' "Which tools? Type numbers or names separated by spaces," \
+    "\"all\" for everything, or just press Enter to cancel." >/dev/tty
+  ask ">"
   case "$REPLY" in *[!a-z0-9,\ -]*) die "didn't understand \"$REPLY\"" ;; esac
   for w in $(printf '%s' "$REPLY" | tr ',' ' '); do
     case "$w" in
@@ -220,11 +238,11 @@ install_tool() {
   setup=$(conf_get "$src/tool.conf" SETUP)
   if [ ! -f "$dest/tool.conf" ] && [ -n "$setup" ]; then
     say ""
-    say "$name needs a step in the UniFi UI first:"
+    say "${BOLD}Before installing $name:${OFF}"
     say "  $setup"
     if [ "$YES" -eq 1 ]; then
       say "  (--yes: assuming it's done)"
-    elif ! confirm "Done?"; then
+    elif ! confirm "Have you done this?"; then
       say "Skipping $name. Run better-unas again once it's done."
       return 0
     fi
@@ -238,7 +256,7 @@ install_tool() {
   find "$dest" -mindepth 1 -maxdepth 1 ! -name config ! -name state.json ! -name .lock -exec rm -rf {} +
   cp -R "$src/." "$dest/"
   say ""
-  say "== $name: running install.sh"
+  say "${BOLD}==> Installing $name $(conf_get "$src/tool.conf" VERSION)${OFF}"
   if (cd "$dest" && sh ./install.sh); then
     DONE_OK="$DONE_OK $name"
   else
@@ -247,12 +265,16 @@ install_tool() {
 }
 
 summary() {
+  [ -n "$DONE_OK$DONE_FAILED" ] || return 0
   say ""
-  [ -n "$DONE_OK" ] && say "Installed:$DONE_OK"
-  [ -n "$DONE_FAILED" ] && say "Problems (see output above):$DONE_FAILED"
-  if [ -n "$DONE_OK$DONE_FAILED" ]; then
-    say "Manage later with: $HOME_DIR/$SELF_NAME [update|list|uninstall <tool>]"
-  fi
+  say "${BOLD}Done.${OFF}"
+  for t in $DONE_OK; do say "  ${GREEN}OK${OFF}      $t $(installed_version "$t")"; done
+  for t in $DONE_FAILED; do say "  ${RED}FAILED${OFF}  $t (see its output above)"; done
+  say ""
+  say "To manage tools later:"
+  say "  $HOME_DIR/$SELF_NAME update"
+  say "  $HOME_DIR/$SELF_NAME list"
+  say "  $HOME_DIR/$SELF_NAME uninstall <tool>"
   [ -z "$DONE_FAILED" ]
 }
 

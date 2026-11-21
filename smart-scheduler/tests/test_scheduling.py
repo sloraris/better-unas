@@ -91,7 +91,7 @@ class SchedulingTests(unittest.TestCase):
         self.fake.history["5"] = [ext(11, "successful", "optimal", "2026-11-01T09:00:00-07:00")]
         self.state["drives"] = {"SERIAL5": {"attrs_at_last_test": {"197": 0}}}
         self.fake.attrs["SERIAL5"] = {"197": 3}
-        self.assertIn("increased", self.drives()["SERIAL5"]["reason"])
+        self.assertIn("rose since last test", self.drives()["SERIAL5"]["reason"])
 
     def test_failed_test_retries_and_alerts_once(self):
         self.fake.history["4"] = [ext(10, "failed", "failed", "2026-11-10T05:00:00-07:00"),
@@ -148,6 +148,53 @@ class SchedulingTests(unittest.TestCase):
         self.assertEqual(state["drives"]["SERIAL6"]["attrs_at_last_test"], {"198": 14})
         self.assertEqual(ss.start_gate(self.cfg, self.fake.storage, [], state, NIGHT.replace(hour=2)),
                          "already started tonight's test(s)")
+
+
+class IdentityTests(unittest.TestCase):
+    OWNER = "11111111-2222-4333-8444-555555555555"
+
+    def setUp(self):
+        self.fake = Fake()
+        self.fake.install()
+        self.queries = []
+
+    def fake_psql(self, rows):
+        def psql(db, query):
+            self.queries.append(db)
+            return rows, None
+        ss.psql = psql
+
+    def test_default_is_console_owner(self):
+        self.fake_psql([[self.OWNER]])
+        uid, label, err = ss.resolve_identity(ss.Config("/nonexistent"))
+        self.assertEqual((uid, label, err), (self.OWNER, "the console owner", None))
+        self.assertEqual(self.queries, ["ulp-go"])
+
+    def test_configured_user_is_looked_up_in_drive(self):
+        self.fake_psql([[self.OWNER]])
+        with tempfile.NamedTemporaryFile("w", delete=False) as f:
+            f.write("DRIVE_USER=scheduler-admin\n")
+        try:
+            uid, label, err = ss.resolve_identity(ss.Config(f.name))
+        finally:
+            os.unlink(f.name)
+        self.assertEqual(uid, self.OWNER)
+        self.assertIn("scheduler-admin", label)
+        self.assertEqual(self.queries, ["unifi-drive"])
+
+    def test_deleted_configured_user_reads_as_missing(self):
+        self.fake_psql([])
+        with tempfile.NamedTemporaryFile("w", delete=False) as f:
+            f.write("DRIVE_USER=gone\n")
+        try:
+            self.assertEqual(ss.resolve_identity(ss.Config(f.name))[::2], (None, None))
+        finally:
+            os.unlink(f.name)
+
+    def test_access_check(self):
+        self.assertIsNone(ss.check_access(self.fake.storage, self.OWNER))
+        ss.api = lambda *a, **k: (403, {"err": {"msg": "Forbidden"}})
+        self.assertIn("admin with Drive management", ss.check_access(self.fake.storage, self.OWNER))
 
 
 class AlertTests(unittest.TestCase):

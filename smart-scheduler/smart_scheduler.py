@@ -54,7 +54,7 @@ TIMER_UNIT = "smart-scheduler.timer"
 
 DEFAULTS = {
     "ENABLED": "yes",
-    "DRIVE_USER": "smart-scheduler",
+    "DRIVE_USER": "",
     "INTERVAL_DAYS": "90",
     "WARN_INTERVAL_DAYS": "30",
     "OLD_INTERVAL_DAYS": "60",
@@ -195,7 +195,7 @@ class Config:
             if not self.values[key].isdigit():
                 self.errors.append(f"{key}: want a whole number, got {self.values[key]!r}")
                 self.values[key] = DEFAULTS[key]
-        if not re.fullmatch(r"[A-Za-z0-9._@-]+", self.values["DRIVE_USER"]):
+        if self.values["DRIVE_USER"] and not re.fullmatch(r"[A-Za-z0-9._@-]+", self.values["DRIVE_USER"]):
             self.errors.append("DRIVE_USER: letters, digits and . _ @ - only")
             self.values["DRIVE_USER"] = DEFAULTS["DRIVE_USER"]
 
@@ -338,20 +338,68 @@ def versions():
     return v
 
 
-def lookup_user(name):
-    """Return (uuid or None, error or None). None/None means the user does not exist."""
-    query = f"SELECT id FROM users WHERE username = '{name}'"  # name is validated in Config
+def psql(db, query):
+    """Run a read-only query as the postgres user. Returns (rows as lists, error or None)."""
     env = dict(os.environ, PGOPTIONS="-c default_transaction_read_only=on")
-    rc, out = sh("runuser", "-u", "postgres", "--", "psql", "-p", "5432", "-d", "unifi-drive",
-                 "-At", "-c", query, env=env, timeout=20)
+    rc, out = sh("runuser", "-u", "postgres", "--", "psql", "-p", "5432", "-d", db,
+                 "-At", "-F", "\t", "-c", query, env=env, timeout=20)
     if rc != 0:
-        return None, f"psql lookup failed ({out[:200] or 'exit ' + str(rc)})"
-    out = out.strip()
-    if not out:
-        return None, None
-    if not re.fullmatch(r"[0-9a-f-]{36}", out):
-        return None, f"unexpected lookup result {out[:80]!r}"
-    return out, None
+        return None, f"psql on {db} failed ({out[:200] or 'exit ' + str(rc)})"
+    return [line.split("\t") for line in out.splitlines() if line.strip()], None
+
+
+UUID_RE = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+
+# UniFi OS keeps accounts and roles in its ulp-go database. The owner always
+# exists and always has Drive management rights, so it is the default identity.
+OWNER_QUERY = """SELECT u.unique_id FROM "user" u
+ JOIN role_user ru ON ru.user_id = u.unique_id
+ JOIN role r ON r.unique_id = ru.role_id
+ WHERE r.system_key = 'owner' AND u.deleted_at IS NULL AND u.status = 'ACTIVE'
+ ORDER BY u.created_at LIMIT 1"""
+
+
+def resolve_identity(cfg):
+    """Return (user id or None, label, error or None).
+
+    UniFi Drive only accepts SMART calls from a UniFi OS admin with Drive
+    management rights (others get 403). By default that's the console owner;
+    DRIVE_USER names a different admin. None/None means a configured user
+    no longer exists.
+    """
+    name = cfg["DRIVE_USER"]
+    if not name:
+        rows, err = psql("ulp-go", OWNER_QUERY)
+        if err:
+            return None, "the console owner", err
+        if not rows or not UUID_RE.fullmatch(rows[0][0]):
+            return None, "the console owner", "couldn't find the console owner in UniFi OS's user database"
+        return rows[0][0], "the console owner", None
+    rows, err = psql("unifi-drive", f"SELECT id FROM users WHERE username = '{name}'")  # validated in Config
+    label = f"UniFi user {name!r}"
+    if err:
+        return None, label, err
+    if not rows:
+        return None, label, None
+    if not UUID_RE.fullmatch(rows[0][0]):
+        return None, label, f"unexpected lookup result {rows[0][0][:80]!r}"
+    return rows[0][0], label, None
+
+
+def check_access(storage, user_id):
+    """Confirm Drive accepts this identity for SMART calls. Returns an error or None."""
+    disk = next((d for d in storage["disks"] if d.get("smartTestSupported")), None)
+    if disk is None:
+        return None
+    try:
+        status, _ = api("GET", f"/storage/disks/{disk['slotId']}/smart-tests?limit=1", user_id)
+    except ApiError as e:
+        return e.detail
+    if status == 403:
+        return "UniFi Drive refused it (403): it needs to be a UniFi OS admin with Drive management rights"
+    if status != 200:
+        return f"SMART history returned HTTP {status}"
+    return None
 
 
 def serial_to_device():
@@ -572,35 +620,35 @@ def evaluate_drives(cfg, storage, user_id, state, alerts, report=True):
                 alerts.info(f"Extended SMART test on slot {slot} ({serial}) passed.")
 
         # Interval selection.
-        warn = [f"attr {k}={v}" for k, v in sorted(attrs.items()) if v]
+        warn = [f"SMART attribute {k} is {v}" for k, v in sorted(attrs.items()) if v]
         if d.get("riskReasons"):
             warn.append("UniFi risk: " + ", ".join(map(str, d["riskReasons"])))
         if d.get("state") not in (None, "optimal"):
             warn.append(f"UniFi state {d.get('state')}")
         increased = [k for k, v in attrs.items() if baseline is not None and v > baseline.get(k, 0)]
         if serial in cfg.overrides:
-            interval, why = cfg.overrides[serial], "override"
+            interval, why = cfg.overrides[serial], "set in config"
         elif warn:
             interval, why = cfg.int("WARN_INTERVAL_DAYS"), "; ".join(warn)
         elif (d.get("powerOnHours") or 0) >= cfg.int("OLD_DRIVE_HOURS"):
-            interval, why = cfg.int("OLD_INTERVAL_DAYS"), f"{d['powerOnHours']}h power-on"
+            interval, why = cfg.int("OLD_INTERVAL_DAYS"), f"{d['powerOnHours']:,} power-on hours"
         else:
             interval, why = cfg.int("INTERVAL_DAYS"), "healthy"
         info["interval"] = interval
 
         if latest is not None and not is_good(latest):
             info["due"] = parse_time(latest["finishedAt"]) + dt.timedelta(days=cfg.int("RETRY_FAILED_DAYS"))
-            info["reason"] = f"retry after {latest.get('status')}/{latest.get('result')}"
+            info["reason"] = f"retrying: last test ended {latest.get('status')}/{latest.get('result')}"
         elif last_good is None:
             info["due"] = t
-            info["reason"] = "no extended test on record (baseline)"
+            info["reason"] = "never tested; first test sets a baseline"
         elif increased:
             info["due"] = t
-            info["reason"] = "attribute increased since last test: " + ", ".join(
-                f"{k} {baseline.get(k, 0)}->{attrs[k]}" for k in increased)
+            info["reason"] = "SMART attribute rose since last test: " + ", ".join(
+                f"{k} went {baseline.get(k, 0)} -> {attrs[k]}" for k in increased)
         else:
             info["due"] = parse_time(last_good["finishedAt"]) + dt.timedelta(days=interval)
-            info["reason"] = f"{interval}d: {why}"
+            info["reason"] = f"every {interval} days ({why})"
         info["last"] = last_good.get("finishedAt") if last_good else None
     return result
 
@@ -695,21 +743,27 @@ def self_check(cfg, state, alerts, dry, heal_ok=True):
                       f"until this clears (Drive {v['drive']}).")
         return None, None
 
-    # Drive user.
-    user_id, err = lookup_user(cfg["DRIVE_USER"])
+    # Identity Drive accepts for SMART calls.
+    user_id, label, err = resolve_identity(cfg)
     if err:
         cached = state.get("user_id")
-        alerts.raise_("user:lookup", f"Couldn't look up Drive user {cfg['DRIVE_USER']!r}: {err}."
-                      + (" Using the cached ID." if cached else " No cached ID; no tests will start."))
+        alerts.raise_("user:lookup", f"Couldn't look up {label}: {err}."
+                      + (" Using the last known ID." if cached else " No tests will start."))
         user_id = cached
     else:
         alerts.clear("user:lookup")
         if user_id is None:
-            alerts.raise_("user:missing", f"Drive user {cfg['DRIVE_USER']!r} no longer exists. Treating this as "
-                          "turned off on purpose: no tests will start. Recreate the user in UniFi to resume.",
-                          "warning")
+            alerts.raise_("user:missing", f"{label} (DRIVE_USER in config) no longer exists. Treating this as "
+                          "turned off on purpose: no tests will start. Recreate the user, or clear DRIVE_USER "
+                          "to use the console owner.", "warning")
             return storage, None
         alerts.clear("user:missing")
+    if user_id:
+        denied = check_access(storage, user_id)
+        if denied:
+            alerts.raise_("user:access", f"Can't use {label} for SMART tests: {denied}.")
+            return storage, None
+        alerts.clear("user:access")
         state["user_id"] = user_id
     return storage, user_id
 
@@ -760,7 +814,7 @@ def cmd_run(cfg, args):
                 start_test(cfg, d, user_id, state, alerts, dry, t)
                 break
         if state.pop("version_changed", False):
-            alerts.info("Self-check after the update passed: API, Drive user and triggers all OK."
+            alerts.info("Self-check after the update passed: API, identity and triggers all OK."
                         if not alerts.has_errors() else "Self-check after the update found problems (see alerts).")
     state["last_tick"] = t.isoformat()
     alerts.flush()
@@ -803,50 +857,77 @@ def cmd_status(cfg, args):
     except ApiError as e:
         print(f"UniFi Drive API problem: {e.detail}")
         return 1
-    user_id, err = lookup_user(cfg["DRIVE_USER"])
+    user_id, label, err = resolve_identity(cfg)
     user_id = user_id or state.get("user_id")
     if not user_id:
-        print(f"Drive user {cfg['DRIVE_USER']!r} not found ({err or 'missing'}).")
+        print(f"Can't use {label}: {err or 'it no longer exists'}.")
         return 1
-    t = now()
     drives = evaluate_drives(cfg, storage, user_id, json.loads(json.dumps(state)), alerts, report=False)
-    print(f"{'slot':<5}{'serial':<18}{'model':<24}{'last extended':<18}{'next due':<18}why")
+    t = now()
+    print("Extended SMART tests\n")
     for d in sorted(drives, key=lambda d: int(d["slot"]) if str(d["slot"]).isdigit() else 99):
         last = parse_time(d.get("last"))
         due = d.get("due")
-        due_txt = "running" if d.get("running") else ("now" if due and due <= t else (f"{due:%Y-%m-%d}" if due else "-"))
-        print(f"{d['slot']:<5}{d['serial']:<18}{d['model'][:22]:<24}"
-              f"{(f'{last:%Y-%m-%d}' if last else 'never'):<18}{due_txt:<18}{d.get('reason', '')}")
+        if d.get("running"):
+            nxt = "running now"
+        elif d["excluded"]:
+            nxt = "never (excluded)"
+        elif due and due <= t:
+            nxt = "due now"
+        else:
+            nxt = f"{due:%a %d %b %Y}" if due else "unknown"
+        print(f"Slot {d['slot']}  {d['model']}  ({d['serial']})")
+        print(f"  Last test: {f'{last:%a %d %b %Y}' if last else 'never'}")
+        print(f"  Next test: {nxt}")
+        print(f"  Why:       {d.get('reason', '')}")
+        print()
     gate = start_gate(cfg, storage, drives, state, t)
-    print(f"\nStart window {cfg['START_WINDOW']}; right now: {gate or 'a test could start'}.")
+    print(f"Tests start between {cfg['START_WINDOW'].replace('-', ' and ')}.")
+    print(f"Right now: {gate or 'a test could start'}.")
     for p in storage["pools"]:
         sc = p.get("dataScrubbing") or {}
-        if sc.get("nextRun"):
-            print(f"Pool {p.get('number', p['id'])} next scrub: {sc['nextRun']} (status {sc.get('status')}).")
+        nxt = parse_time(sc.get("nextRun"))
+        if nxt:
+            print(f"Next scrub (pool {p.get('number', '?')}): {nxt:%a %d %b %H:%M}, status {sc.get('status')}.")
     if state.get("alerts"):
         print("\nActive alerts:")
-        for k, a in state["alerts"].items():
+        for a in state["alerts"].values():
             print(f"  [{a['level']}] {a['msg']}")
     return 0
 
 
 def cmd_check(cfg, args):
-    state = load_state()
-    alerts = Alerts(cfg, state, True)
+    ok = True
+
+    def line(good, what, detail=""):
+        nonlocal ok
+        ok = ok and good
+        print(f"  {'OK  ' if good else 'FAIL'}  {what}" + (f": {detail}" if detail else ""))
+
+    print("Self-check\n")
     for e in cfg.errors:
-        print(f"config: {e}")
-    print("own files:", "; ".join(verify_manifest()) or "OK")
-    print("triggers:", "; ".join(trigger_problems()) or "OK")
-    print("versions:", versions())
+        line(False, "config", e)
+    own = verify_manifest()
+    line(not own, "own files", "; ".join(own))
+    trig = trigger_problems()
+    line(not trig, "timer and cron triggers", "; ".join(trig))
+    missing = [t for t in ("smartctl", "lsblk", "runuser", "psql", "systemctl") if not shutil.which(t)]
+    line(not missing, "required tools", "missing " + ", ".join(missing) if missing else "")
+    v = versions()
+    print(f"  INFO  firmware {v['firmware']}, Drive {v['drive']}")
     try:
         storage = get_storage()
-        print(f"API: OK ({len(storage['disks'])} disks, {len(storage['pools'])} pool(s))")
+        line(True, "UniFi Drive API", f"{len(storage['disks'])} disks, {len(storage['pools'])} pool(s)")
     except ApiError as e:
-        print(f"API: {e}")
+        line(False, "UniFi Drive API", e.detail)
         return 1
-    uid, err = lookup_user(cfg["DRIVE_USER"])
-    print(f"Drive user {cfg['DRIVE_USER']!r}:", uid or err or "does not exist")
-    return 0 if uid and not verify_manifest() and not trigger_problems() else 1
+    uid, label, err = resolve_identity(cfg)
+    if not uid:
+        line(False, f"identity ({label})", err or "no longer exists")
+    else:
+        denied = check_access(storage, uid)
+        line(not denied, f"identity ({label})", denied or "")
+    return 0 if ok else 1
 
 
 def cmd_heal(cfg, args):

@@ -35,8 +35,8 @@ Every tool follows these, so they behave alike and can be installed alone:
 - **It repairs only what it owns.** It checks its own files against a manifest
   before self-healing, and reports anything it doesn't own instead of fixing it.
 - **Off switches are respected.** `ENABLED=no`, `uninstall.sh`, or removing
-  what the tool depends on (like its UniFi user) turns it off, and
-  self-healing never undoes that.
+  an account you told the tool to use turns it off, and self-healing never
+  undoes that.
 - **It tells you.** Deduplicated webhook alerts (text/ntfy, json, slack,
   discord), messages held while the webhook is down, everything in the
   journal under the tool's name, and an optional heartbeat URL as an outside
@@ -63,8 +63,7 @@ sh -c "$(curl -fsSL https://raw.githubusercontent.com/sloraris/better-unas/main/
 
 It downloads the latest release and shows the tools with their install
 status, then asks which ones you want. If a tool needs a step in the UniFi UI
-first (smart-scheduler needs a UniFi user), it asks about that before
-running anything. Each chosen tool is copied to
+first, it asks about that before running anything. Each chosen tool is copied to
 `/persistent/better-unas/<tool>/`, and then the tool's `install.sh` is run.
 
 Prefer to read it before running it as root?

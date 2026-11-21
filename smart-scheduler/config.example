@@ -6,9 +6,10 @@
 # To turn it back on, set "yes" and run install.sh.
 ENABLED=yes
 
-# UniFi user the tests are started as. Create it in UniFi OS first
-# (a basic user with no admin rights and access to nothing is enough).
-DRIVE_USER=smart-scheduler
+# UniFi OS account the tests run as. Empty = the console owner, which needs no
+# setup. To use another account, give its username; it must be an admin with
+# UniFi Drive management rights (Drive rejects everyone else with 403).
+DRIVE_USER=
 
 # --- How often each drive gets an extended test ------------------------------
 # Healthy drive.
