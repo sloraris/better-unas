@@ -25,8 +25,8 @@ Every tool follows these, so they behave alike and can be installed alone:
 - **Self-contained folder.** A tool lives in `/persistent/better-unas/<tool>/`
   (the `/persistent` partition survives firmware updates) and has its own
   `install.sh`, `uninstall.sh`, `config.example`, README and tests, plus a
-  `tool.conf` (name, version, summary, any UI setup step) that the installer
-  reads. No tool depends on another.
+  `tool.conf` (name, version, summary, any UI setup step) that the setup
+  wizard reads. No tool depends on another.
 - **Firmware-only dependencies.** Python 3 standard library plus tools already
   in the firmware. No `apt`, no pip, no binaries.
 - **Few files outside its folder.** Only the triggers it needs (a systemd
@@ -56,21 +56,40 @@ SSH into your UNAS if you haven't already:
 2. Enable SSH and set a password
 3. Log into your UNAS using `root@<YOUR_UNAS_IP>`
 
-Run the installer on the UNAS:
+Run this on the UNAS:
 ```bash
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/sloraris/better-unas/main/install.sh)"
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/sloraris/better-unas/main/bootstrap.sh)"
 ```
 
-It downloads the latest release and shows the tools with their install
-status, then asks which ones you want. If a tool needs a step in the UniFi UI
-first, it asks about that before running anything. Each chosen tool is copied to
-`/persistent/better-unas/<tool>/`, and then the tool's `install.sh` is run.
+It checks that the box is a UNAS with what better-unas needs (root, Python 3,
+`curl`, `tar`), downloads the latest release to a temporary folder and opens
+the setup wizard:
+
+1. **Pick tools.** Tick the ones you want.
+2. **Essential settings.** The few settings to look at before the first run,
+   with the defaults filled in. Everything else is on the Settings tab later.
+3. **Review.** Exactly what will change: the files copied, each tool's
+   config, the timers and triggers it sets up, and the `better-unas` command.
+4. **Install.** Only now is anything written.
+
+Quitting before the review is confirmed leaves the box as it was. Add
+`--dry-run` after the command's closing `)` to walk through the wizard and see
+the review without changing anything, `--ref <tag|branch>` for a specific
+version (`--ref main` for the development version), or `--force` on a box
+that doesn't identify as a UNAS.
+
+Everything goes in `/persistent/better-unas/` (the `/persistent` partition
+survives firmware updates): the `better-unas` command, `core/`, `VERSION`, a
+copy of the release for installing more tools later, and one folder per tool.
+The short name `better-unas` is a link in `/usr/local/bin`. Run it any time to
+open the app again; updates, installing and uninstalling tools are on its
+Tools tab. Updates keep your `config` and state.
 
 Prefer to read it before running it as root?
 ```bash
-curl -fsSLo /tmp/better-unas-install.sh https://raw.githubusercontent.com/sloraris/better-unas/main/install.sh
-less /tmp/better-unas-install.sh
-sh /tmp/better-unas-install.sh
+curl -fsSLo /tmp/better-unas-bootstrap.sh https://raw.githubusercontent.com/sloraris/better-unas/main/bootstrap.sh
+less /tmp/better-unas-bootstrap.sh
+sh /tmp/better-unas-bootstrap.sh
 ```
 
 `better-unas` with no arguments opens the terminal app. With a command it
@@ -85,16 +104,12 @@ better-unas uninstall <tool>          # add --purge to also delete its config
 better-unas --help                    # every command and the exit codes
 ```
 Exit codes: 0 ok, 1 a problem was found or a command failed, 2 usage
-error, 3 an update is available (`update --check`).
-The command itself lives at `/persistent/better-unas/better-unas`. The short
-name is a link in `/usr/local/bin`, which `better-unas update` restores if a
-firmware update removes it.
-Updates keep your `config` and state. An uninstalled tool stays off: `update`
-won't turn it back on.
+error, 3 an update is available (`update --check`). An uninstalled tool stays
+off: `update` won't turn it back on.
 
-Other options: `--ref <tag|branch>` for a specific version (`--ref main` for
-the development version), `--tools a,b --yes` to skip the questions,
-`--dry-run` to see what would happen.
+**Installed with the old `install.sh`?** Run the command above. The wizard
+finds the old install, keeps smart-scheduler's `config`, `state.json` and lock
+as they are, and moves it to the new layout once you confirm.
 
 ## Compatibility
 

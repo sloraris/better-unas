@@ -1,0 +1,24 @@
+ 1 Setup
+ Setup › smart-scheduler settings ────────────────────────────────────────────
+Settings to check before the first run; the rest are on the Settings tab.
+
+How often each drive gets an extended test
+  Healthy drive               90 days
+  Drive with warning signs    30 days
+  Old drive                   60 days
+
+When tests may start
+  Start window                00:00 to 05:00
+
+Notifications
+  Webhook URL                 (none)
+  Webhook format              ‹ text ›
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+Days between tests on a healthy drive.
+
+────────────────────────────────────────────────────────────────────────────────
+ ↑↓ move  Enter edit  n next                          Esc back  ? help  q quit

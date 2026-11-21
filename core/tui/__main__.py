@@ -7,6 +7,12 @@
 
 The headless keys are space-separated key names (see core/tui/keys.py), or
 resize:WxH. The real `better-unas` command (#15, #16) will call main().
+
+First run (#15): when core.setup.needs_setup(home) says so (no tools yet, or
+an install made by the old install.sh), or with --setup, the setup wizard
+opens first. --source names the release to install from; bootstrap.sh passes
+the folder it downloaded the release to. --dry-run shows the review and
+changes nothing.
 """
 
 import argparse
@@ -16,8 +22,10 @@ import sys
 import tempfile
 
 from .. import plugins as P
+from .. import setup as S
 from .. import updates
 from . import demo
+from . import setup as wizard
 from .app import App
 from .terminal import HeadlessTerminal, ScriptDone, run_curses
 
@@ -51,7 +59,15 @@ def main(argv=None, out=sys.stdout):
     ap.add_argument("--dry-run", action="store_true", help="screens must not change anything")
     ap.add_argument("--headless", metavar="WxH", help="render to text instead of the terminal")
     ap.add_argument("--keys", default="", help="with --headless: keys to press, space-separated")
+    ap.add_argument("--setup", action="store_true", help="open the setup wizard even if set up already")
+    ap.add_argument("--source", help="release folder setup installs from (default: the one kept in home)")
+    ap.add_argument("--force", action="store_true", help="setup: continue on a box that isn't a UNAS")
     args = ap.parse_args(argv)
+
+    if not args.demo and (args.setup or args.source or S.needs_setup(args.home)):
+        code = first_run(args, out)
+        if code is not None:
+            return code
 
     tmp = None
     extra = []
@@ -91,6 +107,56 @@ def main(argv=None, out=sys.stdout):
     finally:
         if tmp:
             shutil.rmtree(tmp, ignore_errors=True)
+
+
+def first_run(args, out):
+    """Run the setup wizard. Returns an exit code to stop with, or None to
+    go on to the normal app (setup installed something)."""
+    home = os.path.abspath(args.home)
+    if args.source and not args.setup and not S.needs_setup(home):
+        # The bootstrap one-liner on a box that is set up already.
+        print(f"better-unas is already set up in {home}; opening it. "
+              "(Updates are on the Tools tab.)", file=sys.stderr)
+        return None
+    source = args.source or S.default_source(home, ROOT)
+    if not source:
+        print("better-unas: no release to set up from. Run the install one-liner from the README.",
+              file=sys.stderr)
+        return 1
+    problems = [] if os.environ.get("BETTER_UNAS_SKIP_CHECKS") == "1" else \
+        S.preflight(home, force=args.force)
+    if problems and not (args.dry_run or args.headless):
+        for p in problems:
+            print(f"better-unas: {p}", file=sys.stderr)
+        return 1
+    warnings = [f"Not checked in a dry run: {p}" for p in problems] if args.dry_run else []
+    setup = S.Setup(home, source)
+    if not setup.offered:
+        print(f"better-unas: no tools found in {source}.", file=sys.stderr)
+        return 1
+    log_path = os.path.join(home, "tui.log") if os.path.isdir(home) and not args.dry_run else None
+
+    def build(term):
+        return wizard.SetupApp(term, setup, warnings, dry_run=args.dry_run, log_path=log_path)
+
+    if args.headless:
+        w, h = parse_size(args.headless)
+        term = HeadlessTerminal(w, h, parse_keys(args.keys))
+        app = build(term)
+        try:
+            app.run()
+        except ScriptDone:
+            pass
+        app.draw()
+        print(term.text(), file=out)
+        return 0
+    run_curses(build)
+    if not setup.done:
+        print("Setup left; nothing was changed." if not args.dry_run else
+              "Dry run finished; nothing was changed.", file=sys.stderr)
+        return 0
+    args.home = home
+    return None
 
 
 if __name__ == "__main__":
