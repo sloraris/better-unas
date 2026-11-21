@@ -9,10 +9,15 @@ Commands:
   status   one row per drive: last extended test, next due, and why
   check    self-check only; prints every check and exits non-zero on problems
   heal     restore the timer and cron triggers from the copies in this folder
+  snooze <slot|serial> <YYYY-MM-DD> [--note TEXT]
+           don't start a test on that drive before that date; expires on its own
+  unsnooze <slot|serial>
+           remove a drive's snooze
 
 Options:
   --dry-run   change nothing: no tests, no healing, no alerts, no state writes
   --source    who started this run (timer, cron, manual); set by the triggers
+  --note      with snooze: why, shown by status
 
 Standard library only. Python 3 ships in the UniFi OS firmware image and
 UniFi's base packages depend on it.
@@ -243,6 +248,67 @@ def load_state():
 def save_state(state, dry):
     if not dry:
         write_atomic(STATE_FILE, json.dumps(state, indent=1, sort_keys=True), 0o600)
+
+
+# --------------------------------------------------------------------------- snoozes
+#
+# state["snoozes"] = {serial: {"until": "YYYY-MM-DD", "note": str, "set": iso time}}.
+# A snoozed drive gets no test before 00:00 local time on "until". Snoozes are
+# runtime state, not config: the run drops them once that day has come.
+
+def active_snoozes(state, today):
+    """{serial: snooze} for snoozes that still hold on `today` (a date)."""
+    out = {}
+    for serial, z in (state.get("snoozes") or {}).items():
+        try:
+            if dt.date.fromisoformat(z["until"]) > today:
+                out[serial] = z
+        except (KeyError, TypeError, ValueError):
+            continue
+    return out
+
+
+def expire_snoozes(state, today):
+    """Drop snoozes that no longer hold (and unreadable ones). Returns the dropped serials."""
+    keep = active_snoozes(state, today)
+    dropped = sorted(set(state.get("snoozes") or {}) - set(keep))
+    if keep:
+        state["snoozes"] = keep
+    else:
+        state.pop("snoozes", None)
+    return dropped
+
+
+def snooze_text(z):
+    text = f"snoozed until {dt.date.fromisoformat(z['until']):%a %d %b %Y}"
+    return text + (f" ({z['note']})" if z.get("note") else "")
+
+
+def not_before(state, t):
+    """The planner's not_before: {serial: (00:00 on the snooze date, reason)}."""
+    return {serial: (dt.datetime.combine(dt.date.fromisoformat(z["until"]), dt.time(0), tzinfo=t.tzinfo),
+                     snooze_text(z))
+            for serial, z in active_snoozes(state, t.date()).items()}
+
+
+def set_snooze(state, serial, until, note="", t=None):
+    """Snooze `serial` until `until` (a date after today). Replaces an existing snooze."""
+    t = t or now()
+    if until <= t.date():
+        raise ValueError(f"{until:%Y-%m-%d} isn't after today ({t:%Y-%m-%d})")
+    z = {"until": until.isoformat(), "set": t.isoformat()}
+    if note:
+        z["note"] = " ".join(str(note).split())[:200]
+    state.setdefault("snoozes", {})[serial] = z
+    return z
+
+
+def clear_snooze(state, serial):
+    """Remove `serial`'s snooze. Returns it, or None if there was none."""
+    z = (state.get("snoozes") or {}).pop(serial, None)
+    if not state.get("snoozes"):
+        state.pop("snoozes", None)
+    return z
 
 
 # --------------------------------------------------------------------------- alerts
@@ -782,12 +848,16 @@ def cmd_run(cfg, args):
             return 0
         log("cron backup running a full tick (timer missing or late)")
 
+    for serial in expire_snoozes(state, t.date()):
+        log(f"snooze on {serial} has ended")
+
     storage, user_id = self_check(cfg, state, alerts, dry)
     if storage is not None and user_id:
         drives = evaluate_drives(cfg, storage, user_id, state, alerts)
         longest = max((planner.test_length(cfg, d.get("minutes")) for d in drives), default=dt.timedelta(0))
         windows, _ = backup_windows(cfg, t, t + longest, alerts)
-        decision = planner.decide(cfg, storage, drives, state, t, windows=windows)
+        decision = planner.decide(cfg, storage, drives, state, t, windows=windows,
+                                  not_before=not_before(state, t))
         if decision.gate:
             if decision.due and decision.gate != "outside start window":
                 log(f"{len(decision.due)} drive(s) due; not starting: {decision.gate}")
@@ -847,6 +917,7 @@ def cmd_status(cfg, args):
         return 1
     drives = evaluate_drives(cfg, storage, user_id, json.loads(json.dumps(state)), alerts, report=False)
     t = now()
+    snoozes = active_snoozes(state, t.date())
     print("Extended SMART tests\n")
     for d in sorted(drives, key=lambda d: int(d["slot"]) if str(d["slot"]).isdigit() else 99):
         last = parse_time(d.get("last"))
@@ -855,6 +926,8 @@ def cmd_status(cfg, args):
             nxt = "running now"
         elif d["excluded"]:
             nxt = "never (excluded)"
+        elif d["serial"] in snoozes and (not due or due.date() < dt.date.fromisoformat(snoozes[d["serial"]]["until"])):
+            nxt = f"not before {dt.date.fromisoformat(snoozes[d['serial']]['until']):%a %d %b %Y} (snoozed)"
         elif due and due <= t:
             nxt = "due now"
         else:
@@ -863,10 +936,12 @@ def cmd_status(cfg, args):
         print(f"  Last test: {f'{last:%a %d %b %Y}' if last else 'never'}")
         print(f"  Next test: {nxt}")
         print(f"  Why:       {d.get('reason', '')}")
+        if d["serial"] in snoozes:
+            print(f"  Snoozed:   {snooze_text(snoozes[d['serial']])[8:]}")
         print()
     horizon = t + dt.timedelta(days=planner.MAX_NIGHTS + 2)
     windows, backup_info = backup_windows(cfg, t, horizon)
-    plan = planner.plan(storage, drives, state, cfg, t, windows=windows)
+    plan = planner.plan(storage, drives, state, cfg, t, windows=windows, not_before=not_before(state, t))
     if plan:
         print("Plan (assuming each test passes):")
         rows = [(e["night"], f"{e['start']:%a %d %b %H:%M}  slot {e['slot']} ({e['serial']})") for e in plan]
@@ -892,7 +967,7 @@ def cmd_status(cfg, args):
 
 
 def print_backups(cfg, info, t):
-    if not cfg.yes("BACKUP_AVOID"):
+    if not cfg.yes("BACKUP_AVOID") or info is None:
         print("UniFi backup tasks: not avoided (BACKUP_AVOID=no).\n")
         return
     if not info["tasks"] and not info["problems"]:
@@ -967,9 +1042,95 @@ def cmd_heal(cfg, args):
     return 0
 
 
+def resolve_drive(target, storage):
+    """(serial, label) for a slot number or serial, or raise ValueError."""
+    disks = (storage or {}).get("disks") or []
+    for d in disks:
+        if str(d.get("slotId")) == target and d.get("serial"):
+            return d["serial"], f"slot {d['slotId']} ({d['serial']})"
+    for d in disks:
+        if d.get("serial") == target:
+            return target, f"slot {d.get('slotId')} ({target})"
+    raise ValueError(f"no drive with slot or serial {target!r}")
+
+
+def cmd_snooze(cfg, args):
+    if not args.target or not args.date:
+        print("Usage: smart_scheduler.py snooze <slot|serial> <YYYY-MM-DD> [--note TEXT]", file=sys.stderr)
+        return 2
+    try:
+        until = dt.date.fromisoformat(args.date)
+    except ValueError:
+        print(f"Not a date: {args.date!r} (want YYYY-MM-DD).", file=sys.stderr)
+        return 2
+    state = load_state()
+    try:
+        serial, label = drive_for(args.target, state)
+        z = set_snooze(state, serial, until, args.note or "")
+    except ValueError as e:
+        print(f"{e}.", file=sys.stderr)
+        return 1
+    save_state(state, args.dry_run)
+    print(f"{'(dry-run) would snooze' if args.dry_run else 'Snoozed'} {label}: no test before "
+          f"{until:%a %d %b %Y}" + (f" ({z['note']})" if z.get("note") else "") + ".")
+    return 0
+
+
+def cmd_unsnooze(cfg, args):
+    if not args.target or args.date:
+        print("Usage: smart_scheduler.py unsnooze <slot|serial>", file=sys.stderr)
+        return 2
+    state = load_state()
+    try:
+        serial, label = drive_for(args.target, state)
+    except ValueError as e:
+        print(f"{e}.", file=sys.stderr)
+        return 1
+    if not clear_snooze(state, serial):
+        print(f"{label} isn't snoozed.")
+        return 0
+    save_state(state, args.dry_run)
+    print(f"{'(dry-run) would remove' if args.dry_run else 'Removed'} the snooze on {label}.")
+    return 0
+
+
+def drive_for(target, state):
+    """Resolve a slot or serial against the live drive list. A snoozed serial
+    resolves even when the API is down or the drive is gone, so it can be removed."""
+    try:
+        return resolve_drive(target, get_storage())
+    except ApiError as e:
+        if target in (state.get("snoozes") or {}):
+            return target, target
+        raise ValueError(f"can't read the drive list ({e.detail})")
+    except ValueError:
+        if target in (state.get("snoozes") or {}):
+            return target, target
+        raise
+
+
+def take_lock(wait):
+    """The run lock, held until the returned file is closed, or None if it
+    stayed busy for `wait` seconds. Anything that writes state takes it."""
+    lock = open(LOCK_FILE, "w")
+    deadline = time.monotonic() + wait
+    while True:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return lock
+        except BlockingIOError:
+            if time.monotonic() >= deadline:
+                lock.close()
+                return None
+            time.sleep(1)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("command", choices=("run", "status", "check", "heal"))
+    ap.add_argument("command", choices=("run", "status", "check", "heal", "snooze", "unsnooze"))
+    ap.add_argument("target", nargs="?", help=argparse.SUPPRESS)
+    ap.add_argument("date", nargs="?", help=argparse.SUPPRESS)
+    ap.add_argument("--note", default="", help=argparse.SUPPRESS)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--source", default="manual", choices=("timer", "cron", "manual"))
     ap.add_argument("--force", action="store_true", help=argparse.SUPPRESS)
@@ -978,22 +1139,21 @@ def main():
         print("Run as root.", file=sys.stderr)
         return 2
     cfg = Config(CONFIG_FILE)
-    # status and check only read, so they never wait. run and heal change state
-    # and take the lock: scheduled runs skip if one is already going, manual
-    # ones wait for it (a run normally takes a few seconds).
-    if args.command in ("run", "heal"):
-        lock = open(LOCK_FILE, "w")
-        deadline = time.monotonic() + (0 if args.source in ("timer", "cron") else 120)
-        while True:
-            try:
-                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                break
-            except BlockingIOError:
-                if time.monotonic() >= deadline:
-                    print("Another run is in progress; skipping this one.")
-                    return 0
-                time.sleep(1)
-    return {"run": cmd_run, "status": cmd_status, "check": cmd_check, "heal": cmd_heal}[args.command](cfg, args)
+    # status and check only read, so they never wait. run, heal and the snooze
+    # commands change state and take the lock: scheduled runs skip if one is
+    # already going, manual ones wait for it (a run normally takes a few seconds).
+    lock = None
+    if args.command in ("run", "heal", "snooze", "unsnooze"):
+        lock = take_lock(0 if args.source in ("timer", "cron") else 120)
+        if lock is None:
+            print("Another run is in progress; skipping this one.")
+            return 0 if args.command in ("run", "heal") else 1
+    try:
+        return {"run": cmd_run, "status": cmd_status, "check": cmd_check, "heal": cmd_heal,
+                "snooze": cmd_snooze, "unsnooze": cmd_unsnooze}[args.command](cfg, args)
+    finally:
+        if lock:
+            lock.close()
 
 
 if __name__ == "__main__":

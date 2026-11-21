@@ -75,6 +75,15 @@ usernames and addresses stored next to them are never selected. If Drive's
 tables change shape, you get a warning and tests carry on without avoiding
 backups until it is fixed.
 
+### Snoozing a drive
+
+`snooze <slot|serial> <YYYY-MM-DD>` keeps a drive from starting a test before
+that date (from midnight, NAS time), for example while a replacement is on its
+way. The snooze is kept in `state.json`, not `config`. It ends on its own once
+the date comes, and `unsnooze` removes it early. `status` shows each active
+snooze, and the plan puts that drive on the first night after it. Both commands
+take the same lock as the hourly run, so they never collide with it.
+
 ## Install
 
 No UniFi setup is needed. It runs as the console owner (see
@@ -152,6 +161,8 @@ python3 smart_scheduler.py status            # per-drive schedule and reasons
 python3 smart_scheduler.py run --dry-run     # what a run would do right now, changing nothing
 python3 smart_scheduler.py check             # self-check only
 python3 smart_scheduler.py heal              # restore triggers now
+python3 smart_scheduler.py snooze 3 2026-12-15 --note "waiting for a spare"
+python3 smart_scheduler.py unsnooze 3        # slot number or serial
 python3 -m unittest discover -s tests        # logic tests (any machine, no NAS needed)
 ./uninstall.sh [--purge]                     # remove triggers (and the folder)
 ```
