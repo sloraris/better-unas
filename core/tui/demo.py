@@ -1,6 +1,6 @@
 """Placeholder Calendar and Drives tabs for the demo (`--demo`).
 
-They stand in for smart-scheduler's screens (#10, #11) and exercise the
+They stand in for smart-scheduler's real screens and exercise the
 widgets: a table, a drill-down, a confirm with a second confirm, a slow read
 with a spinner. Nothing here touches a drive.
 """
@@ -25,8 +25,8 @@ class CalendarPlaceholder:
     def __init__(self, ctx):
         self.ctx = ctx
         self.text = W.ScrollText([
-            ("The month grid of drive tests arrives with issue #10.", "dim"), "",
-            "Until then, the colors it will use:",
+            ("Demo: smart-scheduler's Calendar tab shows the month grid of drive tests.", "dim"), "",
+            "The colors it uses:",
             ("  Passed or done                 green", "good"),
             ("  Planned, or a warning          yellow", "warn"),
             ("  Failed, or an alert            red", "bad"),
@@ -63,7 +63,7 @@ class DrivesPlaceholder:
         self.loaded = True
 
     def render(self, canvas):
-        canvas.text(0, 0, "Demo data: the real Drives screen arrives with #11.", "dim")
+        canvas.text(0, 0, "Demo data: smart-scheduler's Drives tab shows the real drives.", "dim")
         self.table.render(canvas.sub(2, 0, canvas.height - 2, canvas.width))
 
     def key(self, k):
@@ -75,7 +75,7 @@ class DrivesPlaceholder:
                 (f"Last test:    {d[3]}", d[4]),
                 (f"Next planned: {d[5]}", "warn"),
                 f"Temperature:  {d[6]}", "",
-                ("SMART values and test history arrive with #11.", "dim")]))
+                ("Demo: the real Drives tab shows SMART values and test history.", "dim")]))
             return True
         if k == "t" and row:
             ok = self.ctx.confirm(f"Start an extended test on slot {row[0]} ({row[1]})?",

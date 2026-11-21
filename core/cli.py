@@ -132,7 +132,7 @@ class CLI:
         return (answer or "").strip().lower() in ("y", "yes")
 
     def need_root(self):
-        """Changes on the real install need root (as install.sh's preflight)."""
+        """Changes on the real install need root."""
         if self.root_check and self.home == I.DEFAULT_HOME and hasattr(os, "geteuid") \
                 and os.geteuid() != 0:
             raise Problem("run this as root")

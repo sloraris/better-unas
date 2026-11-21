@@ -457,11 +457,13 @@ class App:
             c.text(0, x + len(k) + 1, lbl)
             x += len(k) + len(lbl) + 3
         room = c.width - right - 1
+        more = c.symbols["more"] + " ?"
         x = 1
         for i, (k, lbl) in enumerate(own):
             need = len(k) + len(lbl) + 3
-            if x + need > room:
-                c.text(0, x, c.symbols["more"] + " ?", "dim")
+            # Unless this is the last key, leave room for the marker after it.
+            if x + need + (0 if i == len(own) - 1 else len(more)) > room:
+                c.text(0, x, more, "dim")
                 break
             c.text(0, x, k, "accent", bold=True)
             c.text(0, x + len(k) + 1, lbl)
