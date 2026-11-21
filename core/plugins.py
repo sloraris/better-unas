@@ -91,7 +91,7 @@ def parse_keyvalue(text):
     Blank lines and lines starting with # are skipped. Values are taken
     literally after the first "=", stripped, with one pair of matching quotes
     removed. Nothing is expanded or executed. A repeated key: the first wins
-    (as install.sh's conf_get does) and the repeat is reported.
+    and the repeat is reported.
     """
     values, problems = {}, []
     for n, line in enumerate(text.splitlines(), 1):

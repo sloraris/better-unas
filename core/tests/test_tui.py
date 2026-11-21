@@ -807,6 +807,35 @@ class AppTests(AppFixture, unittest.TestCase):
         self.assertIn("… ?", last)
         self.assertTrue(last.endswith("q quit"))
 
+    def test_footer_overflow_marker_never_covers_core_keys(self):
+        class Crowded:
+            title = "Crowded"
+            fill = 0
+
+            def keys(self):
+                return [("a", "x" * self.fill), ("b", "second"), ("c", "third")]
+
+            def render(self, c):
+                pass
+
+            def key(self, k):
+                return False
+
+        screen = Crowded()
+        app = self.make_app(80, 24, extra_tabs=[("Crowded", lambda ctx: screen)])
+        app.press("2")
+        core_text = "  ".join(f"{k} {lbl}" for k, lbl in app.core_keys())
+        # Every length of the first key, including the ones that end right
+        # where the marker used to run into the first core key.
+        for fill in range(30, 80 - len(core_text) - 4):
+            screen.fill = fill
+            app.draw()
+            last = self.term.text().splitlines()[-1]
+            self.assertTrue(last.rstrip().endswith(core_text), (fill, last))
+            self.assertIn("… ?", last, fill)
+            before = last[:last.index(core_text)]
+            self.assertTrue(before.endswith(" "), (fill, last))
+
     def test_alerts_and_tools(self):
         app = self.make_app()
         text = app.press("5")

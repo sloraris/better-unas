@@ -6,7 +6,7 @@
                                                render to text and print the last frame
 
 The headless keys are space-separated key names (see core/tui/keys.py), or
-resize:WxH. The real `better-unas` command (#15, #16) will call main().
+resize:WxH. The `better-unas` command calls main() to open the TUI.
 
 First run (#15): when core.setup.needs_setup(home) says so (no tools yet, or
 an install made by the old install.sh), or with --setup, the setup wizard

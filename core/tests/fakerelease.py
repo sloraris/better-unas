@@ -57,7 +57,7 @@ def release_tree(version, tools=None):
     }
     files = {
         "VERSION": version + "\n",
-        "install.sh": "#!/bin/sh\necho old installer\n",
+        "better-unas": "#!/usr/bin/env python3\nprint('better-unas')\n",
         "README.md": f"better-unas {version}\n",
         "core/__init__.py": f"RELEASE = {version!r}\n",
         "smart-scheduler-like/README.md": "no tool.conf: not a tool\n",

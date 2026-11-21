@@ -11,14 +11,13 @@ the NAS. It holds:
     <tool>/            an installed tool (tool.conf), or an uninstalled one
                        (tool.conf.uninstalled: kept off by updates)
 
-This carries over what the root install.sh does: a tool's own files are
-replaced and its config, state.json and lock are kept; each tool's own
-install.sh / uninstall.sh does the work on the NAS; uninstalling without
---purge renames tool.conf to tool.conf.uninstalled so an update won't turn
-it back on.
+A tool's own files are replaced and its config, state.json and lock are
+kept; each tool's own install.sh / uninstall.sh does the work on the NAS;
+uninstalling without --purge renames tool.conf to tool.conf.uninstalled so
+an update won't turn it back on.
 
-Nothing here prints or asks. The callers (the Tools screen, later the CLI)
-confirm first and show the output the tool scripts return.
+Nothing here prints or asks. The callers (the setup wizard, the Tools
+screen, the CLI) confirm first and show the output the tool scripts return.
 """
 
 import os
@@ -36,7 +35,7 @@ UNINSTALLED = "tool.conf.uninstalled"
 # Always kept when a tool's files are replaced (plus its manifest CONFIG and LOCK).
 KEEP = ("config", "state.json", ".lock", UNINSTALLED)
 # Suite files copied from a release into the home. The entry point is handled apart.
-CORE_ITEMS = ("core", "VERSION", "install.sh", "README.md", "LICENSE")
+CORE_ITEMS = ("core", "VERSION", "README.md")
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 
 
@@ -230,11 +229,7 @@ def install_core(src, home):
         p = os.path.join(src, item)
         if os.path.exists(p):
             _replace(p, os.path.join(home, item))
-    # The entry point: the release's own `better-unas` once it ships one (#15),
-    # until then the installer script, as install.sh's install_self does.
     entry = os.path.join(src, ENTRY)
-    if not os.path.isfile(entry):
-        entry = os.path.join(src, "install.sh")
     if os.path.isfile(entry):
         _replace(entry, os.path.join(home, ENTRY))
         os.chmod(os.path.join(home, ENTRY), 0o755)
