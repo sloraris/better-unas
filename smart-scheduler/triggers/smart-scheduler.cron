@@ -1,0 +1,3 @@
+# Installed by smart-scheduler. Backup trigger: restores the systemd timer if it goes missing.
+MAILTO=""
+47 * * * * root /usr/bin/python3 @BASE@/smart_scheduler.py run --source cron >/dev/null 2>&1

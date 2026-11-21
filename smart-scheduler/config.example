@@ -1,0 +1,63 @@
+# smart-scheduler settings. Every line is optional; an empty file uses the
+# defaults shown here. Changes take effect on the next hourly run.
+# Check your edits with:  python3 smart_scheduler.py status
+
+# Set to "no" to stop: the next run removes the timer and cron line.
+# To turn it back on, set "yes" and run install.sh.
+ENABLED=yes
+
+# UniFi user the tests are started as. Create it in UniFi OS first
+# (a basic user with no admin rights and access to nothing is enough).
+DRIVE_USER=smart-scheduler
+
+# --- How often each drive gets an extended test ------------------------------
+# Healthy drive.
+INTERVAL_DAYS=90
+# Drive showing warning signs: any WARN_ATTRIBUTES above zero, a UniFi risk
+# reason, or a UniFi state other than optimal.
+WARN_INTERVAL_DAYS=30
+# Drive older than OLD_DRIVE_HOURS of power-on time (43800 h is about 5 years).
+OLD_INTERVAL_DAYS=60
+OLD_DRIVE_HOURS=43800
+# After a test fails or is aborted, try again this many days later (and alert).
+RETRY_FAILED_DAYS=7
+# SMART attributes that count as warning signs. If one rises since the last
+# test, that drive is tested on the next eligible night.
+# 5 reallocated, 187 reported uncorrectable, 197 pending, 198 offline uncorrectable
+WARN_ATTRIBUTES=5,187,197,198
+
+# Per-drive intervals, by serial number:  SERIAL:DAYS,SERIAL:DAYS
+INTERVAL_OVERRIDES=
+# Drives to never test, by serial number, comma-separated.
+EXCLUDE_SERIALS=
+
+# --- When tests may start ------------------------------------------------------
+# Local time (the NAS's timezone). May cross midnight, e.g. 22:00-04:00.
+START_WINDOW=00:00-05:00
+# Never run more than this many tests at once, or start more per night.
+MAX_CONCURRENT=1
+MAX_STARTS_PER_NIGHT=1
+# Don't start a test that could still be running this many hours before a
+# scheduled scrub. A test's length is the drive's own estimate x DURATION_FACTOR.
+SCRUB_MARGIN_HOURS=2
+DURATION_FACTOR=1.5
+# Skip a drive that is busier than this (read + write, KB/s) when the test
+# would start. 0 turns the check off.
+BUSY_KBPS=20000
+
+# --- Notifications ---------------------------------------------------------------
+# Where alerts go. Empty = journal/syslog only.
+WEBHOOK_URL=
+# text (plain body; ntfy and most receivers), json, slack, or discord
+WEBHOOK_FORMAT=text
+# Also notify when a test passes (UniFi already shows results in Health Monitor).
+NOTIFY_SUCCESS=no
+# Repeat a still-active alert after this many hours.
+ALERT_REPEAT_HOURS=72
+
+# Dead-man's switch: pinged (GET) after every healthy hourly run. Point it at
+# healthchecks.io or an Uptime Kuma push monitor with a grace period of a few
+# hours, and you'll hear about it if this stops running for any reason.
+HEARTBEAT_URL=
+# Optional: pinged instead when a run ends with active errors.
+HEARTBEAT_FAIL_URL=

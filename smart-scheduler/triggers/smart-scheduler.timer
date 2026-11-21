@@ -1,0 +1,12 @@
+# Installed by smart-scheduler. Restored automatically if removed or changed.
+[Unit]
+Description=Hourly smart-scheduler tick
+
+[Timer]
+OnBootSec=10min
+OnCalendar=hourly
+RandomizedDelaySec=120
+Persistent=true
+
+[Install]
+WantedBy=timers.target

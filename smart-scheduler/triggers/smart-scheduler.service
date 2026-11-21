@@ -1,0 +1,9 @@
+# Installed by smart-scheduler. Restored automatically if removed or changed.
+[Unit]
+Description=Schedule UniFi Drive extended SMART tests
+After=unifi-drive.service postgresql.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 @BASE@/smart_scheduler.py run --source timer
+Nice=10

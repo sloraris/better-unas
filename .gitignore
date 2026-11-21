@@ -1,0 +1,8 @@
+# Per-install files created on the NAS
+*/config
+*/state.json
+*/manifest.sha256
+*/.lock
+
+__pycache__/
+.DS_Store
