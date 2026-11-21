@@ -15,8 +15,8 @@ says so.
 | Tool | What it does | Status |
 |---|---|---|
 | [smart-scheduler](smart-scheduler/) | Schedules UniFi Drive's own extended SMART tests: per-drive intervals that shorten on warning signs, avoids scrubs, rebuilds, and busy drives | Drafted, logic tested; not yet run on a NAS |
-| health-watcher | Custom thresholds on SMART attribute changes (5/187/197/198/199) and btrfs error counters, alerting via webhook | Idea |
-| scrub-healer | When a scrub finds a corrupt file, find it and restore it from a backup copy, with your confirmation | Idea |
+| health-monitor | Custom thresholds on SMART attribute changes (5/187/197/198/199) and btrfs error counters, alerting via webhook | Idea |
+| scrub-repair | When a scrub finds a corrupt file, find it and restore it from a backup copy, with your confirmation | Idea |
 
 ## Shared conventions
 
@@ -24,8 +24,9 @@ Every tool follows these, so they behave alike and can be installed alone:
 
 - **Self-contained folder.** A tool lives in `/persistent/better-unas/<tool>/`
   (the `/persistent` partition survives firmware updates) and has its own
-  `install.sh`, `uninstall.sh`, `config.example`, README and tests. No tool
-  depends on another.
+  `install.sh`, `uninstall.sh`, `config.example`, README and tests, plus a
+  `tool.conf` (name, version, summary, any UI setup step) that the installer
+  reads. No tool depends on another.
 - **Firmware-only dependencies.** Python 3 standard library plus tools already
   in the firmware. No `apt`, no pip, no binaries.
 - **Few files outside its folder.** Only the triggers it needs (a systemd
@@ -55,21 +56,36 @@ SSH into your UNAS if you haven't already:
 2. Enable SSH and set a password
 3. Log into your UNAS using `root@<YOUR_UNAS_IP>`
 
-Download Better UNAS to `/persistent`, which survives firmware updates:
+Run the installer on the UNAS:
 ```bash
-mkdir -p /persistent/better-unas && curl -fsSL https://github.com/sloraris/better-unas/archive/refs/heads/main.tar.gz | tar -xz --strip-components=1 -C /persistent/better-unas
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/sloraris/better-unas/main/install.sh)"
 ```
 
-Downloading does not install or run anything. Each tool installs on its own,
-so set up only the ones you want. Follow the tool's README; some need a step
-in the UniFi UI first. For example, smart-scheduler needs its UniFi user
-created before you run:
+It downloads the latest release and shows the tools with their install
+status, then asks which ones you want. If a tool needs a step in the UniFi UI
+first (smart-scheduler needs a UniFi user), it asks about that before
+running anything. Each chosen tool is copied to
+`/persistent/better-unas/<tool>/`, and then the tool's `install.sh` is run.
+
+Prefer to read it before running it as root?
 ```bash
-cd /persistent/better-unas/smart-scheduler && ./install.sh
+curl -fsSLo /tmp/better-unas-install.sh https://raw.githubusercontent.com/sloraris/better-unas/main/install.sh
+less /tmp/better-unas-install.sh
+sh /tmp/better-unas-install.sh
 ```
 
-To update later, run the same download command again, then re-run each
-installed tool's `install.sh`. Your `config` and state files are kept.
+The installer keeps a copy of itself for later:
+```bash
+/persistent/better-unas/better-unas update              # update installed tools to the latest release
+/persistent/better-unas/better-unas list                # available and installed tools
+/persistent/better-unas/better-unas uninstall <tool>    # add --purge to also delete its config
+```
+Updates keep your `config` and state. An uninstalled tool stays off: `update`
+won't turn it back on.
+
+Other options: `--ref <tag|branch>` for a specific version (`--ref main` for
+the development version), `--tools a,b --yes` to skip the questions,
+`--dry-run` to see what would happen.
 
 ## Compatibility
 

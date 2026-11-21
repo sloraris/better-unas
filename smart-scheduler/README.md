@@ -49,16 +49,13 @@ date and why.
 1. In UniFi OS, create a user for the scheduler, e.g. `smart-scheduler`. A
    basic user with no admin role and no file access is enough; Drive only needs
    it to exist.
-2. On the NAS, download Better UNAS to `/persistent` (which survives firmware
-   updates), if you haven't already:
-   ```bash
-   mkdir -p /persistent/better-unas && curl -fsSL https://github.com/sloraris/better-unas/archive/refs/heads/main.tar.gz | tar -xz --strip-components=1 -C /persistent/better-unas
-   ```
-3. On the NAS:
+2. On the NAS, run the [better-unas installer](../README.md#install) and pick
+   smart-scheduler. To install by hand instead, put this folder at
+   `/persistent/better-unas/smart-scheduler/` and run:
    ```bash
    cd /persistent/better-unas/smart-scheduler && ./install.sh
    ```
-4. Optional: edit `/persistent/better-unas/smart-scheduler/config` to add a webhook and a
+3. Optional: edit `/persistent/better-unas/smart-scheduler/config` to add a webhook and a
    heartbeat URL. Every setting is explained there.
 
 `install.sh` is safe to re-run at any time. It never touches an existing `config`.
