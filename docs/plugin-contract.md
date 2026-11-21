@@ -89,8 +89,10 @@ with a letter. Every key is optional; a missing key means its default.
 A tool's own loader reads it at run time. The TUI reads it through the schema
 (`Tool.read_config()` in `core/plugins.py`), and writes it with a writer that
 changes only the edited keys and keeps comments, order and unknown lines
-(built in #7). An edited key that isn't in the file yet is appended under its
-group's comment heading if the writer can find it, otherwise at the end.
+(built in #7; the core's copy is `core/configfile.py`, the tool's own is
+`smart-scheduler/settings.py`). An edited key that isn't in the file yet is
+appended under its group's comment heading if the writer can find it,
+otherwise at the end.
 
 ## 3. Settings schema
 
@@ -189,6 +191,15 @@ The Settings screen refuses to save while any field has an error. Rules that
 involve more than one field go in the plugin's optional `validate(values)`
 (section 4).
 
+Saving (#12, `core/tui/settings.py`): `s` checks every field against the
+schema and `validate(values)`, then writes only the changed keys through
+`core/configfile.py` while holding the tool's lock (`ctx.lock()`). If the
+scheduled run keeps the lock past the timeout, nothing is written and the
+edits stay on screen. In a dry run (`--dry-run`) the edits are checked and
+nothing is written. Leaving with unsaved edits asks whether to discard them.
+First-run setup reuses the same form (`SettingsForm`, with
+`schema_subset(schema, essential=True)`).
+
 ## 4. Plugin module
 
 A Python file the core imports by path under a private module name
@@ -207,6 +218,7 @@ def alerts(ctx): ...      # required
 def validate(values): ... # optional
 def screens(ctx): ...     # optional
 def send_test(ctx, key, values): ...  # optional
+def preview(ctx, values): ...  # optional
 ```
 
 Every function except `validate` gets the context described in section 6. They must not write
@@ -308,6 +320,16 @@ It must send exactly what the tool's own sender sends, so the user tests the
 real format. It writes nothing locally and takes no lock. Without the
 function, `t` says the tool can't send a test. smart-scheduler's
 implementation is one line: `smart_scheduler.send_test(values, key)`.
+
+### `preview(ctx, values)`: show the effect of unsaved settings (optional)
+
+`p` on the Settings screen calls it with the typed settings, the user's
+unsaved edits applied (every field must be valid first), and pushes the screen
+it returns; Esc comes back to the form with the edits intact. Return `None`
+to show nothing. The screen must read settings only from `values` (or a
+context whose `config()` returns them) and write nothing. Without the
+function there is no `p`. smart-scheduler returns its Calendar planned with
+the values (`preview_calendar`).
 
 ### `screens(ctx)`: the tool's own screens (optional)
 
@@ -530,7 +552,8 @@ Notes for #7:
   config writer (`smart-scheduler/settings.py`: `save(path, edits, schema)`),
   and shares validation between the tool's `Config` loader and the writer
   (see open question 2). smart-scheduler's `plugin.py` is still to come.
-- **#12** renders schemas as forms and calls `validate()`; **#15** uses
+- **#12** renders schemas as forms, calls `validate()` and `preview()`, and
+  saves through `core/configfile.py`; **#15** uses
   `essential` fields and `CHANGES` for first-run setup.
 
 ## Open questions

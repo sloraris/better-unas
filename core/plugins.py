@@ -65,7 +65,7 @@ TYPE_ATTRS = {
 EMPTY_OK = {"text", "url", "serial_list", "int_list", "serial_map"}
 
 PLUGIN_REQUIRED = ("summary", "alerts", "status")
-PLUGIN_OPTIONAL = ("screens", "validate", "send_test")
+PLUGIN_OPTIONAL = ("screens", "validate", "send_test", "preview")
 STATES = ("ok", "warn", "error", "off", "unknown")
 TONES = ("normal", "good", "warn", "bad", "dim")
 LEVELS = ("error", "warn", "info")

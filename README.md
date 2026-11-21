@@ -73,14 +73,19 @@ less /tmp/better-unas-install.sh
 sh /tmp/better-unas-install.sh
 ```
 
-The installer keeps a copy of itself as the `better-unas` command:
+`better-unas` with no arguments opens the terminal app. With a command it
+prints plain text and exits, for scripts and quick checks:
 ```bash
 better-unas status                    # what each installed tool is doing
 better-unas smart-scheduler status    # one tool's own commands (here: the drive schedule)
-better-unas update                    # update installed tools to the latest release
+better-unas update                    # update to the latest release (--check: only check, --yes: don't ask)
 better-unas list                      # available and installed tools
+better-unas install <tool>            # install a tool from the installed release
 better-unas uninstall <tool>          # add --purge to also delete its config
+better-unas --help                    # every command and the exit codes
 ```
+Exit codes: 0 ok, 1 a problem was found or a command failed, 2 usage
+error, 3 an update is available (`update --check`).
 The command itself lives at `/persistent/better-unas/better-unas`. The short
 name is a link in `/usr/local/bin`, which `better-unas update` restores if a
 firmware update removes it.
