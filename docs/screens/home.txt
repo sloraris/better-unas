@@ -1,0 +1,24 @@
+ 1 Home │ 2 Calendar │ 3 Drives │ 4 Settings │ 5 Alerts │ 6 Tools
+ Home ────────────────────────────────────────────────────────────────────────
+›better-unas v0.2.0  Up to date  checked Sun 22 Nov 00:30
+
+ Alerts  1 active
+   warn  smart-scheduler: Extended SMART test failed on slot 4 (SERIAL4)
+
+ smart-scheduler  0.1.1  warn  7 drives scheduled, 4 due now
+   Running          slot 1 (SERIAL1)
+   Next test        Mon 23 Nov, slot 6 (SERIAL6)
+   Last result      Failed, slot 4, Thu 12 Nov
+   Next scrub       Mon 30 Nov, pool 2 scrub 02:30
+
+
+
+
+
+
+
+
+
+
+────────────────────────────────────────────────────────────────────────────────
+ ↑↓ select  Enter open  a alerts  t tools  … ?    1-6/Tab tabs  ? help  q quit

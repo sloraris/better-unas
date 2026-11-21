@@ -1,6 +1,6 @@
 # better-unas tool plugin contract
 
-Status: contract version 1, for review (issue #2). The design it serves is in
+Status: contract version 1, built (issue #2; the core implements it as of v0.2.0). The design it serves is in
 [tui-design.md](tui-design.md).
 
 This is what every tool gives the `better-unas` TUI so the core can install
@@ -41,19 +41,18 @@ python3 core/plugins.py check docs/examples/space-watch
 
 ## 1. Manifest: `tool.conf`
 
-The existing `tool.conf`, extended. It stays plain `KEY=VALUE` so the POSIX sh
-installer can keep reading it with `sed` until the TUI replaces it.
+Plain `KEY=VALUE`, so a tool's own POSIX sh scripts can read it with `sed`
+as well.
 
 Format: one `KEY=VALUE` per line, `#` starts a comment line, blank lines are
 ignored, the value is everything after the first `=` with surrounding spaces
 and one pair of matching quotes removed. Nothing is expanded or executed. If a
-key repeats, the first one wins (as `conf_get` in `install.sh` does) and the
-checker reports it.
+key repeats, the first one wins and the checker reports it.
 
 | Key | Required | Meaning |
 |---|---|---|
 | `NAME` | yes | Tool name: lowercase letters, digits and `-`. Must equal the folder name. Used on the command line (`better-unas <NAME> ...`). |
-| `VERSION` | yes | Informational only (#14): the suite version in the root `VERSION` file covers every tool, and updates compare that, never this. Still required so the old `install.sh` keeps working until #15 replaces it. |
+| `VERSION` | yes | Informational only (#14): the suite version in the root `VERSION` file covers every tool, and updates compare that, never this. Still required by the checker; it may go in a later contract version. |
 | `SUMMARY` | yes | One line, at most 60 characters, for the Tools screen and the setup picker. |
 | `CHANGES` | yes | One line shown on the review screen before installing: what changes on the NAS. |
 | `SETUP` | no | A step the user must do in the UniFi UI before the first install, or empty. |
@@ -459,8 +458,7 @@ which take a canvas the same way.
 ## 8. CLI
 
 `better-unas <tool> <args...>` runs `python3 <tool folder>/<CLI> <args...>`
-with the user's terminal, and its exit code is passed through. This is how the
-installer behaves today and it stays the same.
+with the user's terminal, and its exit code is passed through.
 
 Every tool's CLI supports:
 
@@ -544,14 +542,14 @@ Notes for #7:
 - `ENABLED=no` has side effects on the next run (triggers removed). The
   Settings screen should say so when it is turned off, through the field's help.
 
-## What this leaves to other issues
+## Where each part was built
 
 - **#4** (`core/tui/`) implements the context, canvas (curses and headless), widgets and
   the tab placement rules above, and loads tools with `discover()`.
 - **#7** adds smart-scheduler's `settings.json` and the comment-keeping
   config writer (`smart-scheduler/settings.py`: `save(path, edits, schema)`),
   and shares validation between the tool's `Config` loader and the writer
-  (see open question 2). smart-scheduler's `plugin.py` is still to come.
+  (see open question 2). smart-scheduler's `plugin.py` came in #10 and #11.
 - **#12** renders schemas as forms, calls `validate()` and `preview()`, and
   saves through `core/configfile.py`; **#15** uses
   `essential` fields and `CHANGES` for first-run setup.
@@ -561,7 +559,8 @@ Notes for #7:
 1. **`VERSION` with one suite version.** Decided in #14: one suite version
    in the root `VERSION` file (e.g. `v0.2.0`) covers better-unas and every
    tool, and updates go by it (`core/updates.py`). A `tool.conf` `VERSION` is
-   informational; it can go once #15 retires the old `install.sh`.
+   informational; now that the old root `install.sh` is gone, it can be
+   dropped in a later contract version.
 2. **Sharing the validator with the scheduled run.** Decided in #7 for
    smart-scheduler: the tool keeps a copy of the value rules
    (`smart-scheduler/settings.py`) so the hourly run never imports the core,

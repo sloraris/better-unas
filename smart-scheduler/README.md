@@ -103,18 +103,62 @@ of these take the run lock, and `--dry-run` changes nothing.
 No UniFi setup is needed. It runs as the console owner (see
 [Which account it uses](#which-account-it-uses)).
 
-1. On the NAS, run the [better-unas installer](../README.md#install) and pick
-   smart-scheduler. To install by hand instead, put this folder at
-   `/persistent/better-unas/smart-scheduler/` and run:
-   ```bash
-   cd /persistent/better-unas/smart-scheduler && ./install.sh
-   ```
-2. Optional: edit `/persistent/better-unas/smart-scheduler/config` to add a webhook and a
-   heartbeat URL. Every setting is explained there.
+Install it with [better-unas](../README.md#install): pick smart-scheduler in
+the setup wizard, or later on the Tools tab or with
+`better-unas install smart-scheduler`. That copies this folder to
+`/persistent/better-unas/smart-scheduler/` and runs its `install.sh`, which
+creates `config` from `config.example` if there's none, writes the manifest,
+sets up the triggers and runs a self-check. `install.sh` is safe to re-run
+at any time and never touches an existing `config`.
 
-`install.sh` is safe to re-run at any time. It never touches an existing `config`.
-The better-unas TUI's Settings screen edits the same file and changes only the
-lines you edit, so hand edits and comments survive.
+Then look at the Settings tab (or edit `config` by hand): at least a webhook
+and a heartbeat URL, which the Alerts tab's `n` sets up and tests.
+
+## In the app
+
+smart-scheduler adds two tabs to `better-unas` and fills in the others. The
+screens read the NAS live and plan with the same code as the hourly run.
+Every action takes the run lock, and with `--dry-run` nothing changes.
+
+- **Home:** a card with tests running, the next planned test, the last
+  result, the next scrub, and snoozed drives. Enter on a line opens the
+  Calendar or Drives tab.
+- **Calendar:** a month grid. Each night shows the drive(s) tested or
+  planned (`S6` planned or passed, `S6!` failed, `S6*` running), `sc` marks a
+  scrub and `bk` a UniFi backup. Arrows move days, PgUp/PgDn months, `t`
+  goes to today, `r` recalculates, and Enter explains a day: each test, why
+  it's planned, and why a night was skipped. The plan runs forward until
+  every drive has one test. ([capture](../docs/screens/calendar.txt))
+- **Drives:** every drive's slot, temperature, last and next test, interval
+  and status. Enter opens one drive: its schedule and why, snooze and
+  exclusion, temperature, power-on hours and attributes 5/187/197/198/199
+  (a rise since the last test is marked), and UniFi's test history.
+  ([list](../docs/screens/drives.txt), [drive](../docs/screens/drive.txt))
+  On the list or a drive:
+  - `t` runs a test now (`e` extended, `k` quick). It shows what's in the
+    way first; see [Drive actions](#drive-actions) for what can be
+    overridden with a second confirm.
+  - `z` snoozes the drive until a date (or a number of days) with a note,
+    `u` removes the snooze.
+  - `x` excludes the drive, or includes it again.
+  - `i` sets its interval in days; empty goes back to the normal rules.
+- **Settings:** every setting from `settings.json`, in the same groups as
+  `config`: General, intervals, when tests may start, UniFi backups and
+  replication, and notifications. Values are checked as you type (including
+  that the warning and old-drive intervals aren't longer than the healthy
+  one), `s` saves, and `p` previews the calendar with your unsaved values.
+- **Alerts:** active alerts and the last 20 cleared ones. `n` sets the
+  webhook format and URL and the heartbeat URLs, and sends a test.
+
+The setup wizard asks only for the essential settings: the three intervals,
+`START_WINDOW`, `WEBHOOK_URL` and `WEBHOOK_FORMAT`.
+
+`settings.json` is the settings schema: every key's type, default, allowed
+values and help text. The Settings tab builds its forms from it, and
+`smart_scheduler.py` reads its own defaults and rules from it too (through
+`settings.py`, its own copy of the core's value rules, so the hourly run never
+imports better-unas's core). See the
+[plugin contract](../docs/plugin-contract.md).
 
 ## What it puts on the NAS
 
@@ -135,7 +179,7 @@ firmware: Python 3 (a dependency of UniFi's own base packages), `smartctl`,
   `/persistent`. If only one gets wiped, the other brings it back.
 - **It repairs only what it owns.** It verifies its own files against
   `manifest.sha256` first. If they don't match, it doesn't self-heal; it alerts
-  you until you re-run `install.sh`.
+  you until you re-run `install.sh` (or reinstall it from the Tools tab).
 - **It reports what it doesn't own and never repairs it.** If `smartctl`,
   `psql`, the Drive API or the account it uses stops working, it alerts you and
   starts no tests.
@@ -144,7 +188,7 @@ firmware: Python 3 (a dependency of UniFi's own base packages), `smartctl`,
 - **It respects deliberate shutdowns:**
   - If you set `DRIVE_USER` and later delete that account, that counts as "turned off on purpose": one notice, no tests, nothing recreated.
   - `ENABLED=no` in `config` removes the triggers on the next run.
-  - `./uninstall.sh` removes everything cleanly.
+  - Uninstalling (Tools tab `x`, or `better-unas uninstall smart-scheduler`) removes the triggers, and updates leave it off.
 
 ### What it can't heal
 
@@ -154,7 +198,8 @@ it) would remove both triggers at once, and nothing on the NAS would ever run
 the repair. **Set `HEARTBEAT_URL`** to a dead-man's switch
 ([healthchecks.io](https://healthchecks.io), or an Uptime Kuma push monitor)
 with a grace period of a few hours. If the pings stop for any reason, it alerts
-you from outside. Recovery is then one command: `/persistent/better-unas/smart-scheduler/install.sh`.
+you from outside. Recovery is then one command: `/persistent/better-unas/smart-scheduler/install.sh`
+(or reinstall it from the Tools tab).
 
 ## Alerts
 
@@ -172,19 +217,23 @@ is back. Everything also goes to the journal: `journalctl -t smart-scheduler`.
 
 ## Commands
 
+Through better-unas (or `python3 smart_scheduler.py ...` in the tool folder):
+
 ```bash
-python3 smart_scheduler.py status            # per-drive schedule and reasons
-python3 smart_scheduler.py run --dry-run     # what a run would do right now, changing nothing
-python3 smart_scheduler.py check             # self-check only
-python3 smart_scheduler.py heal              # restore triggers now
-python3 smart_scheduler.py snooze 3 2026-12-15 --note "waiting for a spare"
-python3 smart_scheduler.py unsnooze 3        # slot number or serial
-python3 smart_scheduler.py run-now 3 quick   # add --override past a busy drive, scrub, backup or window
-python3 smart_scheduler.py exclude 3         # include 3 undoes it
-python3 smart_scheduler.py interval 3 30     # interval 3 default undoes it
-python3 -m unittest discover -s tests        # logic tests (any machine, no NAS needed)
-./uninstall.sh [--purge]                     # remove triggers (and the folder)
+better-unas smart-scheduler status            # per-drive schedule and reasons, then the plan
+better-unas smart-scheduler run --dry-run     # what a run would do right now, changing nothing
+better-unas smart-scheduler check             # self-check only
+better-unas smart-scheduler heal              # restore triggers now
+better-unas smart-scheduler snooze 3 2026-12-15 --note "waiting for a spare"
+better-unas smart-scheduler unsnooze 3        # slot number or serial
+better-unas smart-scheduler run-now 3 quick   # add --override past a busy drive, scrub, backup or window
+better-unas smart-scheduler exclude 3         # include 3 undoes it
+better-unas smart-scheduler interval 3 30     # interval 3 default undoes it
+better-unas uninstall smart-scheduler         # remove the triggers; --purge also deletes the folder
 ```
+
+Tests run on any machine, no NAS needed: `python3 -m unittest discover -s tests`
+in this folder.
 
 ## How it talks to UniFi Drive
 
