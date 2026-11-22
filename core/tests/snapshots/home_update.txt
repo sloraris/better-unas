@@ -1,18 +1,16 @@
  1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings
  Home ────────────────────────────────────────────────────────────────────────
- › ▲ Update available: v0.3.0   Settings › better-unas
+ › ▲ Update available: v0.3.0                           Settings › better-unas
 
-   Alerts  No active alerts.
+   ✓ No active alerts.
 
-   smart-scheduler  1.2.3  ok  7 drives scheduled, no tests run yet
-     Next test        Sun 22 Nov 01:00, slot 1
-     Last result      None yet
-     Next scrub       Sun 6 Dec 02:30
-     Next backup      Mon 23 Nov 03:00, cloud backup (~1 h)
-
-
-
-
+  ┌─ smart-scheduler 1.2.3 ─────────────────────────────────────────── ✓ ok ──┐
+  │ 7 drives scheduled, no tests run yet                                      │
+  │ Next test     Sun 22 Nov 01:00, slot 1                                    │
+  │ Last result   None yet                                           › Drives │
+  │ Next scrub    Sun 6 Dec 02:30                                             │
+  │ Next backup   Mon 23 Nov 03:00, cloud backup (~1 h)                       │
+  └───────────────────────────────────────────────────────────────────────────┘
 
 
 
@@ -20,5 +18,7 @@
 
 
 
- Enter open  a alerts  r refresh                                      ↑↓ select
+
+
+ Enter open Settings › better-unas  a alerts  r refresh                 ↑↓ move
  1-5/Tab tabs                                                    ? help  q quit

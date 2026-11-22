@@ -1,17 +1,18 @@
-"""The Home dashboard (issue #9).
+"""The Home dashboard (issue #9, docs/tui-style.md §5 and §10).
 
 Built only on the plugin contract (docs/plugin-contract.md): each tool's
-status(ctx) gives its badge, summary(ctx) its card (next test, last result,
-next scrub, next backup window: whatever the tool reports), and alerts(ctx)
-the active alerts at the top. The suite's update badge comes from
-core.updates.cached_status(home), imported lazily; no module, an error or
-None all mean "no update info yet".
+status(ctx) gives its card's state, summary(ctx) the card (headline and
+items: next test, last result, next scrub, whatever the tool reports), and
+alerts(ctx) the active alerts at the top. The suite's update notice comes
+from core.updates.cached_status(home), imported lazily; no module, an error
+or None all mean "no update info yet".
 
-Every row leads somewhere: up/down picks a row and Enter switches to its tab
-(an alert to Alerts, the update notice to Settings › better-unas, a card row
-to the tab the item names or else the tool's first own tab, a broken tool to
-its Settings page). The update notice shows only when there is an update;
-the installed version is in the tab bar. `a` jumps straight to Alerts.
+One stop per destination: the update notice (Settings › better-unas), the
+alerts block (Alerts), and each tool's card (its first own tab, or its page
+in Settings). Inside a card, an item is a stop of its own only when it names
+a target the card doesn't already go to (e.g. "Last result" opening that
+drive's page); its destination is shown dim at the right. up/down move
+between stops, Enter opens, `a` jumps to Alerts, `r` reads everything again.
 """
 
 import importlib
@@ -19,12 +20,13 @@ import os
 
 from .. import plugins as P
 from . import widgets as W
-from .screens import state_tone, when
+from .theme import STATUS
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-GLYPH = "\0glyph:"      # a segment "\0glyph:<name>" draws canvas.symbols[name] and a space
-LEVEL_TONE = {"error": "bad", "warn": "warn", "info": "normal"}
 MAX_ALERTS = 3
+LABEL_W = 14
+LEVEL_KIND = {"error": "failed", "warn": "warning", "info": "ok"}
+STATE_KIND = {"ok": ("ok", "ok"), "warn": ("warning", "warning"), "error": ("failed", "error")}
 
 
 def update_status(home):
@@ -37,16 +39,31 @@ def update_status(home):
     return info if isinstance(info, dict) else None
 
 
-class Row:
-    """One dashboard line: [(text, tone, bold)] segments and the tab it leads to."""
-
-    def __init__(self, segments=(), target=None):
-        self.segments = list(segments)
-        self.target = target
+def item_target(item):
+    """An item's target as "Tab" or "Tab:arg", or None ("tab" is the old name)."""
+    t = item.get("target") or item.get("tab")
+    return t if isinstance(t, str) and t else None
 
 
-def seg(text, tone="normal", bold=False):
-    return (text, tone, bold)
+class Stop:
+    """Somewhere Enter goes: target "Tab" or "Tab:arg", and how the action
+    bar names it."""
+
+    def __init__(self, target, label):
+        self.target, self.label = target, label
+
+
+class Line:
+    """One row of the dashboard. draw(canvas, y, chosen) draws it; stop is the
+    Stop the row belongs to (highlighted with it), card the card's own Stop
+    for rows inside a card (its border turns accent when that is chosen)."""
+
+    def __init__(self, draw, stop=None, card=None, lead=False):
+        self.draw, self.stop, self.card, self.lead = draw, stop, card, lead
+
+
+def blank():
+    return Line(lambda c, y, chosen: None)
 
 
 class HomeScreen:
@@ -54,8 +71,9 @@ class HomeScreen:
 
     def __init__(self, ctx):
         self.ctx = ctx
-        self.rows = []
-        self.index = 0      # into self.rows; always a row with a target when any has one
+        self.lines = []
+        self.stops = []
+        self.index = 0      # into self.stops
         self.top = 0
 
     # ------------------------------------------------------------ data
@@ -73,7 +91,7 @@ class HomeScreen:
         return ROOT
 
     def call(self, name, label, check, fallback):
-        """Call a plugin function for every tool; [(tool name, value, problems)]."""
+        """Call a plugin function for every tool: {tool name: (value, problems)}."""
         out = {}
         for tool_name, mod in self.app.plugins.items():
             tctx = self.app.contexts[tool_name]
@@ -93,25 +111,39 @@ class HomeScreen:
                 return t.title
         return None
 
-    def has_tab(self, title):
+    def has_tab(self, target):
+        title = target.partition(":")[0]
         return any(t.title == title for t in self.app.tabs)
 
-    # ------------------------------------------------------------ building rows
+    @property
+    def selected(self):
+        return self.stops[self.index] if self.stops else None
+
+    # ------------------------------------------------------------ building
 
     def show(self):
         """Read everything again: on opening the tab and on `r`."""
         statuses = self.call("status", "Checking", P.check_status, None)
         summaries = self.call("summary", "Reading", P.check_summary, None)
         alerts = self.call("alerts", "Reading alerts from", P.check_alerts, [])
-        rows = self.update_rows(update_status(self.home()))
-        if rows:
-            rows.append(Row())
-        rows += self.alert_rows(alerts)
-        rows.append(Row())
-        rows += self.tool_rows(statuses, summaries)
-        self.set_rows(rows)
+        keep = self.selected.target if self.selected else None
+        self.lines, self.stops = [], []
+        for block in (self.update_block(update_status(self.home())), self.alerts_block(alerts),
+                      *self.tool_blocks(statuses, summaries)):
+            if not block:
+                continue
+            if self.lines:
+                self.lines.append(blank())
+            self.lines += block
+        targets = [s.target for s in self.stops]
+        self.index = targets.index(keep) if keep in targets else 0
 
-    def update_rows(self, info):
+    def add_stop(self, target, label):
+        stop = Stop(target, label)
+        self.stops.append(stop)
+        return stop
+
+    def update_block(self, info):
         """The update notice, only when an update is known (the installed
         version is always in the tab bar)."""
         if not info or not info.get("available") or not info.get("latest"):
@@ -119,101 +151,174 @@ class HomeScreen:
         latest = info["latest"]
         if info.get("branch") and info.get("latest_ref"):
             latest = f"new commit {info['latest_ref'][:7]}"
-        return [Row([seg(GLYPH + "update", "warn", True),
-                     seg(f"Update available: {latest}", "warn", True),
-                     seg("   Settings › better-unas", "dim")], "Settings:better-unas")]
+        stop = self.add_stop("Settings:better-unas", "open Settings › better-unas")
+        text = f"Update available: {latest}"
 
-    def alert_rows(self, by_tool):
+        def draw(c, y, chosen):
+            x = c.status(y, 2, "update", "") + 1
+            c.text(y, x, W.fit(text, c.width - x - 1), "selected" if chosen else "warn", bold=True)
+            hint = "Settings › better-unas"
+            if x + len(text) + len(hint) + 4 < c.width:
+                c.text(y, c.width - len(hint) - 1, hint, "selected" if chosen else "dim")
+        return [Line(draw, stop, lead=True)]
+
+    def alerts_block(self, by_tool):
+        """The active alerts as one stop that opens the Alerts tab."""
         active, problems = [], []
         for name, (alerts, probs) in by_tool.items():
             active += [(name, a) for a in alerts if a["active"]]
             problems += [(name, p) for p in probs]
         active.sort(key=lambda na: na[1].get("since") or "", reverse=True)
-        if not active and not problems:
-            return [Row([seg("Alerts", "accent", True), seg("  No active alerts.", "good")], "Alerts")]
+        stop = self.add_stop("Alerts", "open Alerts")
         n = len(active)
-        rows = [Row([seg("Alerts", "accent", True),
-                     seg(f"  {n} active", "bad" if n else "warn", bool(n))], "Alerts")]
-        for name, a in active[:MAX_ALERTS]:
-            rows.append(Row([seg(f"  {a['level']:<6}", LEVEL_TONE[a["level"]], a["level"] == "error"),
-                             seg(f"{name}: ", "dim"), seg(a["message"])], "Alerts"))
-        if n > MAX_ALERTS:
-            rows.append(Row([seg(f"  ...and {n - MAX_ALERTS} more on the Alerts tab", "dim")], "Alerts"))
-        for name, p in problems:
-            rows.append(Row([seg("  error ", "bad", True), seg(f"{name}: ", "dim"),
-                             seg(f"alerts could not be read ({p})", "bad")], f"Settings:{name}"))
-        return rows
 
-    def tool_rows(self, statuses, summaries):
-        rows = []
+        def head(c, y, chosen):
+            if n:
+                x = c.status(y, 2, "warning" if all(a["level"] != "error" for _, a in active) else "failed", "")
+                c.text(y, x + 1, f"{n} active alert{'s' if n != 1 else ''}", "selected" if chosen else "normal",
+                       bold=True)
+            else:
+                x = c.status(y, 2, "ok", "")
+                c.text(y, x + 1, "No active alerts.", "selected" if chosen else "normal")
+        lines = [Line(head, stop, lead=True)]
+        for name, a in active[:MAX_ALERTS]:
+            lines.append(Line(self.alert_row(name, a), stop))
+        if n > MAX_ALERTS:
+            more = f"…and {n - MAX_ALERTS} more on the Alerts tab"
+            lines.append(Line(lambda c, y, chosen: c.text(y, 4, more, "selected" if chosen else "dim"), stop))
+        for name, p in problems:
+            msg = f"{name}: alerts could not be read ({p})"
+            lines.append(Line(lambda c, y, chosen, msg=msg: (
+                c.status(y, 4, "failed", ""),
+                c.text(y, 6, W.fit(msg, c.width - 7), "selected" if chosen else "bad")), stop))
+        return lines
+
+    def alert_row(self, name, a):
+        from .alerts import short
+        since = short(a.get("since"))
+
+        def draw(c, y, chosen):
+            x = c.status(y, 4, LEVEL_KIND[a["level"]], "") + 1
+            room = c.width - x - len(since) - 3
+            c.text(y, x, W.fit(f"{name}: {a['message']}", max(0, room)), "selected" if chosen else "normal")
+            c.text(y, c.width - len(since) - 1, since, "selected" if chosen else "dim")
+        return draw
+
+    def tool_blocks(self, statuses, summaries):
         if not self.app.tools and not self.app.broken:
-            return [Row([seg("No tools are installed yet.", "dim")]),
-                    Row([seg("Install tools in Settings.", "normal")], "Settings")]
-        for tool in self.app.tools:
-            rows += self.card(tool, statuses, summaries)
-            rows.append(Row())
+            stop = self.add_stop("Settings", "open Settings")
+            return [[Line(lambda c, y, chosen: c.text(y, 2, "No tools are installed yet.", "dim")),
+                     Line(lambda c, y, chosen: c.text(y, 2, "Install tools in Settings.",
+                                                      "selected" if chosen else "normal"), stop, lead=True)]]
+        blocks = [self.card(tool, statuses, summaries) for tool in self.app.tools]
         for name in self.app.broken:
             if name not in self.app.contexts:
-                rows += [Row([seg(name, "normal", True), seg("  broken", "bad", True),
-                              seg("  See Settings.", "dim")], f"Settings:{name}"), Row()]
-        while rows and not rows[-1].segments:
-            rows.pop()
-        return rows
+                blocks.append(self.broken_card(name, None))
+        return blocks
+
+    # ------------------------------------------------------------ cards
+
+    def card_lines(self, title, state, rows, stop):
+        """A card drawn as a panel, line by line so it scrolls: the tool's
+        name in the top border, its state at the right of it, then rows of
+        (draw(c, y, x, w, chosen), own stop or None)."""
+        def top(c, y, chosen, card_chosen=False):
+            tone = "accent" if card_chosen else "dim"
+            s = c.symbols
+            c.text(y, 1, s["tl"] + s["h"] * (c.width - 3) + s["tr"], tone)
+            name = f" {W.fit(title, c.width - 24)} "
+            c.text(y, 3, name, "selected" if card_chosen else "accent", bold=True)
+            if state:
+                kind, word = state
+                text = f" {c.symbols[kind]} {word} " if kind else f" {word} "
+                x = c.width - len(text) - 3
+                if kind:
+                    c.text(y, x, " ", tone)
+                    c.status(y, x + 1, kind, word)
+                    c.text(y, x + len(text) - 1, " ", tone)
+                else:
+                    c.text(y, x, text, "dim")
+
+        def side(draw, own):
+            def line(c, y, chosen, card_chosen=False):
+                tone = "accent" if card_chosen else "dim"
+                c.text(y, 1, c.symbols["v"], tone)
+                c.text(y, c.width - 1, c.symbols["v"], tone)
+                inner = c.sub(y, 3, 1, c.width - 5)
+                if chosen and own is not None:
+                    inner.fill(0, 0, 1, inner.width, tone="selected")
+                draw(inner, 0, 0, inner.width, chosen and own is not None)
+            return line
+
+        def bottom(c, y, chosen, card_chosen=False):
+            s = c.symbols
+            c.text(y, 1, s["bl"] + s["h"] * (c.width - 3) + s["br"], "accent" if card_chosen else "dim")
+
+        lines = [Line(top, stop, card=stop, lead=True)]
+        for draw, own in rows:
+            lines.append(Line(side(draw, own), own or stop, card=stop, lead=own is not None))
+        lines.append(Line(bottom, stop, card=stop))
+        return lines
 
     def card(self, tool, statuses, summaries):
         name = tool.name
-        head = [seg(name, "normal", True), seg(f"  {tool.manifest.get('VERSION', '')}", "dim")]
         if name in self.app.broken:
-            return [Row(head + [seg("  broken", "bad", True), seg("  See Settings.", "dim")], f"Settings:{name}")]
+            return self.broken_card(name, tool)
         if name not in self.app.plugins:
-            return [Row(head, f"Settings:{name}"), Row([seg("  No status available.", "dim")], f"Settings:{name}")]
-        own_tab = self.tool_tab(name) or f"Settings:{name}"
+            stop = self.add_stop(f"Settings:{name}", f"open Settings › {name}")
+            return self.card_lines(name, None, [(text_row("No status available.", "dim"), None)], stop)
+        own = self.tool_tab(name) or f"Settings:{name}"
+        stop = self.add_stop(own, f"open {own.replace(':', ' › ')}")
         status, s_probs = statuses[name]
         summary, sum_probs = summaries[name]
         if status is None:
-            badge = seg("  error", "bad", True)
+            state = ("failed", "error")
         elif not status["enabled"]:
-            badge = seg("  off", "dim", True)
+            state = (None, "off")
         else:
-            badge = seg(f"  {status['state']}", state_tone(status["state"]), True)
+            state = STATE_KIND.get(status["state"], (None, status["state"]))
         rows = []
+        seen = {own}            # one stop per destination: a repeat target isn't a new stop
         if summary is not None:
-            rows.append(Row(head + [badge, seg(f"  {summary['headline']}", state_tone(summary["state"]))], own_tab))
+            rows.append((text_row(summary["headline"], "normal", bold=True), None))
             for it in summary.get("items", [])[:6]:
-                tab = it.get("tab") if self.has_tab(it.get("tab")) else own_tab
-                rows.append(Row([seg(f"  {it['label']:<16} ", "dim"),
-                                 seg(it["value"], it.get("tone", "normal"))], tab))
-        else:
-            rows.append(Row(head + [badge], own_tab))
+                target = item_target(it)
+                item_stop = None
+                hint = None
+                if target and target not in seen and self.has_tab(target):
+                    seen.add(target)
+                    hint = it.get("target_label") or target.partition(":")[0]
+                    item_stop = Stop(target, f"open {hint}")
+                rows.append((item_row(it, hint), item_stop))
         if status is not None:
-            rows += [Row([seg(f"  ! {p}", "warn")], f"Settings:{name}") for p in status.get("problems", [])[:2]]
-        rows += [Row([seg(f"  {p}", "bad")], f"Settings:{name}") for p in s_probs + sum_probs]
-        return rows
+            rows += [(reason_row(p), None) for p in status.get("problems", [])[:2]]
+        rows += [(text_row(p, "bad"), None) for p in s_probs + sum_probs]
+        if not rows:
+            rows.append((text_row("Nothing to report.", "dim"), None))
+        lines = self.card_lines(f"{name} {tool.manifest.get('VERSION', '')}".strip(), state, rows, stop)
+        # item stops come after the card's own, in reading order
+        at = self.stops.index(stop) + 1
+        for ln in lines:
+            if ln.stop is not stop and ln.stop not in self.stops:
+                self.stops.insert(at, ln.stop)
+                at += 1
+        return lines
+
+    def broken_card(self, name, tool):
+        stop = self.add_stop(f"Settings:{name}", f"open Settings › {name}")
+        title = f"{name} {tool.manifest.get('VERSION', '')}".strip() if tool else name
+        return self.card_lines(title, ("failed", "broken"),
+                               [(text_row("It couldn't be loaded. See Settings.", "dim"), None)], stop)
 
     # ------------------------------------------------------------ cursor
 
-    def set_rows(self, rows):
-        keep = self.index
-        self.rows = rows
-        targets = self.selectable()
-        if not targets:
-            self.index = 0
-        elif keep not in targets:
-            self.index = min(targets, key=lambda i: abs(i - keep))
-
-    def selectable(self):
-        return [i for i, r in enumerate(self.rows) if r.target]
-
     def move(self, step):
-        targets = self.selectable()
-        if not targets:
-            return
-        pos = targets.index(self.index) if self.index in targets else 0
-        self.index = targets[max(0, min(len(targets) - 1, pos + step))]
+        if self.stops:
+            self.index = max(0, min(len(self.stops) - 1, self.index + step))
 
     def jump(self, target):
-        """Switch to a tab by title; "Settings:<name>" also opens that page
-        (better-unas or a tool) from the top of the Settings tab."""
+        """Switch to a tab by title; "Tab:arg" also opens arg there through
+        the tab's screen's open(arg) ("Settings:better-unas", "Drives:SERIAL4")."""
         title, _, page = target.partition(":")
         for i, t in enumerate(self.app.tabs):
             if t.title == title:
@@ -230,33 +335,32 @@ class HomeScreen:
     # ------------------------------------------------------------ screen protocol
 
     def keys(self):
-        return [("↑↓", "select"), ("Enter", "open"), ("a", "alerts"), ("r", "refresh")]
+        ks = [("Enter", self.selected.label)] if self.selected else []
+        return ks + [("a", "alerts"), ("r", "refresh"), ("↑↓", "move")]
 
     def render(self, canvas):
         h = canvas.height
-        targets = self.selectable()
-        if self.index < self.top:
-            self.top = self.index
-        elif self.index >= self.top + h:
-            self.top = self.index - h + 1
-        self.top = max(0, min(self.top, max(0, len(self.rows) - h)))
-        for y, row in enumerate(self.rows[self.top:self.top + h]):
-            i = self.top + y
-            chosen = i == self.index and i in targets
-            x = 2
-            if chosen:      # the selection role: reversed across the row, with the marker
-                canvas.fill(y, 0, 1, canvas.width, tone="selected")
-                canvas.text(y, 0, canvas.symbols["marker"], "selected", bold=True)
-            for text, tone, bold in row.segments:
-                if text.startswith(GLYPH):
-                    text = canvas.symbols[text[len(GLYPH):]] + " "
-                room = canvas.width - x - 1
-                if room <= 0:
-                    break
-                text = W.fit(text, room) if len(text) > room else text
-                canvas.text(y, x, text, "selected" if chosen else tone, bold=bold)
-                x += len(text)
-        if self.top + h < len(self.rows):
+        sel = self.selected
+        rows = [i for i, ln in enumerate(self.lines) if ln.stop is sel]
+        if rows:
+            first, last = rows[0], rows[-1]
+            if first < self.top:
+                self.top = first
+            elif last >= self.top + h:
+                self.top = max(first if last - first >= h else last - h + 1, 0)
+        self.top = max(0, min(self.top, max(0, len(self.lines) - h)))
+        for y, ln in enumerate(self.lines[self.top:self.top + h]):
+            chosen = sel is not None and ln.stop is sel
+            if ln.card is not None:
+                ln.draw(canvas, y, chosen, card_chosen=sel is ln.card)
+            else:
+                if chosen:          # a plain stop: reversed across the row
+                    canvas.fill(y, 0, 1, canvas.width, tone="selected")
+                ln.draw(canvas, y, chosen)
+            if chosen and ln.lead:
+                canvas.text(y, 0, canvas.symbols["marker"], "accent" if ln.card is not None else "selected",
+                            bold=True)
+        if self.top + h < len(self.lines):
             canvas.text(h - 1, canvas.width - 1, canvas.symbols["more"], "dim")
 
     def key(self, k):
@@ -265,16 +369,16 @@ class HomeScreen:
         elif k == "down":
             self.move(1)
         elif k == "home":
-            self.move(-len(self.rows))
+            self.move(-len(self.stops))
         elif k == "end":
-            self.move(len(self.rows))
+            self.move(len(self.stops))
         elif k == "pgup":
-            self.move(-10)
+            self.move(-5)
         elif k == "pgdn":
-            self.move(10)
+            self.move(5)
         elif k == "enter":
-            if self.index in self.selectable():
-                self.jump(self.rows[self.index].target)
+            if self.selected:
+                self.jump(self.selected.target)
         elif k == "a":
             self.jump("Alerts")
         elif k == "r":
@@ -282,3 +386,36 @@ class HomeScreen:
         else:
             return False
         return True
+
+
+# ------------------------------------------------------------ card rows
+
+def text_row(text, tone="normal", bold=False):
+    def draw(c, y, x, w, chosen):
+        c.text(y, x, W.fit(text, w), "selected" if chosen else tone, bold=bold)
+    return draw
+
+
+def reason_row(text):
+    def draw(c, y, x, w, chosen):
+        c.styled(y, x, W.fit(text, w - 2), "reason")
+    return draw
+
+
+def item_row(it, hint=None):
+    """label, then [glyph] value in the item's tone, then `› hint` dim at the
+    right when the item opens somewhere of its own."""
+    def draw(c, y, x, w, chosen):
+        c.text(y, x, W.pad(it["label"], LABEL_W - 1), "selected" if chosen else "dim")
+        vx = x + LABEL_W
+        tail = f"{c.symbols['marker']} {hint}" if hint else ""
+        room = w - LABEL_W - (len(tail) + 2 if tail else 0)
+        kind = it.get("status")
+        if kind in STATUS:
+            vx = c.status(y, vx, kind, "") + 1
+            room -= 2
+        c.text(y, vx, W.fit(it["value"], max(0, room)), "selected" if chosen else it.get("tone", "normal"))
+        if tail:
+            c.text(y, x + w - len(tail), tail, "selected" if chosen else "dim")
+    return draw
+

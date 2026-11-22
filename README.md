@@ -76,23 +76,23 @@ your terminal (green good, yellow planned or warning, red failed, dim past),
 the words always say the same thing, and `NO_COLOR` is respected.
 
 ```
- 1 Home │ 2 Calendar │ 3 Drives │ 4 Settings │ 5 Alerts │ 6 Tools
+ 1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings
  Home ────────────────────────────────────────────────────────────────────────
-›better-unas v0.2.0  Up to date  checked Sun 22 Nov 00:30
+ › ! 1 active alert
+     ! smart-scheduler: Extended SMART test failed on slot 4 (S…  12 Nov 03:15
 
- Alerts  1 active
-   warn  smart-scheduler: Extended SMART test failed on slot 4 (SERIAL4)
-
- smart-scheduler  0.1.1  warn  7 drives scheduled, 4 due now
-   Running          slot 1 (SERIAL1)
-   Next test        Mon 23 Nov, slot 6 (SERIAL6)
-   Last result      Failed, slot 4, Thu 12 Nov
-   Next scrub       Mon 30 Nov, pool 2 scrub 02:30
+  ┌─ smart-scheduler 0.1.1 ────────────────────────────────────── ! warning ──┐
+  │ 7 drives scheduled, 4 due now                                             │
+  │ Running       ▶ slot 1 (SERIAL1)                                 › slot 1 │
+  │ Next test     ○ Mon 23 Nov, slot 6 (SERIAL6)                              │
+  │ Last result   ✗ failed, slot 4, Thu 12 Nov                       › slot 4 │
+  │ Next scrub    ↻ Mon 30 Nov, pool 2 scrub 02:30                            │
+  └───────────────────────────────────────────────────────────────────────────┘
 ```
 
 | Tab | What's on it | Capture |
 |---|---|---|
-| Home | An update notice when there is one, active alerts, and a card per tool. Enter on a line jumps to the tab it's about. | [home](docs/screens/home.txt) |
+| Home | An update notice when there is one, active alerts, and a card per tool. Each card is one stop that opens the tool; an item that leads elsewhere, like the last failed test's drive, is a stop of its own. | [home](docs/screens/home.txt) |
 | Calendar | smart-scheduler's month grid: past tests, planned tests, scrub and backup days. Enter shows why a night has or hasn't got a test. | [month](docs/screens/calendar.txt), [day](docs/screens/calendar-day.txt) |
 | Drives | Every drive's schedule, temperature and status. Enter opens one drive (SMART values, UniFi test history); `t` runs a test now, `z` snoozes, `x` excludes, `i` sets its interval. | [list](docs/screens/drives.txt), [drive](docs/screens/drive.txt) |
 | Alerts | Active and recent alerts, and where they're sent. | [alerts](docs/screens/alerts.txt) |

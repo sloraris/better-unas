@@ -164,23 +164,27 @@ class HomeSnapshotTests(HomeFixture, unittest.TestCase):
         app = self.make_app(updates=None)
         text = self.term.text()
         self.assertNotIn("Update", text)          # no notice until there is one
-        self.assertIn("No active alerts.", text)
+        self.assertIn("✓ No active alerts.", text)
         self.assertIn("Next backup", text)
         self.check("fresh", app)
 
     def test_update_available(self):
         self.tool(FRESH)
         app = self.make_app(updates=UPDATE)
-        self.assertIn("› ▲ Update available: v0.3.0   Settings › better-unas", self.term.text())
+        line = self.term.text().split("\n")[2]
+        self.assertIn("› ▲ Update available: v0.3.0", line)
+        self.assertTrue(line.rstrip().endswith("Settings › better-unas"))
         self.assertEqual(self.updates.calls, [self.home])
+        self.assertIn("Enter open Settings › better-unas", self.term.text().split("\n")[22])
         self.check("update", app)
 
     def test_active_alert(self):
         self.tool(ALERT)
         app = self.make_app(updates=CURRENT)
         text = self.term.text()
-        self.assertIn("Alerts  2 active", text)
-        self.assertIn("error smart-scheduler: Extended test on slot 2 failed", text)
+        self.assertIn("✗ 2 active alerts", text)
+        self.assertIn("✗ smart-scheduler: Extended test on slot 2 failed", text)
+        self.assertIn("20 Nov 01:04", text)
         self.assertNotIn("Heartbeat", text)                   # resolved ones stay on the Alerts tab
         self.assertLess(text.index("Slot 5 reached"), text.index("slot 2 failed"))   # newest first
         self.check("alert", app)
@@ -202,43 +206,48 @@ class HomeBehaviourTests(HomeFixture, unittest.TestCase):
     def tabs(self, app):
         return [t.title for t in app.tabs]
 
-    def test_enter_jumps_to_the_rows_tab(self):
+    def targets(self, app):
+        return [s.target for s in app.screen.stops]
+
+    def test_one_stop_per_destination(self):
         self.tool(ALERT)
         app = self.make_app(updates=CURRENT)
         self.assertEqual(self.tabs(app), ["Home", "Calendar", "Drives", "Alerts", "Settings"])
-        app.press("enter")                          # first row: the alerts heading
+        # the alerts block, the card (its first tab), and "Last result", the
+        # only item that goes somewhere the card doesn't
+        self.assertEqual(self.targets(app), ["Alerts", "Calendar", "Drives"])
+        app.press("enter")
         self.assertEqual(app.tab.title, "Alerts")
-        app.press("1", "down", "enter")             # the first alert
-        self.assertEqual(app.tab.title, "Alerts")
+        app.press("1", "down", "enter")
+        self.assertEqual(app.tab.title, "Calendar")
+        text = app.press("1", "down", "down")
+        self.assertIn("Enter open Drives", text.split("\n")[22])
+        self.assertIn("› Drives", text)                       # where it goes, at the right
+        app.press("enter")
+        self.assertEqual(app.tab.title, "Drives")
 
-        def goto(label):
-            app.press("1", "home")
-            screen = app.screen
-            for _ in range(len(screen.rows)):
-                row = screen.rows[screen.index]
-                if any(label in text for text, _, _ in row.segments):
-                    break
-                app.press("down")
-            app.press("enter")
-            return app.tab.title
+    def test_the_card_highlights_as_a_unit(self):
+        self.tool(FRESH)
+        app = self.make_app()
+        app.press("down")                                       # the card
+        tones = self.term.tones().split("\n")
+        text = self.term.text().split("\n")
+        top = next(i for i, ln in enumerate(text) if "smart-scheduler" in ln)
+        self.assertTrue(text[top].startswith(" ›┌"))
+        self.assertIn("s", tones[top][4:20].lower())            # title reversed (s = selected)
+        self.assertIn("a", tones[top + 1][2].lower())           # border in accent
 
-        self.assertEqual(goto("1.2.3"), "Calendar")    # card head: the tool's first tab
-        self.assertEqual(goto("Last result"), "Drives")             # item names its tab
-        self.assertEqual(goto("Next scrub"), "Calendar")
-
-    def test_cursor_skips_blank_rows_and_stops_at_the_ends(self):
+    def test_cursor_stops_at_the_ends(self):
         self.tool(FRESH)
         app = self.make_app()
         screen = app.screen
         app.press("up")
         self.assertEqual(screen.index, 0)
-        app.press("down")
-        self.assertEqual(screen.index, 2)          # row 1 is the blank spacer
         app.press("end")
-        self.assertEqual(screen.index, len(screen.rows) - 1)
+        self.assertEqual(screen.index, len(screen.stops) - 1)
         app.press("pgup", "pgup")
         self.assertEqual(screen.index, 0)
-        self.assertIn("› Alerts", self.term.text())
+        self.assertIn("› ✓ No active alerts.", self.term.text())
 
     def test_a_jumps_and_t_is_gone(self):
         self.tool(FRESH)
@@ -255,22 +264,34 @@ class HomeBehaviourTests(HomeFixture, unittest.TestCase):
         self.assertEqual(app.tab.title, "Settings")
         self.assertIn("Settings › better-unas", self.term.text().split("\n")[1])
 
-    def test_unknown_item_tab_falls_back_to_the_tools_first_tab(self):
-        data = dict(FRESH, summary=dict(FRESH["summary"], items=[
-            {"label": "Odd", "value": "x", "tab": "Nowhere"}]))
-        self.tool(data)
+    def test_item_targets(self):
+        items = [{"label": "Odd", "value": "x", "target": "Nowhere"},          # no such tab: not a stop
+                 {"label": "Same", "value": "y", "target": "Calendar"},        # the card's own: not a stop
+                 {"label": "Slot", "value": "z", "status": "failed",
+                  "target": "Drives:SERIAL4", "target_label": "slot 4"}]
+        self.tool(dict(FRESH, summary=dict(FRESH["summary"], items=items)))
         app = self.make_app()
-        rows = [r for r in app.screen.rows if r.segments and "Odd" in r.segments[0][0]]
-        self.assertEqual(rows[0].target, "Calendar")
+        self.assertEqual(self.targets(app), ["Alerts", "Calendar", "Drives:SERIAL4"])
+        text = self.term.text()
+        self.assertIn("✗ z", text)
+        self.assertIn("› slot 4", text)
+        opened = []
+        drives = next(t for t in app.tabs if t.title == "Drives")
+        app.press("3")
+        drives.stack[0].open = lambda arg: opened.append(arg) or True
+        app.press("1", "end", "enter")
+        self.assertEqual((app.tab.title, opened), ("Drives", ["SERIAL4"]))
 
-    def test_refresh_rereads(self):
+    def test_refresh_rereads_and_keeps_the_selection(self):
         d = self.tool(FRESH)
         app = self.make_app()
+        app.press("down")
         import json
         with open(os.path.join(d, "fake.json"), "w") as f:
             json.dump(RUNNING, f)
         self.assertNotIn("running on slot 3", self.term.text())
         self.assertIn("running on slot 3", app.press("r"))
+        self.assertEqual(app.screen.selected.target, "Calendar")
         self.assertEqual(len(self.updates.calls), 2)
 
     def test_reopening_the_tab_rereads(self):
@@ -279,7 +300,7 @@ class HomeBehaviourTests(HomeFixture, unittest.TestCase):
         import json
         with open(os.path.join(d, "fake.json"), "w") as f:
             json.dump(ALERT, f)
-        self.assertIn("2 active", app.press("2", "1"))
+        self.assertIn("2 active alerts", app.press("2", "1"))
 
     def test_no_update_info_means_no_notice(self):
         self.tool(FRESH)
@@ -287,21 +308,22 @@ class HomeBehaviourTests(HomeFixture, unittest.TestCase):
                         dict(CURRENT, error="GitHub did not answer")):
             self.make_app(updates=updates)
             self.assertNotIn("Update", self.term.text(), updates)
-            self.assertIn("› Alerts", self.term.text())
+            self.assertIn("› ✓ No active alerts.", self.term.text())
 
-    def test_summary_failure_and_bad_alerts_show_on_the_card(self):
+    def test_summary_failure_and_bad_alerts(self):
         self.tool(dict(FRESH, summary_raises="drive api down", alerts=[{"id": "x"}]))
         app = self.make_app()
         text = self.term.text()
         self.assertIn("summary: OSError: drive api down", text)
         self.assertIn("alerts could not be read", text)
-        self.assertIn("smart-scheduler  1.2.3  ok", text)    # status still gives the badge
+        self.assertIn("✓ ok", text)                             # status still gives the state
+        self.assertEqual(self.targets(app), ["Alerts", "Calendar"])
 
     def test_status_problems_and_disabled_tool(self):
         self.tool(dict(FRESH, status={"enabled": False, "state": "off",
                                       "problems": ["Timer is missing; the next run restores it."]}))
         text = self.make_app() and self.term.text()
-        self.assertIn("smart-scheduler  1.2.3  off", text)
+        self.assertIn(" off ", text.split("\n")[4])
         self.assertIn("! Timer is missing", text)
 
     def test_broken_and_plugin_less_tools(self):
@@ -313,20 +335,22 @@ class HomeBehaviourTests(HomeFixture, unittest.TestCase):
             f.write(conf)
         app = self.make_app()
         text = self.term.text()
-        self.assertIn("broken-one  1.2.3  broken  See Settings.", text)
+        self.assertIn("✗ broken", text)
+        self.assertIn("It couldn't be loaded. See Settings.", text)
         self.assertIn("No status available.", text)
-        self.assertEqual({r.target for r in app.screen.rows if r.segments and "broken-one" in r.segments[0][0]},
-                         {"Settings:broken-one"})
+        self.assertIn("Settings:broken-one", self.targets(app))
+        self.assertIn("Settings:plain", self.targets(app))
 
-    def test_many_rows_scroll_with_the_cursor(self):
+    def test_many_cards_scroll_with_the_cursor(self):
         for i in range(4):
             self.tool(RUNNING, name=f"tool-{i}")
         app = self.make_app()
         self.assertIn("…", self.term.text().splitlines()[21])
         app.press("end")
         lines = self.term.text().splitlines()
-        self.assertTrue(any(line.lstrip().startswith("›") and "Next backup" in line for line in lines))
-        self.assertNotIn("better-unas", lines[2])
+        self.assertTrue(any("tool-3" in line for line in lines))
+        self.assertTrue(any(line.startswith(" ›") and "Slot 3, started" in line for line in lines))
+        self.assertNotIn("No active alerts", "\n".join(lines))
 
     def test_home_is_resolved_from_the_tools_folder(self):
         self.tool(FRESH)

@@ -279,9 +279,11 @@ caches the result until the Home screen is opened again or refreshed.
   "state": "warn",                                 # as in status
   "headline": "7 drives scheduled, 1 overdue",     # at most 60 characters
   "items": [                                       # at most 6 rows
-    {"label": "Next test", "value": "Sat 23 Nov, slot 3 (ZL2ABC)", "tone": "warn"},
-    {"label": "Last result", "value": "Passed, slot 5, Tue 19 Nov", "tone": "good"},
-    {"label": "Next scrub", "value": "Sun 30 Nov 02:30", "tone": "normal"},
+    {"label": "Next test", "value": "Sat 23 Nov, slot 3", "tone": "warn",
+     "status": "planned"},
+    {"label": "Last result", "value": "passed, slot 5, Tue 19 Nov", "tone": "good",
+     "status": "ok", "target": "Drives:<serial>", "target_label": "slot 5"},
+    {"label": "Next scrub", "value": "Sun 30 Nov 02:30", "status": "scrub"},
   ],
 }
 ```
@@ -289,11 +291,21 @@ caches the result until the Home screen is opened again or refreshed.
 `tone` is one of the theme tones in section 7. Labels should be at most 16
 characters so the card lines up.
 
-An item may also name a `tab` (optional, e.g. `"tab": "Calendar"` on "Next
-test", `"tab": "Drives"` on "Last result"): Enter on that row of the Home
-dashboard switches to that tab. Without it, or if no tab has that title, the
-row leads to the tool's first own tab (or its page in Settings, for a tool
-without screens).
+Optional item keys:
+
+- `status`: one of `ok failed warning running planned scrub backup update`.
+  The Home card draws that status glyph before the value.
+- `target`: where Enter on this row goes, `"Tab"` or `"Tab:arg"` (`tab` is
+  the older name and still works). With an argument, the core switches to
+  the tab, goes back to its root screen and calls that screen's `open(arg)`
+  (section 5); smart-scheduler uses `"Drives:<serial>"` to open one drive.
+- `target_label`: the short hint shown dim at the row's right (`› slot 5`);
+  the tab name by default.
+
+**One stop per destination** (docs/tui-style.md §5). The card itself is one
+stop, leading to the tool's first own tab (or its page in Settings, for a tool
+without screens). An item is a stop of its own only when its target differs
+from the card's and from every item above it; set `target` only for that.
 The dashboard shows the card under the suite's update line and the active
 alerts, so items are where a tool puts its next planned test, last results,
 next scrub and next backup window.
@@ -399,7 +411,15 @@ class DrivesScreen:
 
     def can_leave(self):                   # optional: False keeps the user here
         return True
+
+    def open(self, arg):                   # optional: a Home item's "Tab:arg" target
+        ...
 ```
+
+- **`open(arg)`** (optional) is called on a tab's root screen, after `show()`,
+  when a Home summary item with target `"Tab:arg"` is chosen. It should go
+  straight to what `arg` names (push a detail screen, move the cursor) and say
+  so with `ctx.message` if it's gone.
 
 - **`show()`** is where reads happen (via `ctx.run_slow`), so the calendar is
   recalculated every time it opens. `render()` must only draw from what

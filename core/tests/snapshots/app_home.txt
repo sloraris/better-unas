@@ -1,24 +1,24 @@
  1 Home │ 2 Board │ 3 Space │ 4 Alerts │ 5 Settings
  Home ────────────────────────────────────────────────────────────────────────
- › Alerts  1 active
-     error fixture: Extended test on slot 2 (ZL2) failed: read failure.
+ › ✗ 1 active alert
+     ✗ fixture: Extended test on slot 2 (ZL2) failed: read fail…  20 Nov 01:04
 
-   fixture  1.2.3  warn  3 drives scheduled, 1 overdue
-     Next test        Sat 22 Nov, slot 3
-     Last result      Passed, slot 5, Tue 18 Nov
-     Failed           slot 2, Thu 20 Nov
-     ! Timer is missing.
+  ┌─ fixture 1.2.3 ────────────────────────────────────────────── ! warning ──┐
+  │ 3 drives scheduled, 1 overdue                                             │
+  │ Next test     Sat 22 Nov, slot 3                                          │
+  │ Last result   Passed, slot 5, Tue 18 Nov                                  │
+  │ Failed        slot 2, Thu 20 Nov                                          │
+  │ ! Timer is missing.                                                       │
+  └───────────────────────────────────────────────────────────────────────────┘
 
-   space-watch  0.1.0  ok  / is 42.0% full
-     Used             42.0%
-
-
-
-
-
-
+  ┌─ space-watch 0.1.0 ─────────────────────────────────────────────── ✓ ok ──┐
+  │ / is 42.0% full                                                           │
+  │ Used          42.0%                                                       │
+  └───────────────────────────────────────────────────────────────────────────┘
 
 
 
- Enter open  a alerts  r refresh                                      ↑↓ select
+
+
+ Enter open Alerts  a alerts  r refresh                                 ↑↓ move
  1-5/Tab tabs                                                    ? help  q quit
