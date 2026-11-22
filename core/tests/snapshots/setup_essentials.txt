@@ -1,5 +1,5 @@
  1 Setup
- Setup › smart-scheduler settings ────────────────────────────────────────────
+ Setup › Notifications › smart-scheduler settings ────────────────────────────
  Settings to check before the first run; the rest are on the Settings tab.
 
  How often each drive gets an extended test
@@ -10,9 +10,9 @@
  When tests may start
    Start window                00:00 to 05:00
 
- Notifications
-   Webhook URL                 (none)
-   Webhook format              ‹ text ›
+
+
+
 
 
 

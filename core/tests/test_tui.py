@@ -39,6 +39,7 @@ from core.tui.theme import Theme, color_wanted              # noqa: E402
 SNAPSHOTS = os.path.join(HERE, "snapshots")
 EXAMPLE = os.path.join(ROOT, "docs", "examples", "space-watch")
 SS_SCHEMA = os.path.join(ROOT, "smart-scheduler", "settings.json")
+CORE_SCHEMA = os.path.join(ROOT, "core", "settings.json")
 CLOCK = dt.datetime(2026, 11, 22, 1, 0, tzinfo=dt.timezone(dt.timedelta(hours=-7)))
 
 
@@ -445,12 +446,16 @@ class WidgetTests(SnapshotMixin, unittest.TestCase):
 
 
 class FormTests(SnapshotMixin, unittest.TestCase):
-    """The form widget against smart-scheduler's worked-example schema, which
-    uses every field type in the contract."""
+    """The form widget against smart-scheduler's worked-example schema plus
+    the core's Notifications group: together they use every field type in
+    the contract."""
 
     def setUp(self):
         with open(SS_SCHEMA) as f:
             self.schema = json.load(f)
+        with open(CORE_SCHEMA) as f:
+            core = json.load(f)
+        self.schema["groups"] += [g for g in core["groups"] if g["id"] == "notifications"]
         self.addCleanup(W.reset_editing)
         types = {f["type"] for f in P.fields(self.schema)}
         self.assertEqual(types, set(W.FIELD_TYPES), "the example should cover every field type")
@@ -756,7 +761,7 @@ class AppTests(AppFixture, unittest.TestCase):
 
     def test_typing_into_a_field_never_quits_or_switches(self):
         app = self.make_app()
-        app.press("5", "down", "down", "enter")   # Settings > space-watch
+        app.press("5", "down", "down", "down", "enter")   # Settings > space-watch
         self.assertIn("Settings › space-watch", self.term.text())
         app.press("down", "enter")            # edit "Folder to watch"
         self.assertIsNotNone(W.active_editor())
@@ -771,7 +776,7 @@ class AppTests(AppFixture, unittest.TestCase):
 
     def test_leaving_a_changed_form_asks(self):
         app = self.make_app()
-        app.press("5", "down", "down", "enter", " ")   # toggle Enabled
+        app.press("5", "down", "down", "down", "enter", " ")   # toggle Enabled
         app.press("esc", "n")                 # discard? no
         self.assertIn("Settings › space-watch", self.term.text())
         app.press("2", "n")                   # switching tabs asks too

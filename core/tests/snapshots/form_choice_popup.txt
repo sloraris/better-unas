@@ -16,5 +16,5 @@ Notifications                 │  discord         │
   Webhook URL                 └──────────────────┘
 * Webhook format              ‹ json ›                                         ↓
 ────────────────────────────────────────────────────────────────────────────────
-text is a plain body (ntfy and most receivers).
+How alerts are sent. text is a plain body, which ntfy and most receivers take.
 

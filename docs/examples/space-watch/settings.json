@@ -46,15 +46,6 @@
       "title": "Notifications",
       "fields": [
         {
-          "key": "WEBHOOK_URL",
-          "type": "url",
-          "label": "Webhook URL",
-          "default": "",
-          "secret": true,
-          "essential": true,
-          "help": "Where warnings go. Empty = journal only."
-        },
-        {
           "key": "QUIET_HOURS",
           "type": "time_window",
           "label": "Quiet hours",

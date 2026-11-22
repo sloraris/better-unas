@@ -58,6 +58,9 @@ if __name__ == "__main__":
     # actions.py imports this module by name; give it this copy, not a second one.
     sys.modules.setdefault("smart_scheduler", sys.modules[__name__])
 CONFIG_FILE = os.path.join(BASE, "config")
+# The suite's shared settings (webhook, heartbeat, alert repeat) are in the
+# home's better-unas.conf; this tool's config is the fallback (Config below).
+CORE_CONFIG_FILE = os.path.join(os.path.dirname(BASE), "better-unas.conf")
 STATE_FILE = os.path.join(BASE, "state.json")
 MANIFEST_FILE = os.path.join(BASE, "manifest.sha256")
 LOCK_FILE = os.path.join(BASE, ".lock")
@@ -79,6 +82,18 @@ TIMER_UNIT = "smart-scheduler.timer"
 SCHEMA_FILE = os.path.join(BASE, "settings.json")
 SCHEMA = settings.load_schema(SCHEMA_FILE)
 DEFAULTS = settings.defaults(SCHEMA)
+# The shared settings as the core's schema has them (core/settings.json),
+# minus the help text. Tools don't import the core, so they're repeated here.
+SHARED_SCHEMA = {"contract": 1, "groups": [{"id": "notifications", "title": "Notifications", "fields": [
+    {"key": "WEBHOOK_URL", "type": "url", "label": "Webhook URL", "default": "", "secret": True},
+    {"key": "WEBHOOK_FORMAT", "type": "choice", "label": "Webhook format",
+     "choices": ["text", "json", "slack", "discord"], "default": "text"},
+    {"key": "NOTIFY_SUCCESS", "type": "bool", "label": "Notify on success", "default": "no"},
+    {"key": "ALERT_REPEAT_HOURS", "type": "int", "label": "Repeat alerts every", "min": 1, "default": "72"},
+    {"key": "HEARTBEAT_URL", "type": "url", "label": "Heartbeat URL", "default": "", "secret": True},
+    {"key": "HEARTBEAT_FAIL_URL", "type": "url", "label": "Heartbeat URL on failure", "default": "",
+     "secret": True},
+]}]}
 
 RUNNING_STATUSES = planner.RUNNING_STATUSES
 
@@ -156,21 +171,30 @@ def api(method, path, user_id=None, body=None, timeout=15):
 # --------------------------------------------------------------------------- config and state
 
 class Config:
-    """The config file, checked against settings.json (see settings.py).
+    """The config file, checked against settings.json (see settings.py), plus
+    the suite's shared settings (SHARED_SCHEMA): each read from
+    better-unas.conf when it sets the key, else from this config.
 
     values holds each setting's text in canonical form ("yes", "5,187");
     typed holds the parsed values. A bad or unknown line is reported in errors
     ("KEY: message") and the default is used instead.
     """
 
-    def __init__(self, path, schema=None):
+    def __init__(self, path, schema=None, core_path=None):
         self.schema = schema or SCHEMA
         raw, problems = settings.read(path)
         self.typed, self.field_errors = settings.validate(self.schema, raw)
         self.errors = [f"config {p}" for p in problems]
+        core, core_problems = settings.read(core_path or CORE_CONFIG_FILE)
+        self.errors += [f"better-unas.conf {p}" for p in core_problems]
+        shared_raw = {k: core[k] if k in core else raw[k]
+                      for k in settings.SHARED_KEYS if k in core or k in raw}
+        shared, shared_errors = settings.validate(SHARED_SCHEMA, shared_raw)
+        self.typed.update(shared)
+        self.field_errors.update(shared_errors)
         self.errors += [f"{k}: {m}" for k, m in self.field_errors.items()]
         self.values = {f["key"]: settings.format_value(f, self.typed[f["key"]])
-                       for f in settings.fields(self.schema)}
+                       for f in settings.fields(self.schema) + settings.fields(SHARED_SCHEMA)}
         self.overrides = dict(self.typed["INTERVAL_OVERRIDES"])
         self.window = self.typed["START_WINDOW"]
 
@@ -332,13 +356,11 @@ class Alerts:
 
 
 RESOLVED_KEEP = 20       # resolved alerts kept in state for the TUI's Alerts screen
-TEST_MESSAGE = ("Test message from better-unas. If you can read this, "
-                "smart-scheduler's alerts will arrive here.")
 
 
 def webhook_request(url, fmt, m, host):
     """The POST for one outbox message m ({level, msg, at}) in WEBHOOK_FORMAT fmt.
-    The scheduled run and the TUI's "send test" both build it here."""
+    core/notify.py builds the TUI's test the same way."""
     title = f"{host} {NAME}: {m['level']}"
     fmt = (fmt or "text").lower()
     if fmt == "json":
@@ -394,33 +416,6 @@ def ping(url):
     err = open_url(url)
     if err:
         log(f"heartbeat ping failed: {err}", syslog.LOG_WARNING)
-
-
-class SendError(Exception):
-    """A test send failed; the message is shown as is (e.g. "HTTP 404 Not Found")."""
-
-
-def send_test(values, key, host=None, timeout=10):
-    """The TUI's "send test" for one URL setting, using values (typed settings,
-    unsaved edits included). WEBHOOK_URL gets a test alert in WEBHOOK_FORMAT,
-    exactly as the scheduled run would send it; HEARTBEAT_URL and
-    HEARTBEAT_FAIL_URL get the same GET the run makes. Returns a short success
-    text, or None for a key with no test; raises SendError with the reason."""
-    if key not in ("WEBHOOK_URL", "HEARTBEAT_URL", "HEARTBEAT_FAIL_URL"):
-        return None
-    url = values.get(key) or ""
-    if not url:
-        raise SendError("no URL set")
-    if key == "WEBHOOK_URL":
-        m = {"level": "info", "msg": TEST_MESSAGE, "at": now().isoformat()}
-        err = send_webhook(url, values.get("WEBHOOK_FORMAT", "text"), m, host, timeout)
-        what = f"test alert sent ({(values.get('WEBHOOK_FORMAT') or 'text').lower()} format)"
-    else:
-        err = open_url(url, timeout)
-        what = "heartbeat ping answered" if key == "HEARTBEAT_URL" else "fail ping answered"
-    if err:
-        raise SendError(err)
-    return what
 
 
 # --------------------------------------------------------------------------- NAS facts

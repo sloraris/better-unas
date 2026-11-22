@@ -16,5 +16,5 @@ UniFi backups and replication
 Notifications
   Webhook URL                 ••••••••                                         ↓
 ────────────────────────────────────────────────────────────────────────────────
-Where alerts go. Empty = journal/syslog only.
-
+Where every tool's alerts go, e.g. an ntfy topic or a Slack or Discord
+webhook. Empty: alerts go only to the system log.

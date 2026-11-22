@@ -1,6 +1,6 @@
  1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings                  v0.2.0
  Alerts ──────────────────────────────────────────────────────────────────────
- 1 active, 0 recent                              n: webhook and heartbeat setup
+ 1 active · 0 recent                                    Sent to: no webhook set
 
    Level  Tool            Since        Resolved     Message
  › warn   smart-scheduler 12 Nov 03:15 active       Extended SMART test faile…
@@ -20,5 +20,5 @@
 
 
 
- Enter details  n setup  r refresh                                      ↑↓ move
+ Enter details  r refresh                                               ↑↓ move
  1-5/Tab tabs                                                    ? help  q quit

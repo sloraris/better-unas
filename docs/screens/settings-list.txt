@@ -3,10 +3,10 @@
 
  better-unas
  › better-unas          v0.2.0  Up to date.
+   Notifications        webhook: off · heartbeat: off
 
  Tools
-   smart-scheduler      ! installed  26 settings
-
+   smart-scheduler      ! installed  20 settings
 
 
 

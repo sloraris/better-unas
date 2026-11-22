@@ -3,11 +3,11 @@
 
  better-unas
  › better-unas            Not checked yet. Press c to check.
+   Notifications        webhook: off · heartbeat: off
 
  Tools
    fixture              ! installed
-   space-watch          ! installed  5 settings, 1 config problem
-
+   space-watch          ! installed  4 settings, 1 config problem
 
 
 

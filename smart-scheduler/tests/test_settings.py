@@ -67,7 +67,7 @@ class Schema(unittest.TestCase):
     def test_essentials(self):
         self.assertEqual([f["key"] for f in P.essential_fields(SCHEMA)],
                          ["INTERVAL_DAYS", "WARN_INTERVAL_DAYS", "OLD_INTERVAL_DAYS",
-                          "START_WINDOW", "WEBHOOK_URL", "WEBHOOK_FORMAT"])
+                          "START_WINDOW"])
 
     def test_defaults_come_from_the_schema(self):
         self.assertEqual(ss.DEFAULTS, S.defaults(SCHEMA))
@@ -163,21 +163,21 @@ class ConfigLoader(unittest.TestCase):
                                     "config line 3: INTERVAL_DAYS repeated; the first value is used"])
 
     def test_missing_file_is_all_defaults(self):
-        c = ss.Config("/nonexistent")
-        self.assertEqual(c.values, ss.DEFAULTS)
+        c = ss.Config("/nonexistent", core_path="/nonexistent")
+        self.assertEqual(c.values, {**ss.DEFAULTS, **S.defaults(ss.SHARED_SCHEMA)})
         self.assertEqual(c.errors, [])
 
 
 class Writer(unittest.TestCase):
     def test_round_trip_changes_only_edited_lines(self):
         text = "# my own note at the top\n\n" + EXAMPLE + "\n# trailing note\nSOMETHING_ELSE=keep me\nnot a setting\n"
-        new = S.apply_edits(text, {"INTERVAL_DAYS": "45", "WEBHOOK_URL": "https://ntfy.sh/nas",
-                                   "START_WINDOW": "22:00-04:00", "NOTIFY_SUCCESS": True}, SCHEMA)
+        new = S.apply_edits(text, {"INTERVAL_DAYS": "45", "DRIVE_USER": "ops",
+                                   "START_WINDOW": "22:00-04:00", "BACKUP_AVOID": False}, SCHEMA)
         self.assertEqual(sorted(changed_lines(text, new)), sorted([
             ("INTERVAL_DAYS=90", "INTERVAL_DAYS=45"),
-            ("WEBHOOK_URL=", "WEBHOOK_URL=https://ntfy.sh/nas"),
+            ("DRIVE_USER=", "DRIVE_USER=ops"),
             ("START_WINDOW=00:00-05:00", "START_WINDOW=22:00-04:00"),
-            ("NOTIFY_SUCCESS=no", "NOTIFY_SUCCESS=yes"),
+            ("BACKUP_AVOID=yes", "BACKUP_AVOID=no"),
         ]))
         raw = S.parse_text(new)[0]
         self.assertEqual((raw["INTERVAL_DAYS"], raw["SOMETHING_ELSE"]), ("45", "keep me"))
@@ -188,9 +188,9 @@ class Writer(unittest.TestCase):
         self.assertEqual(S.apply_edits(EXAMPLE, {k: v for k, v in S.defaults(SCHEMA).items()}, SCHEMA), EXAMPLE)
 
     def test_keeps_spacing_quotes_and_meaning(self):
-        text = '  INTERVAL_DAYS = "90"  \nNOTIFY_SUCCESS=true\nDRIVE_USER=\'admin\'\n'
-        new = S.apply_edits(text, {"INTERVAL_DAYS": "45", "NOTIFY_SUCCESS": "yes", "DRIVE_USER": "ops"}, SCHEMA)
-        self.assertEqual(new, '  INTERVAL_DAYS = "45"  \nNOTIFY_SUCCESS=true\nDRIVE_USER=\'ops\'\n')
+        text = '  INTERVAL_DAYS = "90"  \nENABLED=true\nDRIVE_USER=\'admin\'\n'
+        new = S.apply_edits(text, {"INTERVAL_DAYS": "45", "ENABLED": "yes", "DRIVE_USER": "ops"}, SCHEMA)
+        self.assertEqual(new, '  INTERVAL_DAYS = "45"  \nENABLED=true\nDRIVE_USER=\'ops\'\n')
 
     def test_canonical_form(self):
         new = S.apply_edits("WARN_ATTRIBUTES=5\n", {"WARN_ATTRIBUTES": " 5, 187 ,197",
@@ -225,10 +225,10 @@ class Writer(unittest.TestCase):
         self.assertIn(heading + "INTERVAL_DAYS=45\n# Healthy drive.\n# Drive showing", new)
 
     def test_new_key_under_its_heading(self):
-        text = "ENABLED=yes\n\n# --- Notifications ---\n# (nothing set yet)\n\n# --- Other ---\nX=1\n"
-        new = S.apply_edits(text, {"WEBHOOK_URL": "https://h/x", "HEARTBEAT_URL": "https://h/y"}, SCHEMA)
-        self.assertEqual(new, "ENABLED=yes\n\n# --- Notifications ---\nWEBHOOK_URL=https://h/x\n"
-                              "HEARTBEAT_URL=https://h/y\n# (nothing set yet)\n\n# --- Other ---\nX=1\n")
+        text = "ENABLED=yes\n\n# --- UniFi backups and replication ---\n# (nothing set yet)\n\n# --- Other ---\nX=1\n"
+        new = S.apply_edits(text, {"BACKUP_AVOID": "no", "BACKUP_MARGIN_HOURS": "2"}, SCHEMA)
+        self.assertEqual(new, "ENABLED=yes\n\n# --- UniFi backups and replication ---\nBACKUP_AVOID=no\n"
+                              "BACKUP_MARGIN_HOURS=2\n# (nothing set yet)\n\n# --- Other ---\nX=1\n")
 
     def test_new_key_at_the_end_with_a_heading(self):
         new = S.apply_edits("ENABLED=no", {"START_WINDOW": "01:00-02:00", "ENABLED": "yes"}, SCHEMA)
@@ -246,13 +246,13 @@ class Writer(unittest.TestCase):
     def test_invalid_values_are_refused_per_field(self):
         with self.assertRaises(S.ValidationError) as cm:
             S.apply_edits(EXAMPLE, {"INTERVAL_DAYS": "0", "START_WINDOW": "late", "NOPE": "1",
-                                    "WEBHOOK_URL": "ftp://x", "DRIVE_USER": "a\nENABLED=no",
+                                    "DURATION_FACTOR": "20", "DRIVE_USER": "a\nENABLED=no",
                                     "EXCLUDE_SERIALS": "ZL1,ZL1", "MAX_CONCURRENT": "4"}, SCHEMA)
         self.assertEqual(cm.exception.errors, {
             "INTERVAL_DAYS": "value must be at least 1",
             "START_WINDOW": "want HH:MM-HH:MM, e.g. 22:00-04:00",
             "NOPE": "unknown setting",
-            "WEBHOOK_URL": "URL must start with http:// or https://",
+            "DURATION_FACTOR": "value must be at most 10",
             "DRIVE_USER": "must be on one line",
             "EXCLUDE_SERIALS": "ZL1 listed twice",
         })
@@ -286,22 +286,22 @@ class Save(unittest.TestCase):
         with open(self.path, "w") as f:
             f.write(EXAMPLE + "# mine\nLEGACY=1\n")
         os.chmod(self.path, 0o644)
-        S.save(self.path, {"INTERVAL_DAYS": "45", "WEBHOOK_FORMAT": "slack"}, SCHEMA)
+        S.save(self.path, {"INTERVAL_DAYS": "45", "MAX_CONCURRENT": "2"}, SCHEMA)
         self.assertEqual(self.mode(), 0o600)
         with open(self.path) as f:
             text = f.read()
         self.assertEqual(text, (EXAMPLE + "# mine\nLEGACY=1\n")
                          .replace("INTERVAL_DAYS=90", "INTERVAL_DAYS=45")
-                         .replace("WEBHOOK_FORMAT=text", "WEBHOOK_FORMAT=slack"))
+                         .replace("MAX_CONCURRENT=1", "MAX_CONCURRENT=2"))
         c = ss.Config(self.path)
-        self.assertEqual((c.int("INTERVAL_DAYS"), c["WEBHOOK_FORMAT"]), (45, "slack"))
+        self.assertEqual((c.int("INTERVAL_DAYS"), c.int("MAX_CONCURRENT")), (45, 2))
         self.assertEqual(c.errors, ["LEGACY: unknown setting"])
         self.assertEqual(os.listdir(self.dir), ["config"])     # no temporary file left behind
 
     def test_creates_a_missing_file(self):
-        S.save(self.path, {"WEBHOOK_URL": "https://ntfy.sh/x"}, SCHEMA)
+        S.save(self.path, {"DRIVE_USER": "ops"}, SCHEMA)
         self.assertEqual(self.mode(), 0o600)
-        self.assertEqual(ss.Config(self.path)["WEBHOOK_URL"], "https://ntfy.sh/x")
+        self.assertEqual(ss.Config(self.path)["DRIVE_USER"], "ops")
 
     def test_refused_edits_leave_the_file_alone(self):
         with open(self.path, "w") as f:

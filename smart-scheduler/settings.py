@@ -224,13 +224,21 @@ def format_value(f, value):
     return str(value)
 
 
+# Settings every better-unas tool shares (core/notify.py). They live in
+# <home>/better-unas.conf; one left in this tool's config is a fallback, not
+# an "unknown setting". Same list as core/plugins.py's SHARED_KEYS.
+SHARED_KEYS = ("WEBHOOK_URL", "WEBHOOK_FORMAT", "NOTIFY_SUCCESS", "ALERT_REPEAT_HOURS",
+               "HEARTBEAT_URL", "HEARTBEAT_FAIL_URL")
+
+
 def validate(schema, raw):
     """(typed, errors) for {KEY: text} as read from a config file.
 
     typed has every schema key; a missing key takes its default and a bad
     value falls back to it, so the hourly run keeps going on a broken line.
     errors maps KEY -> message, including "unknown setting" for keys the
-    schema doesn't know. Same contract as core/plugins.py's validate_config.
+    schema doesn't know (SHARED_KEYS aside). Same contract as
+    core/plugins.py's validate_config.
     """
     typed, errors = {}, {}
     known = field_map(schema)
@@ -241,7 +249,7 @@ def validate(schema, raw):
             errors[key] = str(e)
             typed[key] = parse_value(f, f["default"])
     for key in raw:
-        if key not in known:
+        if key not in known and key not in SHARED_KEYS:
             errors[key] = "unknown setting"
     return typed, errors
 

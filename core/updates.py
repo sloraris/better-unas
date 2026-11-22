@@ -205,6 +205,17 @@ def dev_branch(home):
     return branch if cfg.get("DEV_MODE") and valid_ref(branch) else None
 
 
+def move_shared(home):
+    """Copy the shared notification settings a tool's config still holds into
+    better-unas.conf (core/notify.py migrate). Returns the keys copied; a
+    failure only leaves them where they are (tools fall back to their own)."""
+    try:
+        from . import notify
+        return notify.migrate(home)
+    except Exception:
+        return []
+
+
 def installed_commit(home):
     try:
         with open(os.path.join(home, COMMIT_FILE)) as f:
@@ -494,7 +505,7 @@ class Updater:
                 skipped.append(name)
         linked = I.restore_link(self.home, self.link) if self.link else False
         return {"from": old, "to": tag or self.current(), "tools": results,
-                "skipped": skipped, "link": linked}
+                "skipped": skipped, "link": linked, "moved": move_shared(self.home)}
 
     def install_tool(self, name):
         src, work = self.source()

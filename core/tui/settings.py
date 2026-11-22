@@ -4,11 +4,13 @@ tool the home knows about.
     SettingsScreen   the tab: better-unas, then every tool (installed or not)
     CoreScreen       Settings › better-unas: version and updates (u, c),
                      remove (R), and the developer-mode settings
+    NotifyScreen     Settings › Notifications: the shared webhook and
+                     heartbeat (core/notify.py), `t` sends a test
     ToolFormScreen   an installed tool's settings, plus uninstall / reinstall
     ToolInfoScreen   a tool without a settings form (not installed, broken,
                      no schema): what it is, and install / uninstall
-    FormScreen       one settings form: edit, `s` saves, `p` previews, Esc
-                     offers to discard
+    FormScreen       one settings form: edit, `s` saves, `p` previews, `t`
+                     tests a URL setting, Esc offers to discard
     SettingsForm     the reusable part: a schema (or a subset of one), the
                      current values and an on-save callback. First-run setup
                      (#15) builds one per tool from its essential settings.
@@ -21,7 +23,10 @@ The config file stays the source of truth: the form reads it when it opens
 and a save changes only the edited keys, keeping comments and hand edits.
 """
 
+import urllib.parse
+
 from .. import configfile
+from .. import notify as N
 from .. import plugins as P
 from .. import updates as U
 from . import widgets as W
@@ -180,6 +185,17 @@ class SettingsForm:
 
 
 CORE_NAME = "better-unas"
+NOTIFY_NAME = "Notifications"
+
+
+def where(url):
+    """scheme://host of a URL, for a confirm: never the path, which often holds a token."""
+    try:
+        u = urllib.parse.urlsplit(url)
+        host = u.hostname
+    except ValueError:
+        host = None
+    return f"{u.scheme}://{host}" if host else "the URL on screen"
 
 
 def core_entry(app):
@@ -224,7 +240,7 @@ class SettingsScreen:
     def __init__(self, ctx):
         self.ctx = ctx
         self.core = core_entry(ctx.app)
-        self.entries = []        # ("heading", text) or ("core", None) or ("tool", row)
+        self.entries = []        # ("heading", text), ("core" | "notify", None) or ("tool", row)
         self.index = 0           # into self.entries, always a selectable entry
         self.refresh()
 
@@ -236,7 +252,7 @@ class SettingsScreen:
         from . import suite
         entries = [("heading", "better-unas")]
         if self.core:
-            entries.append(("core", None))
+            entries += [("core", None), ("notify", None)]
         rows = suite.tool_rows(self.app)
         entries.append(("heading", "Tools"))
         entries += [("tool", r) for r in rows] or [("empty", "No tools found.")]
@@ -247,12 +263,12 @@ class SettingsScreen:
         self.index = stops[names.index(keep)] if keep in names else (stops[0] if stops else 0)
 
     def stops(self):
-        return [i for i, (kind, _) in enumerate(self.entries) if kind in ("core", "tool")]
+        return [i for i, (kind, _) in enumerate(self.entries) if kind in ("core", "notify", "tool")]
 
     @staticmethod
     def name_of(entry):
         kind, item = entry
-        return CORE_NAME if kind == "core" else item["name"] if kind == "tool" else None
+        return {"core": CORE_NAME, "notify": NOTIFY_NAME}.get(kind) or (item["name"] if kind == "tool" else None)
 
     def current_name(self):
         if 0 <= self.index < len(self.entries):
@@ -279,6 +295,8 @@ class SettingsScreen:
             available = bool(status and status["available"])
             return f"{up.installed_label()}  ", "update" if available else None, text, \
                 "warn" if available else "dim"
+        if kind == "notify":
+            return "", None, N.describe(self.core[1].config()), "normal"
         r = item
         glyph, state = suite.tool_state(r)
         tool = r["tool"]
@@ -350,6 +368,8 @@ class SettingsScreen:
         if kind == "core":
             core_ctx = self.core[1]
             return CoreScreen(core_ctx, pickers={"DEV_BRANCH": branch_picker(core_ctx)})
+        if kind == "notify":
+            return NotifyScreen(self.core[1])
         tool = r["tool"]
         if tool is not None and tool.schema and tool.name in app.contexts and not r.get("broken"):
             return ToolFormScreen(app.contexts[tool.name], app.plugins.get(tool.name), r)
@@ -373,7 +393,10 @@ class FormScreen:
     line, `p` to preview the effect (the plugin's optional preview(ctx, values))
     and a discard question when leaving with unsaved edits."""
 
-    def __init__(self, ctx, plugin=None, pickers=None):
+    def __init__(self, ctx, plugin=None, pickers=None, schema=None, tester=None):
+        """schema: the part of the tool's schema to show (default all of it;
+        the save still checks against the whole). tester(key, values): the
+        `t` test for a URL setting, default the plugin's send_test."""
         self.ctx, self.plugin = ctx, plugin
         tool = ctx.tool
         self.title = tool.name
@@ -382,9 +405,12 @@ class FormScreen:
         except FileNotFoundError:
             raw, self.file_problems = {}, []
         known = P.field_map(tool.schema)
-        self.unknown = sorted(k for k in raw if k not in known)
+        self.unknown = sorted(k for k in raw if k not in known and k not in P.SHARED_KEYS)
         validate = getattr(plugin, "validate", None) if plugin is not None else None
-        self.sform = SettingsForm(ctx, tool.schema, raw, lambda edits: save_config(ctx, edits),
+        if tester is None and callable(getattr(plugin, "send_test", None)):
+            tester = lambda key, values: plugin.send_test(ctx, key, values)  # noqa: E731
+        self.tester = tester
+        self.sform = SettingsForm(ctx, schema or tool.schema, raw, lambda edits: save_config(ctx, edits),
                                   validate=validate if callable(validate) else None,
                                   pickers=pickers)
 
@@ -396,11 +422,47 @@ class FormScreen:
     def can_preview(self):
         return self.plugin is not None and callable(getattr(self.plugin, "preview", None))
 
+    @property
+    def can_test(self):
+        """A test for the selected field: a URL setting and a tester."""
+        f = self.form.current if self.form.fields else None
+        return self.tester is not None and f is not None and f.spec["type"] == "url"
+
     def keys(self):
         ks = self.sform.keys()
         if not self.sform.editing and self.can_preview:
             ks = ks[:1] + [("p", "preview")] + ks[1:]
+        if not self.sform.editing and self.can_test:
+            ks = ks[:1] + [("t", "send test")] + ks[1:]
         return ks
+
+    def values(self):
+        """Typed settings with the form's unsaved edits applied."""
+        values = dict(self.ctx.config())
+        values.update(self.sform.values())
+        return values
+
+    def send_test(self):
+        """`t`: one test through the selected URL setting, using the values on
+        screen (saved or not). The result is a message."""
+        field = self.form.current
+        label = field.label
+        if field.error:
+            return self.ctx.message(f"{label}: fix it first ({field.error}).", "bad")
+        url = field.value
+        if not url:
+            return self.ctx.message(f"{label}: enter a URL first.", "warn")
+        if not self.ctx.confirm(f"Send a test to {label}?",
+                                [f"To {where(url)}, using the settings on screen (saved or not)."]):
+            return
+        values = self.values()
+        try:
+            ok = self.ctx.run_slow(lambda: self.tester(field.key_name, values), f"Sending a test to {label}")
+        except Exception as e:
+            return self.ctx.message(f"{label}: test failed: {str(e) or type(e).__name__}", "bad")
+        if ok is None:
+            return self.ctx.message(f"{label}: this setting has no test.", "dim")
+        self.ctx.message(f"{label}: {ok}.", "good")
 
     def preview(self):
         problems = self.sform.problems()
@@ -416,6 +478,9 @@ class FormScreen:
     def key(self, k):
         if not self.sform.editing and k == "p" and self.can_preview:
             self.preview()
+            return True
+        if not self.sform.editing and k == "t" and self.can_test:
+            self.send_test()
             return True
         return self.sform.key(k)
 
@@ -475,7 +540,7 @@ class CoreScreen(FormScreen):
 
     def __init__(self, ctx, pickers=None):
         from . import suite
-        super().__init__(ctx, pickers=pickers)
+        super().__init__(ctx, pickers=pickers, schema=schema_subset(ctx.tool.schema, self.DEV_KEYS))
         self.actions = suite.Actions(ctx)
         self.status = None
         save = self.sform.on_save
@@ -540,6 +605,17 @@ class CoreScreen(FormScreen):
                 self.actions.remove_all()
                 return True
         return super().key(k)
+
+
+class NotifyScreen(FormScreen):
+    """Settings › Notifications: the webhook, heartbeat and alert repeat every
+    tool shares, saved in better-unas.conf. `t` sends a test through the
+    selected URL setting (core/notify.py)."""
+
+    def __init__(self, ctx):
+        schema = schema_subset(ctx.tool.schema, N.KEYS)
+        super().__init__(ctx, schema=schema, tester=lambda key, values: N.send_test(values, key))
+        self.title = NOTIFY_NAME
 
 
 class ToolFormScreen(FormScreen):

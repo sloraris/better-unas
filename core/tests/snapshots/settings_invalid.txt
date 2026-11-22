@@ -10,8 +10,8 @@
                                ! value must be at least 50
 
  Notifications
-   Webhook URL                 (none)
    Quiet hours                 22:00 to 07:00
+
 
 
 

@@ -12,6 +12,7 @@ ends, wizard.setup.done says whether anything was installed and the launcher
 opens the normal app.
 """
 
+from .. import setup as S
 from .app import App, Tab
 from . import widgets as W
 from .screens import DetailScreen
@@ -108,7 +109,7 @@ class EssentialsScreen:
 
     def __init__(self, ctx, setup, name):
         self.ctx, self.setup, self.name = ctx, setup, name
-        self.title = f"{name} settings"
+        self.title = "Notifications" if name == S.CORE else f"{name} settings"
         start = setup.starting_text(name)
         self.form = W.Form(setup.essential_schema(name), start)
         # Coming back to this step shows what was picked before.

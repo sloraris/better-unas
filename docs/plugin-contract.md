@@ -93,6 +93,33 @@ changes only the edited keys and keeps comments, order and unknown lines
 appended under its group's comment heading if the writer can find it,
 otherwise at the end.
 
+### Shared settings: notifications
+
+Some settings belong to the whole suite, not to one tool. They live in
+`better-unas.conf` in the home (the core's schema, `core/settings.json`), and
+the user sets them once in Settings › Notifications:
+
+| Key | Type | Meaning |
+|---|---|---|
+| `WEBHOOK_URL` | url | where alerts go; empty: the system log only |
+| `WEBHOOK_FORMAT` | choice | `text`, `json`, `slack` or `discord` |
+| `NOTIFY_SUCCESS` | bool | also send good news, e.g. a passed test |
+| `ALERT_REPEAT_HOURS` | int | send a still-active alert again after this long |
+| `HEARTBEAT_URL` | url | pinged after every healthy run |
+| `HEARTBEAT_FAIL_URL` | url | pinged instead when a run ends with errors |
+
+A tool doesn't import the core, so it reads these from
+`<home>/better-unas.conf` itself (a plain `KEY=VALUE` file, the folder above
+the tool's): a key set there wins, a key that isn't falls back to the same
+key in the tool's own config, then to the default above. A tool's schema
+doesn't list them. The core never calls one of them an unknown setting in a
+tool's config (`SHARED_KEYS` in `core/plugins.py`), so an old config that
+still has them keeps loading. The core copies them from the tools' configs
+into `better-unas.conf` once, on the first start or update that knows about
+`better-unas.conf`, and in first-run setup (`core/notify.py`, `migrate`); a
+key already in `better-unas.conf` is never copied again. smart-scheduler's
+`Config` and space-watch's `read_config` show the pattern.
+
 ## 3. Settings schema
 
 A JSON file. JSON rather than Python so the core can check it and build the
@@ -304,22 +331,23 @@ be pure.
 
 ### `send_test(ctx, key, values)`: "send test" for a URL setting (optional)
 
-The Alerts screen's notification setup shows the schema groups that hold `url`
-fields and lets the user press `t` on one of them. The core then calls
+A tool's Settings page offers `t send test` on each of its own `url` fields
+when the plugin has this function. The core then calls
 `send_test(ctx, key, values)` through `ctx.run_slow`, after a confirm:
 
-- `key` is the `url` field's key, e.g. `WEBHOOK_URL` or `HEARTBEAT_URL`.
+- `key` is the `url` field's key.
 - `values` are the typed settings with the user's unsaved edits applied, so
   the test uses the URL and format on screen, not the saved ones.
-- Return a short success text (`"test alert sent (slack format)"`), shown in
-  green. Raise an exception whose message says what went wrong (`"HTTP 404
-  Not Found"`, `"timed out"`); the core shows it in red without the exception
-  type. Return `None` for a key that has no test; the core says so.
+- Return a short success text (`"test alert sent (slack format)"`), shown as
+  a message in green. Raise an exception whose message says what went wrong
+  (`"HTTP 404 Not Found"`, `"timed out"`); the core shows it in red without
+  the exception type. Return `None` for a key that has no test; the core says so.
 
 It must send exactly what the tool's own sender sends, so the user tests the
 real format. It writes nothing locally and takes no lock. Without the
-function, `t` says the tool can't send a test. smart-scheduler's
-implementation is one line: `smart_scheduler.send_test(values, key)`.
+function there's no `t`. The shared webhook and heartbeat aren't a tool's
+(see "Shared settings"): Settings › Notifications tests those with
+`core/notify.py`, whose payloads match smart-scheduler's.
 
 ### `preview(ctx, values)`: show the effect of unsaved settings (optional)
 
@@ -533,12 +561,11 @@ also drives the tool's own config loader and writer from it. Summary:
 | | `BACKUP_MARGIN_HOURS` | int | 0-168 hours | |
 | | `BACKUP_DEFAULT_HOURS` | float | 0.1-168 hours | |
 | | `BACKUP_UPLOAD_MBPS` | int | min 0 Mbit/s (0 = unknown) | |
-| Notifications | `WEBHOOK_URL` | url | secret, may be empty | yes |
-| | `WEBHOOK_FORMAT` | choice | text, json, slack, discord | yes |
-| | `NOTIFY_SUCCESS` | bool | | |
-| | `ALERT_REPEAT_HOURS` | int | min 1 hour | |
-| | `HEARTBEAT_URL` | url | secret, may be empty | |
-| | `HEARTBEAT_FAIL_URL` | url | secret, may be empty | |
+
+Its notifications (webhook, heartbeat, alert repeat) are shared settings in
+`better-unas.conf` since step 3 of docs/tui-style.md; the core's
+`settings.json` holds them, with `WEBHOOK_URL` and `WEBHOOK_FORMAT` as its
+essential fields. Between them, the two schemas use every field type.
 
 Notes for #7:
 

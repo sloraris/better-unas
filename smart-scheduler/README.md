@@ -111,8 +111,9 @@ creates `config` from `config.example` if there's none, writes the manifest,
 sets up the triggers and runs a self-check. `install.sh` is safe to re-run
 at any time and never touches an existing `config`.
 
-Then look at the Settings tab (or edit `config` by hand): at least a webhook
-and a heartbeat URL, which the Alerts tab's `n` sets up and tests.
+Then look at the Settings tab (or edit `config` by hand). Set at least a
+webhook and a heartbeat URL in Settings › Notifications, where `t` tests
+them. They're shared by every tool and saved in `better-unas.conf`.
 
 ## In the app
 
@@ -143,15 +144,14 @@ Every action takes the run lock, and with `--dry-run` nothing changes.
   - `x` excludes the drive, or includes it again.
   - `i` sets its interval in days; empty goes back to the normal rules.
 - **Settings:** every setting from `settings.json`, in the same groups as
-  `config`: General, intervals, when tests may start, UniFi backups and
-  replication, and notifications. Values are checked as you type (including
+  `config`: General, intervals, when tests may start, and UniFi backups and
+  replication. Values are checked as you type (including
   that the warning and old-drive intervals aren't longer than the healthy
   one), `s` saves, and `p` previews the calendar with your unsaved values.
-- **Alerts:** active alerts and the last 20 cleared ones. `n` sets the
-  webhook format and URL and the heartbeat URLs, and sends a test.
+- **Alerts:** active alerts and the last 20 cleared ones.
 
-The setup wizard asks only for the essential settings: the three intervals,
-`START_WINDOW`, `WEBHOOK_URL` and `WEBHOOK_FORMAT`.
+The setup wizard asks only for the essential settings: the three intervals
+and `START_WINDOW`, after better-unas's own webhook URL and format.
 
 `settings.json` is the settings schema: every key's type, default, allowed
 values and help text. The Settings tab builds its forms from it, and
@@ -195,7 +195,7 @@ firmware: Python 3 (a dependency of UniFi's own base packages), `smartctl`,
 All triggers live in the writable `/etc` layer of the firmware. That layer has
 survived firmware updates so far, but a factory reset (or an update that resets
 it) would remove both triggers at once, and nothing on the NAS would ever run
-the repair. **Set `HEARTBEAT_URL`** to a dead-man's switch
+the repair. **Set the heartbeat URL** (Settings › Notifications) to a dead-man's switch
 ([healthchecks.io](https://healthchecks.io), or an Uptime Kuma push monitor)
 with a grace period of a few hours. If the pings stop for any reason, it alerts
 you from outside. Recovery is then one command: `/persistent/better-unas/smart-scheduler/install.sh`
@@ -203,16 +203,20 @@ you from outside. Recovery is then one command: `/persistent/better-unas/smart-s
 
 ## Alerts
 
-Set `WEBHOOK_URL` and `WEBHOOK_FORMAT` (`text` for ntfy and most receivers, or
-`json`, `slack`, `discord`). You'll hear about:
+Set the webhook URL and format in Settings › Notifications (`text` for ntfy
+and most receivers, or `json`, `slack`, `discord`). These, `NOTIFY_SUCCESS`,
+`ALERT_REPEAT_HOURS` and the heartbeat URLs are shared by every tool and live
+in `/persistent/better-unas/better-unas.conf`; smart-scheduler reads them
+from there, and from its own `config` for any key `better-unas.conf` doesn't
+set. You'll hear about:
 
 - a failed or aborted extended test
 - the API, the account it uses, or required tools going missing
 - triggers it restored, and firmware updates it noticed
 - problems clearing (a "Resolved:" message)
 
-Alerts are deduplicated: a problem that persists repeats every 72 hours, not
-every hour. If the webhook can't be reached, messages are kept and sent once it
+Alerts are deduplicated: a problem that persists repeats every 72 hours
+(`ALERT_REPEAT_HOURS`), not every hour. If the webhook can't be reached, messages are kept and sent once it
 is back. Everything also goes to the journal: `journalctl -t smart-scheduler`.
 
 ## Commands

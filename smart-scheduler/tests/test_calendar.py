@@ -385,9 +385,10 @@ class PluginTests(CalendarFixture, unittest.TestCase):
         self.addCleanup(os.unlink, f.name)
         want = ss.Config(f.name)
         got = cal.config_from(ss, typed)
-        self.assertEqual(got.values, want.values)
+        own = lambda cfg: {k: cfg.values[k] for k in ss.DEFAULTS}     # the shared keys aside
+        self.assertEqual(got.values, own(want))
         self.assertEqual((got.window, got.overrides), (want.window, want.overrides))
-        self.assertEqual(cal.config_from(ss, {}).values, ss.Config("/nonexistent").values)
+        self.assertEqual(cal.config_from(ss, {}).values, own(ss.Config("/nonexistent")))
 
 
 if __name__ == "__main__":

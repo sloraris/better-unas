@@ -105,7 +105,7 @@ class ExampleTool(unittest.TestCase):
         self.assertEqual(tool.name, "space-watch")
         self.assertEqual(tool.manifest["LOCK"], ".lock")
         self.assertEqual([f["key"] for f in P.essential_fields(tool.schema)],
-                         ["WATCH_PATH", "WARN_PERCENT", "WEBHOOK_URL"])
+                         ["WATCH_PATH", "WARN_PERCENT"])
         typed, errors = tool.read_config()   # no config file: defaults
         self.assertEqual(errors, {})
         self.assertEqual(typed["WARN_PERCENT"], 90)
@@ -246,10 +246,13 @@ class Schema(unittest.TestCase):
     def test_smart_scheduler_worked_example(self):
         schema = P.load_schema(SS_SCHEMA)
         self.assertEqual(P.check_example(schema, SS_EXAMPLE), [])
-        self.assertEqual({f["type"] for f in P.fields(schema)}, set(P.TYPE_ATTRS))
+        core = P.load_schema(os.path.join(ROOT, "core", "settings.json"))
+        # With the core's Notifications group, every field type has an example.
+        self.assertEqual({f["type"] for f in P.fields(schema) + P.fields(core)}, set(P.TYPE_ATTRS))
         self.assertEqual([f["key"] for f in P.essential_fields(schema)],
-                         ["INTERVAL_DAYS", "WARN_INTERVAL_DAYS", "OLD_INTERVAL_DAYS",
-                          "START_WINDOW", "WEBHOOK_URL", "WEBHOOK_FORMAT"])
+                         ["INTERVAL_DAYS", "WARN_INTERVAL_DAYS", "OLD_INTERVAL_DAYS", "START_WINDOW"])
+        self.assertEqual([f["key"] for f in P.essential_fields(core)], ["WEBHOOK_URL", "WEBHOOK_FORMAT"])
+        self.assertFalse(set(P.field_map(schema)) & set(P.SHARED_KEYS))     # shared keys live in the core
 
     def test_check_example_reports_drift(self):
         schema = P.check_schema(schema_with(field(key="A", type="int", default="1"),

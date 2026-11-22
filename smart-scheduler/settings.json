@@ -207,62 +207,6 @@
           "help": "Upload speed to the backup provider, used with no run history when the task has no bandwidth limit. 0 = unknown."
         }
       ]
-    },
-    {
-      "id": "notifications",
-      "title": "Notifications",
-      "fields": [
-        {
-          "key": "WEBHOOK_URL",
-          "type": "url",
-          "label": "Webhook URL",
-          "default": "",
-          "secret": true,
-          "essential": true,
-          "help": "Where alerts go. Empty = journal/syslog only."
-        },
-        {
-          "key": "WEBHOOK_FORMAT",
-          "type": "choice",
-          "label": "Webhook format",
-          "choices": ["text", "json", "slack", "discord"],
-          "default": "text",
-          "essential": true,
-          "help": "text is a plain body (ntfy and most receivers)."
-        },
-        {
-          "key": "NOTIFY_SUCCESS",
-          "type": "bool",
-          "label": "Notify on pass",
-          "default": "no",
-          "help": "Also notify when a test passes (UniFi already shows results in Health Monitor)."
-        },
-        {
-          "key": "ALERT_REPEAT_HOURS",
-          "type": "int",
-          "label": "Repeat alerts every",
-          "unit": "hours",
-          "min": 1,
-          "default": "72",
-          "help": "Repeat a still-active alert after this many hours."
-        },
-        {
-          "key": "HEARTBEAT_URL",
-          "type": "url",
-          "label": "Heartbeat URL",
-          "default": "",
-          "secret": true,
-          "help": "Pinged (GET) after every healthy hourly run: a dead-man's switch such as healthchecks.io or an Uptime Kuma push monitor."
-        },
-        {
-          "key": "HEARTBEAT_FAIL_URL",
-          "type": "url",
-          "label": "Heartbeat URL on failure",
-          "default": "",
-          "secret": true,
-          "help": "Optional: pinged instead when a run ends with active errors."
-        }
-      ]
     }
   ]
 }

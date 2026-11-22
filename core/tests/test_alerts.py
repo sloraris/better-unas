@@ -1,13 +1,13 @@
-"""Alerts screen and notification setup tests (issue #13). Run from the
-repository root:
+"""Alerts screen and Settings › Notifications tests (issue #13). Run from
+the repository root:
 
     python3 -m unittest discover -s core/tests
 
-The fixture tool uses smart-scheduler's real settings.json and its plugin's
-send_test calls smart_scheduler.send_test, so the test sends here are the
-tool's own payloads. They all go to a throwaway http.server on 127.0.0.1.
+Test sends go through core/notify.py (or a fixture tool's send_test) to a
+throwaway http.server on 127.0.0.1.
 """
 
+import json
 import os
 import shutil
 import stat
@@ -23,29 +23,15 @@ sys.path.insert(0, os.path.join(ROOT, "smart-scheduler", "tests"))
 
 from core import plugins as P                     # noqa: E402
 from core.tui import widgets as W                 # noqa: E402
-from core.tui import alerts as A                  # noqa: E402
+from core.tui import settings as S                # noqa: E402
 from core.tui.app import App                      # noqa: E402
 from core.tui.terminal import HeadlessTerminal    # noqa: E402
 from core.tui.theme import Theme                  # noqa: E402
 from test_tui import CLOCK, SS_SCHEMA, SnapshotMixin, write_tool  # noqa: E402
 from test_notify import FakeEndpoint, closed_port_url             # noqa: E402
 
-SS = os.path.join(ROOT, "smart-scheduler", "smart_scheduler.py")
-
 PLUGIN = '''
-import importlib.util
-
 CONTRACT = 1
-SS = %r
-_ss = None
-
-def ss():
-    global _ss
-    if _ss is None:
-        spec = importlib.util.spec_from_file_location("better_unas_test_ss", SS)
-        _ss = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(_ss)
-    return _ss
 
 def status(ctx):
     return {"enabled": True, "state": "ok"}
@@ -66,15 +52,6 @@ def alerts(ctx):
          "resolved": "2026-11-16T01:00:00-07:00", "message": "Triggers broken (not healed)."},
     ]
 
-def validate(values):
-    if values["HEARTBEAT_FAIL_URL"] and not values["HEARTBEAT_URL"]:
-        return {"HEARTBEAT_FAIL_URL": "set the heartbeat URL too"}
-    return {}
-''' % SS
-
-SEND_TEST = '''
-def send_test(ctx, key, values):
-    return ss().send_test(values, key, host="nas", timeout=3)
 '''
 
 CONFIG = """# smart-scheduler config
@@ -85,7 +62,7 @@ WEBHOOK_FORMAT=text
 """
 
 
-def write_notify_tool(home, name="notify", plugin=PLUGIN + SEND_TEST):
+def write_notify_tool(home, name="notify", plugin=PLUGIN):
     d = write_tool(home, name, plugin, summary="Notification fixture")
     with open(os.path.join(d, "tool.conf"), "a") as f:
         f.write("SCHEMA=settings.json\nCONFIG=config\n")
@@ -160,16 +137,39 @@ class AlertListTests(AlertsFixture, unittest.TestCase):
         self.assertIn("since/last/resolved as ISO 8601", text)
 
 
+class AlertsHeaderTests(AlertsFixture, unittest.TestCase):
+    def setUp(self):
+        super().setUp()
+        write_notify_tool(self.home)
+
+    def test_sent_to_names_the_webhook_host_only(self):
+        app = self.make_app()
+        app.home = self.home
+        self.assertIn("Sent to: no webhook set", app.press(self.alerts_tab(app)))
+        with open(os.path.join(self.home, "better-unas.conf"), "w") as f:
+            f.write("WEBHOOK_URL=https://ntfy.sh/secret-topic\n")
+        text = app.press("r")
+        self.assertIn("Sent to: ntfy.sh", text.split("\n")[2])
+        self.assertNotIn("secret-topic", text)
+        self.assertNotIn(" n ", text.split("\n")[22])          # the old setup key is gone
+
+
 class NotifyTests(AlertsFixture, unittest.TestCase):
+    """Settings › Notifications: the shared webhook and heartbeat, saved in
+    better-unas.conf, with `t` sending a test through core/notify.py."""
+
     def setUp(self):
         super().setUp()
         self.tool = write_notify_tool(self.home)
+        self.conf = os.path.join(self.home, "better-unas.conf")
 
     def open_notify(self, **kw):
         app = self.make_app(**kw)
-        app.press(self.alerts_tab(app))
-        text = app.press("n")
-        self.assertIn("Notifications", text)
+        app.home = self.home
+        app.press(str([t.title for t in app.tabs].index("Settings") + 1))
+        self.assertTrue(app.screen.open("Notifications"))
+        text = app.press()
+        self.assertIn("Settings › Notifications", text)
         return app
 
     def goto(self, app, key):
@@ -181,12 +181,21 @@ class NotifyTests(AlertsFixture, unittest.TestCase):
         self.goto(app, key)
         return app.press("enter", *url, "enter")
 
-    def test_shows_only_the_notification_group(self):
+    def saved(self):
+        try:
+            with open(self.conf) as f:
+                return f.read()
+        except FileNotFoundError:
+            return None
+
+    def test_shows_only_the_notification_settings(self):
         app = self.open_notify()
         keys = [f.key_name for f in app.screen.form.fields]
         self.assertEqual(keys, ["WEBHOOK_URL", "WEBHOOK_FORMAT", "NOTIFY_SUCCESS",
                                 "ALERT_REPEAT_HOURS", "HEARTBEAT_URL", "HEARTBEAT_FAIL_URL"])
-        self.assertIn("t test  s save", self.term.text().split("\n")[22])
+        self.assertIn("t send test", self.term.text().split("\n")[22])
+        self.goto(app, "WEBHOOK_FORMAT")
+        self.assertNotIn("send test", app.press().split("\n")[22])   # only on URL settings
 
     def test_send_test_success_uses_the_format_on_screen(self):
         app = self.open_notify()
@@ -198,31 +207,29 @@ class NotifyTests(AlertsFixture, unittest.TestCase):
         asked = next(f for f in self.frames if "Send a test to Webhook URL?" in f)
         self.assertIn("http://127.0.0.1", asked)
         self.assertNotIn("/hook", asked)                  # the path may hold a token
-        self.assertIn("Last test, Webhook URL: test alert sent (slack format)", text)
+        self.assertIn("Webhook URL: test alert sent (slack format).", text)
         (got,) = self.ep.requests
         self.assertEqual(got["method"], "POST")
-        self.assertTrue(got["body"].startswith('{"text": "*nas smart-scheduler: info*\\n'))
-        # testing saves nothing
-        with open(os.path.join(self.tool, "config")) as f:
-            self.assertEqual(f.read(), CONFIG)
+        self.assertIn(' better-unas: info*\\n', got["body"])
+        self.assertIsNone(self.saved())                   # testing saves nothing
 
     def test_send_test_failure_shows_the_http_error(self):
         self.ep.status = 404
         app = self.open_notify()
         self.type_url(app, "HEARTBEAT_URL", self.ep.url("/ping/abc"))
         text = app.press("t", "y")
-        self.assertIn("Last test, Heartbeat URL: failed: HTTP 404 Not Found", text)
-        self.assertSnapshot("alerts_notify_failed", text)
+        self.assertIn("Heartbeat URL: test failed: HTTP 404 Not Found", text)
+        self.assertSnapshot("settings_notify_failed", text)
         self.assertEqual([(r["method"], r["path"]) for r in self.ep.requests], [("GET", "/ping/abc")])
 
     def test_send_test_unreachable(self):
         app = self.open_notify()
         self.type_url(app, "WEBHOOK_URL", closed_port_url())
         text = app.press("t", "y")
-        self.assertIn("Last test, Webhook URL: failed:", text)
+        self.assertIn("Webhook URL: test failed:", text)
         self.assertIn("refused", text.lower())
 
-    def test_no_test_without_confirm_url_or_hook(self):
+    def test_no_test_without_confirm_or_url(self):
         app = self.open_notify()
         self.goto(app, "WEBHOOK_URL")
         self.assertIn("Webhook URL: enter a URL first.", app.press("t"))
@@ -232,67 +239,74 @@ class NotifyTests(AlertsFixture, unittest.TestCase):
         app.press("t", "n")                                # confirm defaults to no
         self.assertEqual(self.ep.requests, [])
 
-    def test_tool_without_send_test(self):
-        shutil.rmtree(self.tool)
-        write_notify_tool(self.home, plugin=PLUGIN)
-        app = self.open_notify()
-        self.type_url(app, "WEBHOOK_URL", self.ep.url())
-        self.assertIn("notify can't send a test yet.", app.press("t"))
-        self.assertEqual(self.ep.requests, [])
-
-    def test_save_goes_through_the_config_writer(self):
+    def test_save_writes_better_unas_conf(self):
         app = self.open_notify()
         url = self.ep.url("/secret-token")
         self.type_url(app, "WEBHOOK_URL", url)
         self.goto(app, "WEBHOOK_FORMAT")
         app.press("right", "right", "right")              # discord
         text = app.press("s")
-        self.assertIn("Saved 2 setting(s) to config.", text)
-        path = os.path.join(self.tool, "config")
-        with open(path) as f:
-            saved = f.read()
-        self.assertTrue(saved.startswith("# smart-scheduler config\nENABLED=yes\n"))
+        self.assertIn("Saved 2 setting(s) to better-unas/better-unas.conf.", text)
+        saved = self.saved()
         self.assertIn("WEBHOOK_FORMAT=discord\n", saved)
         self.assertIn(f"WEBHOOK_URL={url}\n", saved)
-        self.assertEqual(stat.S_IMODE(os.stat(path).st_mode), 0o600)
-        self.assertEqual(app.screen.form.changed(), {})   # reloaded from the file
+        self.assertEqual(stat.S_IMODE(os.stat(self.conf).st_mode), 0o600)
+        with open(os.path.join(self.tool, "config")) as f:
+            self.assertEqual(f.read(), CONFIG)            # the tool's config is left alone
         with open(os.path.join(self.home, "tui.log")) as f:
             self.assertNotIn("secret-token", f.read())
-        self.assertIn("Nothing to save.", app.press("s"))
-
-    def test_save_refuses_errors_and_cross_field_rules(self):
-        app = self.open_notify()
-        self.type_url(app, "HEARTBEAT_FAIL_URL", self.ep.url("/fail"))
-        text = app.press("s")
-        self.assertIn("set the heartbeat URL too", text)
-        self.assertIn("Fix 1 setting(s) first.", text)
-        with open(os.path.join(self.tool, "config")) as f:
-            self.assertEqual(f.read(), CONFIG)
+        self.assertIn("Nothing to save", app.press("s"))
+        app.press("esc")
+        self.assertIn("webhook: 127.0.0.1 · heartbeat: off", app.press())
 
     def test_dry_run_saves_nothing(self):
         app = self.open_notify(dry_run=True)
         self.type_url(app, "WEBHOOK_URL", self.ep.url())
-        self.assertIn("Dry run: would save WEBHOOK_URL.", app.press("s"))
-        with open(os.path.join(self.tool, "config")) as f:
-            self.assertEqual(f.read(), CONFIG)
+        self.assertIn("Dry run: 1 setting(s) are valid", app.press("s"))
+        self.assertIsNone(self.saved())
 
     def test_leaving_with_changes_asks(self):
         app = self.open_notify()
         self.type_url(app, "WEBHOOK_URL", self.ep.url())
         app.press("esc", "n")
         self.assertTrue(any("Discard your changes?" in f for f in self.frames))
-        self.assertIsInstance(app.screen, A.NotifyScreen)
+        self.assertIsInstance(app.screen, S.NotifyScreen)
         app.press("esc", "y")
-        self.assertIsInstance(app.screen, A.AlertsScreen)
+        self.assertIsInstance(app.screen, S.SettingsScreen)
 
-    def test_two_tools_get_a_chooser(self):
-        write_notify_tool(self.home, "notify-two")
+
+class ToolUrlTestTests(AlertsFixture, unittest.TestCase):
+    """A tool's own URL setting gets `t` through its plugin's send_test."""
+
+    SCHEMA = {"contract": 1, "groups": [{"id": "general", "title": "General", "fields": [
+        {"key": "PUSH_URL", "type": "url", "label": "Push URL", "default": ""}]}]}
+
+    def make_tool(self, plugin):
+        d = write_tool(self.home, "pusher", plugin, summary="URL fixture")
+        with open(os.path.join(d, "tool.conf"), "a") as f:
+            f.write("SCHEMA=settings.json\nCONFIG=config\n")
+        with open(os.path.join(d, "settings.json"), "w") as f:
+            json.dump(self.SCHEMA, f)
+        with open(os.path.join(d, "config"), "w") as f:
+            f.write("PUSH_URL=%s\n" % self.ep.url("/push"))
+
+    def open_form(self):
         app = self.make_app()
-        app.press(self.alerts_tab(app))
-        text = app.press("n")
-        self.assertIn("notify-two", text)
-        app.press("down", "enter")
-        self.assertEqual(app.screen.ctx.tool.name, "notify-two")
+        app.home = self.home
+        app.press(str([t.title for t in app.tabs].index("Settings") + 1))
+        self.assertTrue(app.screen.open("pusher"))
+        return app
+
+    def test_send_test_through_the_plugin(self):
+        self.make_tool(PLUGIN + "\ndef send_test(ctx, key, values):\n    return 'pushed ' + values[key][-5:]\n")
+        app = self.open_form()
+        self.assertIn("t send test", app.press().split("\n")[22])
+        self.assertIn("Push URL: pushed /push.", app.press("t", "y"))
+
+    def test_no_send_test_no_key(self):
+        self.make_tool(PLUGIN)
+        app = self.open_form()
+        self.assertNotIn("send test", app.press().split("\n")[22])
 
 
 class ContractTests(unittest.TestCase):
