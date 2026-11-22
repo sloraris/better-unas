@@ -29,9 +29,15 @@ or moved drives are handled automatically.
 | No extended test on record | Now (baseline) |
 | Healthy | 90 days after the last good one |
 | Older than ~5 years of power-on time | 60 days |
-| Warning signs (attributes 5/187/197/198 above zero, a UniFi risk reason, or a state other than optimal) | 30 days |
-| A warning attribute rose since its last test | Next eligible night |
+| A watched attribute (5/187/197/198) rose since its last test | Next eligible night, then 30 days until a test passes with no further rise |
+| A UniFi risk reason, or a state other than optimal | 30 days |
 | Last test failed or aborted | 7 days later, and you get an alert |
+
+A count that stays where it is doesn't shorten anything: a drive with 14
+offline-uncorrectable sectors that keeps passing its tests is on its normal
+interval. Only a rise counts. The test that follows a rise is the check: if
+it passes and the counts didn't rise while it ran, the drive goes back to its
+normal interval; if they rose again, it stays on 30 days.
 
 The most urgent due drive gets a test only when all of these hold:
 

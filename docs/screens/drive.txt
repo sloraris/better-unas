@@ -6,7 +6,7 @@
 
  ┌─ Schedule ─────────────────────────┐  ┌─ Health ───────────────────────────┐
  │ Last test   ✗ Thu 12 Nov  failed   │  │ Temperature                   48°C │
- │ Next test   ○ Tue 24 Nov 00:00     │  │ Power-on            59,052 h  6.7y │
+ │ Next test   ○ Mon 23 Nov 00:00     │  │ Power-on            59,052 h  6.7y │
  │ Why         retry                  │  │                                    │
  │ Interval    60 days  old drive     │  │ Reallocated sectors  none        5 │
  │ Snoozed     no                     │  │ Uncorrectable errors none      187 │

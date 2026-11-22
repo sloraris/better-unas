@@ -14,7 +14,7 @@ import os
 import tempfile
 import unittest
 
-from test_scheduling import NIGHT, TZ, Fake, ext, ss
+from test_scheduling import NIGHT, TZ, Fake, ext, rose6, ss
 
 planner = ss.planner
 
@@ -38,7 +38,7 @@ class PlannerTests(unittest.TestCase):
         self.fake.install()
         self.fake.attrs["SERIAL6"] = {"198": 14}
         self.cfg = ss.Config("/nonexistent")
-        self.state = {}
+        self.state = rose6()
         self.addCleanup(setattr, ss, "now", ss.now)
 
     def drives(self, t=NIGHT):
@@ -90,6 +90,7 @@ class PlannerTests(unittest.TestCase):
 
     def test_busy_drives_wait_only_tonight(self):
         self.fake.attrs["SERIAL6"] = {}
+        self.state = {}
         for disk in self.fake.storage["disks"]:   # make every drive young and healthy
             disk["powerOnHours"] = 100
         p = self.plan()
@@ -124,16 +125,18 @@ class PlannerTests(unittest.TestCase):
         for slot in "1234567":
             self.fake.history[slot] = [ext(1, "successful", "optimal", "2026-10-01T09:00:00-07:00")]
         self.fake.history["3"] = [ext(1, "successful", "optimal", "2026-10-05T09:00:00-07:00")]
-        self.fake.attrs["SERIAL3"] = {"5": 8}   # a second warning drive
+        self.fake.attrs["SERIAL3"] = {"5": 8}   # a second warning drive: its count rose
+        self.state["drives"]["SERIAL3"] = {"rose": {"at": "2026-11-20T00:00:00-07:00", "ids": ["5"]}}
         p = self.plan(horizon=at(2027, 2, 1))
         first = [e["serial"] for e in p[:2]]
         # Both 30-day drives come before every other overdue drive; slot 6 has waited longer.
         self.assertEqual(first, ["SERIAL6", "SERIAL3"])
         self.assertEqual(p[0]["interval"], 30)
-        # The planned test counts as passed, so the next one is 30 days after it ends.
+        # The planned test counts as passed with no further rise, so the drive is
+        # back on its normal interval (old drive, 60 days) after it.
         again = [e for e in p if e["serial"] == "SERIAL6"]
-        self.assertEqual(again[1]["due"], again[0]["end"] + dt.timedelta(days=30))
-        self.assertEqual(again[1]["reason"], "every 30 days (SMART attribute 198 is 14)")
+        self.assertEqual(again[1]["due"], again[0]["end"] + dt.timedelta(days=60))
+        self.assertEqual(again[1]["reason"], "every 60 days (57,642 power-on hours)")
 
     def test_horizon_stops_once_every_drive_has_a_test(self):
         p = self.plan()
@@ -183,8 +186,9 @@ class PlannerTests(unittest.TestCase):
         self.assertEqual(p[0]["night"], "2026-11-23")
         self.assertEqual(p.skipped, [{"night": "2026-11-22", "reasons": ["a SMART test is already running"]}])
         six = [e for e in p if e["serial"] == "SERIAL6"][0]
-        # Assumed to end ~14 h after now (15:16 on the 22nd); due 30 days later, so the next night.
-        self.assertEqual(six["night"], "2026-12-23")
+        # Assumed to end ~14 h after now (15:16 on the 22nd) and pass clean, so the
+        # rise no longer counts: due 60 days later (old drive), the next night.
+        self.assertEqual(six["night"], "2027-01-22")
 
     def test_unhealthy_pool_blocks_tonight_only(self):
         self.fake.storage["pools"][0]["status"] = "degraded"

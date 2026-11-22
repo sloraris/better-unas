@@ -107,7 +107,7 @@ def rich(test):
     attrs = test.fake.attrs
     patch(test, "smart_facts", lambda dev, ids: (571, {k: v for k, v in attrs.get(dev[5:], {}).items()
                                                        if int(k) in ids}))
-    test.state["drives"] = {"SERIAL5": {"attrs_at_last_test": {"5": 0, "187": 0, "197": 0, "198": 0}}}
+    test.state.setdefault("drives", {})["SERIAL5"] = {"attrs_at_last_test": {"5": 0, "187": 0, "197": 0, "198": 0}}
     test.state["snoozes"] = {"SERIAL6": {"until": "2026-11-25", "note": "waiting for a spare",
                                          "set": "2026-11-21T10:00:00-07:00"}}
     test.fake.history["5"].append({"id": 52, "type": "quick", "status": "successful", "result": "optimal",

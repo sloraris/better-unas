@@ -27,6 +27,7 @@ class FakeEndpoint:
 
     def __init__(self, status=200):
         self.status = status
+        self.body = None          # None: "ok" on success, nothing on an error
         self.requests = []
         outer = self
 
@@ -36,10 +37,11 @@ class FakeEndpoint:
                 outer.requests.append({"method": self.command, "path": self.path,
                                        "headers": dict(self.headers),
                                        "body": self.rfile.read(n).decode()})
+                body = outer.body if outer.body is not None else (b"ok" if outer.status < 300 else b"")
                 self.send_response(outer.status)
-                self.send_header("Content-Length", "2")
+                self.send_header("Content-Length", str(len(body)))
                 self.end_headers()
-                self.wfile.write(b"ok")
+                self.wfile.write(body)
 
             do_GET = do_POST = _answer
 
