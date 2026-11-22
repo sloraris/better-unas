@@ -101,7 +101,7 @@ class SettingsScreenTests(Fixture, unittest.TestCase):
         self.assertIn("space-watch/config", text)
         self.assertIn("kept as is: LEGACY_THING", text)
         self.assertIn("/volume1", text)
-        self.assertIn("s save", text.splitlines()[-1])
+        self.assertIn("s save", text.split("\n")[22])
         self.assertNotIn("p preview", text)      # space-watch has no preview hook
 
     def test_list_flags_a_broken_config(self):
@@ -274,7 +274,7 @@ class SettingsScreenTests(Fixture, unittest.TestCase):
         app.plugins["space-watch"].preview = preview
         self.app = app
         app.press("4", "enter")
-        self.assertIn("p preview", self.term.text().splitlines()[-1])
+        self.assertIn("p preview", self.term.text().split("\n")[22])
         self.set_warn("80")
         text = app.press("p")
         self.assertIn("Settings › space-watch › Preview", text)

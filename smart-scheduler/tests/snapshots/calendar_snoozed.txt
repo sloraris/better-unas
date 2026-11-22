@@ -20,5 +20,5 @@
 
  Snoozed: S6 until Wed 25 Nov (waiting for a spare)
  S6 planned   S6 passed   S6! failed   S6* running   sc scrub   bk backup
-──────────────────────────────────────────────── 1-6/Tab tabs  ? help  q quit ──
- Arrows day  PgUp/Dn month  Enter details  t today  r recalculate
+ Arrows day  PgUp/Dn month  Enter details  t today  r recalculate ──────────────
+ 1-6/Tab tabs  ? help  q quit

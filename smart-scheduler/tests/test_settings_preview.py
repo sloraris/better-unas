@@ -43,7 +43,7 @@ class SettingsScreenTests(CalendarFixture, unittest.TestCase):
         text = self.open_settings()
         self.assertSnapshot("settings_form", text)
         self.assertIn("smart-scheduler/config", text)
-        self.assertIn("p preview", text.splitlines()[-1])
+        self.assertIn("p preview", text.split("\n")[22])
 
     def test_preview_then_save_keeps_comments(self):
         self.write_config(EXAMPLE)

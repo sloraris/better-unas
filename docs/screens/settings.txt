@@ -20,5 +20,5 @@ When tests may start
 ────────────────────────────────────────────────────────────────────────────────
 Set to no to stop: the next run removes the timer and cron line. To turn it
 back on, set yes and reinstall.
-────────────────────────────────────── Esc back  1-6/Tab tabs  ? help  q quit ──
- s save  p preview  ↑↓ move  Space toggle
+ s save  p preview  ↑↓ move  Space toggle ──────────────────────────────────────
+ Esc back  1-6/Tab tabs  ? help  q quit

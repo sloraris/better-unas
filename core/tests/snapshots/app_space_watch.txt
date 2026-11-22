@@ -20,5 +20,5 @@ Warns above 90%.
 
 
 
-──────────────────────────────────────────────── 1-6/Tab tabs  ? help  q quit ──
- r refresh  x forget peak
+ r refresh  x forget peak ──────────────────────────────────────────────────────
+ 1-6/Tab tabs  ? help  q quit

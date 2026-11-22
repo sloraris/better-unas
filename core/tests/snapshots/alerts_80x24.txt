@@ -20,5 +20,5 @@
 
 
 
-──────────────────────────────────────────────── 1-4/Tab tabs  ? help  q quit ──
- Enter details  n setup  r refresh  ↑↓ move
+ Enter details  n setup  r refresh  ↑↓ move ────────────────────────────────────
+ 1-4/Tab tabs  ? help  q quit

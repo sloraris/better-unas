@@ -20,5 +20,5 @@ Notifications
 ────────────────────────────────────────────────────────────────────────────────
 Set to no to stop checking.
 
-────────────────────────────────────── Esc back  1-6/Tab tabs  ? help  q quit ──
- s save  ↑↓ move  Space toggle
+ s save  ↑↓ move  Space toggle ─────────────────────────────────────────────────
+ Esc back  1-6/Tab tabs  ? help  q quit

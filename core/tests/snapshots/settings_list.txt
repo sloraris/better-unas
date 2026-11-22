@@ -20,5 +20,5 @@ Settings by tool. The config files stay the source of truth.
 
 
 
-──────────────────────────────────────────────── 1-6/Tab tabs  ? help  q quit ──
- Enter open  ↑↓ move
+ Enter open  ↑↓ move ───────────────────────────────────────────────────────────
+ 1-6/Tab tabs  ? help  q quit

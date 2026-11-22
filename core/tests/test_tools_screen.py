@@ -86,7 +86,7 @@ class ToolsScreenTests(SnapshotMixin, unittest.TestCase):
         app = self.make_app()
         text = app.press(TOOLS_TAB)
         self.assertSnapshot("tools_update_available", text)
-        self.assertIn("u update", text.splitlines()[-1])
+        self.assertIn("u update", text.split("\n")[22])
 
     def test_not_checked_and_up_to_date(self):
         os.remove(os.path.join(self.home, U.CACHE))
@@ -123,7 +123,7 @@ class ToolsScreenTests(SnapshotMixin, unittest.TestCase):
         app = self.make_app()
         app.press(TOOLS_TAB)
         text = app.press("down")             # beta, uninstalled
-        self.assertIn("i install", text.splitlines()[-1])
+        self.assertIn("i install", text.split("\n")[22])
         text = app.press("i", "y")
         self.assertIn("Turns it back on with the config it had.", self.frame_with("Install beta?"))
         self.assertIn("beta installed", text)

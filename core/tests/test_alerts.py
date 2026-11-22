@@ -186,7 +186,7 @@ class NotifyTests(AlertsFixture, unittest.TestCase):
         keys = [f.key_name for f in app.screen.form.fields]
         self.assertEqual(keys, ["WEBHOOK_URL", "WEBHOOK_FORMAT", "NOTIFY_SUCCESS",
                                 "ALERT_REPEAT_HOURS", "HEARTBEAT_URL", "HEARTBEAT_FAIL_URL"])
-        self.assertIn("t test  s save", self.term.text().splitlines()[-1])
+        self.assertIn("t test  s save", self.term.text().split("\n")[22])
 
     def test_send_test_success_uses_the_format_on_screen(self):
         app = self.open_notify()
