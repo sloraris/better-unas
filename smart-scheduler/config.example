@@ -15,8 +15,8 @@ DRIVE_USER=
 # --- How often each drive gets an extended test ------------------------------
 # Healthy drive.
 INTERVAL_DAYS=90
-# Drive showing warning signs: any WARN_ATTRIBUTES above zero, a UniFi risk
-# reason, or a UniFi state other than optimal.
+# Drive with warning signs: a WARN_ATTRIBUTES count that rose and has had no
+# clean test since, a UniFi risk reason, or a UniFi state other than optimal.
 WARN_INTERVAL_DAYS=30
 # Drive older than OLD_DRIVE_HOURS of power-on time (43800 h is about 5 years).
 OLD_INTERVAL_DAYS=60
@@ -24,8 +24,8 @@ OLD_DRIVE_HOURS=43800
 # After a test fails or is aborted, smart-scheduler alerts and tests that drive
 # again this many days later.
 RETRY_FAILED_DAYS=7
-# SMART attributes that count as warning signs. If one rises since the last
-# test, that drive is tested on the next eligible night.
+# SMART attributes to watch. A count that rises since the last test makes that
+# drive due on the next eligible night; a count that stays the same is ignored.
 # 5 reallocated, 187 reported uncorrectable, 197 pending, 198 offline uncorrectable
 WARN_ATTRIBUTES=5,187,197,198
 

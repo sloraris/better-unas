@@ -55,13 +55,19 @@ class Fake:
         ss.log = lambda *a, **k: None
 
 
+def rose6():
+    """State in which slot 6's attribute 198 (14 in the fixture) rose and no
+    clean test has followed: the fixture's warning drive."""
+    return {"drives": {"SERIAL6": {"rose": {"at": "2026-11-20T00:00:00-07:00", "ids": ["198"]}}}}
+
+
 class SchedulingTests(unittest.TestCase):
     def setUp(self):
         self.fake = Fake()
         self.fake.install()
         self.fake.attrs["SERIAL6"] = {"198": 14}
         self.cfg = ss.Config("/nonexistent")
-        self.state = {}
+        self.state = rose6()
         self.alerts = ss.Alerts(self.cfg, self.state, True)
 
     def drives(self):
@@ -82,6 +88,52 @@ class SchedulingTests(unittest.TestCase):
         self.assertEqual(drives["SERIAL6"]["interval"], 30)
         first = sorted(drives.values(), key=lambda d: (d["interval"], d["due"]))[0]
         self.assertEqual(first["serial"], "SERIAL6")
+
+    def test_a_count_that_stays_put_is_not_a_warning(self):
+        # 14 offline-uncorrectable sectors, never risen: an old drive like any other.
+        self.state = {}
+        self.alerts = ss.Alerts(self.cfg, self.state, True)
+        d = self.drives()["SERIAL6"]
+        self.assertEqual((d["interval"], d["source"]), (60, "old drive"))
+        self.assertEqual(d["cause"], "baseline")
+        self.assertNotIn("rose", self.state["drives"]["SERIAL6"])
+
+    def test_a_rise_makes_the_drive_due_and_short_until_a_clean_test(self):
+        self.addCleanup(setattr, ss, "now", ss.now)
+        ss.now = lambda: NIGHT
+        passed = ext(61, "successful", "optimal", "2026-11-10T09:00:00-07:00")
+        self.fake.history["6"] = [passed]
+        self.state = {"drives": {"SERIAL6": {"attrs_at_last_test": {"198": 12}}}}
+        self.alerts = ss.Alerts(self.cfg, self.state, True)
+        d = self.drives()["SERIAL6"]
+        self.assertEqual((d["cause"], d["source"], d["interval"]), ("warning signs", "warning signs", 30))
+        self.assertTrue(d["reason"].startswith("SMART attribute rose since last test: 198 went 12 -> 14"))
+        self.assertEqual(self.state["drives"]["SERIAL6"]["rose"]["ids"], ["198"])
+        # The test it gets starts at 14 and passes with no further rise: back to normal.
+        self.state["drives"]["SERIAL6"]["attrs_at_last_test"] = {"198": 14}
+        ss.now = lambda: NIGHT + dt.timedelta(days=1)
+        self.fake.history["6"] = [ext(62, "successful", "optimal", "2026-11-22T14:00:00-07:00",
+                                      "2026-11-22T01:00:00-07:00"), passed]
+        d = self.drives()["SERIAL6"]
+        self.assertEqual((d["source"], d["interval"]), ("old drive", 60))
+        self.assertNotIn("rose", self.state["drives"]["SERIAL6"])
+
+    def test_a_rise_during_the_test_keeps_the_short_interval(self):
+        self.state = {"drives": {"SERIAL6": {"attrs_at_last_test": {"198": 13},
+                                             "rose": {"at": "2026-11-20T00:00:00-07:00", "ids": ["198"]}}}}
+        self.alerts = ss.Alerts(self.cfg, self.state, True)
+        self.fake.history["6"] = [ext(62, "successful", "optimal", "2026-11-21T14:00:00-07:00",
+                                      "2026-11-21T01:00:00-07:00")]
+        d = self.drives()["SERIAL6"]                       # passed, but 13 -> 14 while it ran
+        self.assertEqual((d["source"], d["interval"]), ("warning signs", 30))
+        self.assertIn("rose", self.state["drives"]["SERIAL6"])
+
+    def test_a_look_from_the_tui_writes_no_rise(self):
+        self.state = {"drives": {"SERIAL6": {"attrs_at_last_test": {"198": 12}}}}
+        drives = ss.evaluate_drives(self.cfg, self.fake.storage, "uid", self.state,
+                                    ss.Alerts(self.cfg, self.state, True), report=False)
+        self.assertEqual(next(d for d in drives if d["serial"] == "SERIAL6")["source"], "warning signs")
+        self.assertNotIn("rose", self.state["drives"]["SERIAL6"])
 
     def test_old_healthy_drive_gets_old_interval(self):
         self.fake.history["5"] = [ext(11, "successful", "optimal", "2026-11-01T09:00:00-07:00")]

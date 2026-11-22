@@ -100,13 +100,39 @@ def is_good(test):
 RUNNING_STATUSES = {"running", "inprogress", "in_progress", "pending", "queued", "testing"}
 
 
-def assess(cfg, disk, history, attrs, baseline, t):
+def rise_state(history, attrs, baseline, rose, t):
+    """The outstanding rise after this look at a drive: {"at", "ids"} or None.
+
+    A rise is outstanding from the moment a watched count goes above the
+    baseline (the counts when the last test started) until an extended test
+    passes after it with no further rise: the counts are back at, or below,
+    that test's baseline."""
+    increased = sorted((k for k, v in attrs.items() if baseline is not None and v > baseline.get(k, 0)), key=str)
+    if increased:
+        return {"at": t.isoformat(timespec="seconds"), "ids": [str(k) for k in increased]}
+    if not rose:
+        return None
+    since = parse_time(rose.get("at"))
+    clean = any(str(h.get("type")).lower() == "extended" and not is_running(h) and is_good(h)
+                and (since is None or (parse_time(h.get("finishedAt")) or since) > since)
+                for h in history)
+    return None if clean else rose
+
+
+def assess(cfg, disk, history, attrs, baseline, t, rose=None):
     """Work out one drive's interval and due date from its facts.
 
     disk: the drive's entry in GET /storage. history: its SMART test history.
     attrs: {attr id: raw} for the watched attributes. baseline: the attrs
-    recorded when the last test started (or None). Returns a dict with
-    running, interval, why, due, reason and last.
+    recorded when the last test started (or None). rose: an earlier rise in
+    a watched count that no clean test has followed yet ({"at", "ids"}, from
+    the tool's state; see rise_state), or None. Returns a dict with running,
+    interval, why, due, reason and last.
+
+    A watched count that stays where it is says nothing: a drive with 14
+    offline-uncorrectable sectors that passes its tests is a working drive.
+    A count that rises makes the drive due at once and puts it on the
+    warning interval until a test passes with no further rise.
     """
     extended = [h for h in history if str(h.get("type")).lower() == "extended"]
     finished = sorted((h for h in extended if not is_running(h)),
@@ -115,23 +141,35 @@ def assess(cfg, disk, history, attrs, baseline, t):
     latest = finished[0] if finished else None
     serial = disk.get("serial")
 
-    warn = [f"SMART attribute {k} is {v}" for k, v in sorted(attrs.items()) if v]
+    rising = []
+    increased = [k for k, v in attrs.items() if baseline is not None and v > baseline.get(k, 0)]
+    if increased:
+        rising.append("SMART attribute rose since the last test: " + ", ".join(
+            f"{k} went {baseline.get(k, 0)} -> {attrs[k]}" for k in sorted(increased, key=str)))
+    elif rose:
+        rising.append(f"SMART attribute {', '.join(map(str, rose.get('ids') or []))} rose; "
+                    "no clean test since")
+    warn = []                    # UniFi's own verdicts: they stay until UniFi clears them
     if disk.get("riskReasons"):
         warn.append("UniFi risk: " + ", ".join(map(str, disk["riskReasons"])))
     if disk.get("state") not in (None, "optimal"):
         warn.append(f"UniFi state {disk.get('state')}")
-    increased = [k for k, v in attrs.items() if baseline is not None and v > baseline.get(k, 0)]
     # `source` and `cause` are the short words screens show (docs/tui-style.md
     # §8, smart-scheduler vocabulary); `why` and `reason` are the long forms
     # for the CLI and the log.
-    if serial in cfg.overrides:
-        interval, why, source = cfg.overrides[serial], "set in config", "per drive"
-    elif warn:
-        interval, why, source = cfg.int("WARN_INTERVAL_DAYS"), "; ".join(warn), "warning signs"
-    elif (disk.get("powerOnHours") or 0) >= cfg.int("OLD_DRIVE_HOURS"):
-        interval, why, source = cfg.int("OLD_INTERVAL_DAYS"), f"{disk['powerOnHours']:,} power-on hours", "old drive"
-    else:
-        interval, why, source = cfg.int("INTERVAL_DAYS"), "healthy", "default"
+    def pick(signs):
+        if serial in cfg.overrides:
+            return cfg.overrides[serial], "set in config", "per drive"
+        if signs:
+            return cfg.int("WARN_INTERVAL_DAYS"), "; ".join(signs), "warning signs"
+        if (disk.get("powerOnHours") or 0) >= cfg.int("OLD_DRIVE_HOURS"):
+            return cfg.int("OLD_INTERVAL_DAYS"), f"{disk['powerOnHours']:,} power-on hours", "old drive"
+        return cfg.int("INTERVAL_DAYS"), "healthy", "default"
+
+    interval, why, source = pick(rising + warn)
+    # After a clean test the rise no longer counts: the plan uses this for the
+    # tests that follow a planned one (it assumes planned tests pass).
+    after_clean = dict(zip(("interval", "why", "source"), pick(warn)))
 
     if latest is not None and not is_good(latest):
         due = parse_time(latest["finishedAt"]) + dt.timedelta(days=cfg.int("RETRY_FAILED_DAYS"))
@@ -141,13 +179,13 @@ def assess(cfg, disk, history, attrs, baseline, t):
     elif increased:
         due, cause = t, "warning signs"
         reason = "SMART attribute rose since last test: " + ", ".join(
-            f"{k} went {baseline.get(k, 0)} -> {attrs[k]}" for k in increased)
+            f"{k} went {baseline.get(k, 0)} -> {attrs[k]}" for k in sorted(increased, key=str))
     else:
         due = parse_time(last_good["finishedAt"]) + dt.timedelta(days=interval)
         reason = f"every {interval} days ({why})"
         cause = "per-drive interval" if source == "per drive" else "due"
     return {"running": any(is_running(h) for h in history), "interval": interval, "why": why,
-            "source": source, "cause": cause, "rose": sorted(increased),
+            "source": source, "cause": cause, "rose": sorted(increased, key=str), "after_clean": after_clean,
             "due": due, "reason": reason, "last": last_good.get("finishedAt") if last_good else None}
 
 
@@ -372,6 +410,7 @@ def plan(storage, drives, state, cfg, now, horizon=None, windows=(), not_before=
                 length = length * max(s["remaining_percent"], 10) / 100
             s["busy_until"] = now + length
             if not s.get("excluded") and not s.get("error") and s.get("interval"):
+                s.update(s.get("after_clean") or {})     # it passes clean: a rise no longer counts
                 s["due"] = s["busy_until"] + dt.timedelta(days=s["interval"])
                 s["reason"] = f"every {s['interval']} days ({s.get('why', 'after the running test')})"
                 s["cause"] = "per-drive interval" if s.get("source") == "per drive" else "due"
@@ -429,6 +468,7 @@ def plan(storage, drives, state, cfg, now, horizon=None, windows=(), not_before=
             starts[nk] = starts.get(nk, 0) + 1
             started += 1
             d["busy_until"] = end
+            d.update(d.get("after_clean") or {})         # it passes clean: a rise no longer counts
             d["due"] = end + dt.timedelta(days=d["interval"])
             d["reason"] = f"every {d['interval']} days ({d.get('why', 'after the planned test')})"
             d["cause"] = "per-drive interval" if d.get("source") == "per drive" else "due"

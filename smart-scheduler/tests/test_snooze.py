@@ -16,7 +16,7 @@ import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from unittest import mock
 
-from test_scheduling import NIGHT, TZ, Fake, ss
+from test_scheduling import NIGHT, TZ, Fake, rose6, ss
 
 planner = ss.planner
 
@@ -70,7 +70,7 @@ class SnoozeSchedulingTests(unittest.TestCase):
         self.fake.install()
         self.fake.attrs["SERIAL6"] = {"198": 14}   # most urgent drive in the fixture
         self.cfg = ss.Config("/nonexistent")
-        self.state = {"snoozes": {"SERIAL6": {"until": "2026-11-25", "note": "RMA"}}}
+        self.state = dict(rose6(), snoozes={"SERIAL6": {"until": "2026-11-25", "note": "RMA"}})
         patch(self, "now", lambda: NIGHT)
         patch(self, "backup_windows", lambda *a, **k: ([], None))
         patch(self, "self_check", lambda *a, **k: (self.fake.storage, "uid"))
