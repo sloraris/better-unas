@@ -15,6 +15,7 @@ Smaller than 80x24 shows only a "please widen" screen.
 import contextlib
 import datetime as dt
 import threading
+import time
 import traceback
 
 from .. import plugins as P
@@ -24,6 +25,7 @@ from .home import HomeScreen
 from .settings import SettingsScreen
 from . import tools as tools_screen
 from . import widgets
+from .widgets import fit as W_fit
 from .keys import RESIZE
 from .lock import LockBusy, run_lock
 from .theme import Theme
@@ -404,7 +406,7 @@ class App:
             h, w = canvas.height, canvas.width
             self.draw_tabs(canvas.sub(0, 0, 1, w))
             self.draw_header(canvas.sub(1, 0, 1, w))
-            body = canvas.sub(2, 0, h - CHROME, w)
+            body = canvas.sub(2, 1, h - CHROME, w - 2)   # 1-column margins (tui-style.md §4)
             try:
                 self.screen.render(body)
             except Exception as e:
@@ -437,8 +439,50 @@ class App:
             if i < len(self.tabs) - 1:
                 c.text(0, x, sep, "dim")
                 x += 1
+        right = c.width - 1
         if self.dry_run:
-            c.text(0, c.width - 9, " DRY RUN ", "warn", bold=True)
+            right -= 9
+            c.text(0, right, " DRY RUN ", "warn", bold=True)
+            right -= 1
+        badge = self.version_badge()
+        if badge:
+            update, text = badge
+            if update:
+                text = f"{c.symbols['update']} {text}"
+            if x + len(text) + 2 <= right:
+                c.text(0, right - len(text), text, "warn" if update else "dim", bold=update)
+
+    def version_badge(self):
+        """(update, text) for the right end of the tab bar: (False, installed
+        version), or (True, newer version) when an update is known. Only for an app
+        with a home (not the demo or bare tests); re-read every few seconds."""
+        home = getattr(self, "home", None)
+        if not home:
+            return None
+        now = time.monotonic()
+        cached = getattr(self, "_badge", None)
+        if cached and now - cached[0] < 3:
+            return cached[1]
+        badge = None
+        try:
+            from .tools import updater_of
+            up = updater_of(self)
+            status = up.cached_status()
+            if status and status.get("available") and status.get("latest"):
+                latest = status["latest"]
+                if status.get("branch") and status.get("latest_ref"):
+                    latest = f"new commit {status['latest_ref'][:7]}"
+                badge = (True, latest)
+            else:
+                label = up.installed_label()
+                badge = (False, label) if label else None
+        except Exception as e:
+            self.log(f"version badge: {type(e).__name__}: {e}")
+        self._badge = (now, badge)
+        return badge
+
+    def forget_badge(self):
+        self._badge = None
 
     def draw_header(self, c):
         st = self.stack()
@@ -451,33 +495,49 @@ class App:
         if owner:
             c.text(0, c.width - len(owner) - 1, owner, "dim")
 
+    MOVES = ("↑", "↓", "←", "→", "Arrows", "PgUp", "PgDn", "Home", "End")
+
+    @classmethod
+    def is_move(cls, key):
+        return any(m in key for m in cls.MOVES)
+
     def draw_screen_keys(self, c):
-        """The screen's own keys (or an editor's or a dialog's) on the line
-        above the footer, the rest of it a rule. If they don't fit, the last
-        ones give way to `… ?`."""
+        """The action bar (docs/tui-style.md §2): the screen's own keys (or an
+        editor's or a dialog's) as chips from the left, movement hints dim at
+        the right end. Keys that don't fit give way to a `? more` chip."""
         own, _ = self.footer_keys()
-        more = c.symbols["more"] + " ?"
-        room = c.width - 1
-        x = 1
-        for i, (k, lbl) in enumerate(own):
-            need = len(k) + len(lbl) + 1          # without the gap after it
-            last = i == len(own) - 1
-            if x + need + (0 if last else 2 + len(more)) > room:
-                c.text(0, x, more, "dim")
-                x += len(more)
+        acts = [(k, l) for k, l in own if not self.is_move(k)]
+        moves = [(k, l) for k, l in own if self.is_move(k)]
+        right = "  ".join(f"{k} {l}" for k, l in moves)
+        end = c.width - 1 - (len(right) + 2 if right else 0)
+        # A chip is the key reversed with a space each side; its label follows
+        # straight after (the padding separates them), then a 1-column gap:
+        # the reversed chips already set the keys apart, and seven keys fit.
+        more_w = len(" ? ") + len("more")
+        x = 0
+        for i, (k, lbl) in enumerate(acts):
+            last = i == len(acts) - 1
+            if i == 0:   # the first key always shows, its label cut to leave room
+                room = end - x - len(k) - 2 - (0 if last else 1 + more_w)
+                lbl = W_fit(lbl, max(1, room))
+            need = len(k) + 2 + len(lbl)
+            if i and x + need + (0 if last else 1 + more_w) > end:
+                x = c.styled(0, x, "?", "chip")
+                c.text(0, x, "more")
+                x += 4
                 break
-            c.text(0, x, k, "accent", bold=True)
-            c.text(0, x + len(k) + 1, lbl)
-            x += need + (0 if last else 2)
-        start = x + 1 if own else 0
-        if start < c.width:
-            c.text(0, start, c.symbols["h"] * (c.width - start), "dim")
+            x = c.styled(0, x, k, "chip")
+            c.text(0, x, lbl)
+            x += len(lbl) + 1
+        if right and len(right) + 2 <= c.width - x:
+            c.text(0, c.width - 1 - len(right), right, "dim")
 
     def draw_footer(self, c):
-        """Navigation every screen shares: back, tabs, help, quit."""
+        """The nav bar, the same on every screen and all dim: back and tabs on
+        the left, help and quit on the right."""
         _, core_keys = self.footer_keys()
-        x = 1
-        for k, lbl in core_keys:
-            c.text(0, x, k, "accent", bold=True)
-            c.text(0, x + len(k) + 1, lbl)
-            x += len(k) + len(lbl) + 3
+        left = [(k, l) for k, l in core_keys if k not in ("?", "q")]
+        right = [(k, l) for k, l in core_keys if k in ("?", "q")]
+        c.text(0, 1, "  ".join(f"{k} {l}" for k, l in left), "dim")
+        text = "  ".join(f"{k} {l}" for k, l in right)
+        c.text(0, c.width - 1 - len(text), text, "dim")

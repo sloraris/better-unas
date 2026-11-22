@@ -1,12 +1,10 @@
  1 Home │ 2 Board │ 3 Space │ 4 Settings │ 5 Alerts │ 6 Tools
  Space ──────────────────────────────────────────────────────────── space-watch
-Volume holding /
+ Volume holding /
 
-#############################.........................................  42.0%
+ ############################........................................  42.0%
 
-Warns above 90%.
-
-
+ Warns above 90%.
 
 
 
@@ -20,5 +18,7 @@ Warns above 90%.
 
 
 
- r refresh  x forget peak ──────────────────────────────────────────────────────
- 1-6/Tab tabs  ? help  q quit
+
+
+ r refresh  x forget peak
+ 1-6/Tab tabs                                                    ? help  q quit

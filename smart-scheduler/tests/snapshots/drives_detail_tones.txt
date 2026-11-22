@@ -11,14 +11,14 @@
 
                                                 yyyyyyyyyyyyyyyyyyyyyyyy
 
-  ddddddddd dddddddddddddddd dddddddddddddddd ddddddddddddddddddddddddddddddddd
-                                              ggggggggggggggggggggggggggggggggg
-                                              ggggggggggggggggggggggggggggggggg
+   ddddddddd dddddddddddddddd dddddddddddddddd ddddddddddddddddddddddddddddddd
+                                               ggggggggggggggggggggggggggggggg
+                                               ggggggggggggggggggggggggggggggg
 
 
 
 
 
 
- a       a         a          a           a           aa          a         dddd
- aaa       aaaaaaa       a       a
+SSS     SSS       SSS        SSS         SSS         SSS             dddddddddd
+ dddddddddddddddddddddd                                          dddddddddddddd

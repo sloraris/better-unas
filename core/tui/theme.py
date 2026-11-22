@@ -13,6 +13,26 @@ PLUGIN_TONES = ("normal", "good", "warn", "bad", "dim")
 CORE_TONES = ("selected", "accent")
 TONES = PLUGIN_TONES + CORE_TONES
 
+# Text roles (docs/tui-style.md §3): what a piece of text is, mapped to how it
+# looks. Widgets take a role so screens can't style text ad hoc.
+ROLES = {
+    "heading": ("accent", True),
+    "label": ("dim", False),
+    "value": ("normal", False),
+    "strong": ("normal", True),
+    "note": ("dim", False),       # drawn after the note glyph
+    "reason": ("warn", False),    # drawn after the warning glyph
+    "tag": ("selected", False),   # padded with a space each side
+    "id": ("dim", False),
+    "chip": ("selected", True),   # a key, padded with a space each side
+}
+
+# Status kinds: the glyph name in canvas symbols and the tone it's drawn in.
+STATUS = {
+    "ok": "good", "failed": "bad", "warning": "warn", "running": "accent",
+    "planned": "warn", "scrub": "accent", "backup": "accent", "update": "warn",
+}
+
 COLOR_NAMES = {"good": "green", "warn": "yellow", "bad": "red", "accent": "cyan"}
 
 

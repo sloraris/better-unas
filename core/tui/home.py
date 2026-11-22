@@ -236,15 +236,16 @@ class HomeScreen:
         for y, row in enumerate(self.rows[self.top:self.top + h]):
             i = self.top + y
             chosen = i == self.index and i in targets
-            x = 1
-            if chosen:
-                canvas.text(y, 0, canvas.symbols["right"], "accent", bold=True)
+            x = 2
+            if chosen:      # the selection role: reversed across the row, with the marker
+                canvas.fill(y, 0, 1, canvas.width, tone="selected")
+                canvas.text(y, 0, canvas.symbols["marker"], "selected", bold=True)
             for text, tone, bold in row.segments:
                 room = canvas.width - x - 1
                 if room <= 0:
                     break
                 text = W.fit(text, room) if len(text) > room else text
-                canvas.text(y, x, text, tone, bold=bold)
+                canvas.text(y, x, text, "selected" if chosen else tone, bold=bold)
                 x += len(text)
         if self.top + h < len(self.rows):
             canvas.text(h - 1, canvas.width - 1, canvas.symbols["more"], "dim")

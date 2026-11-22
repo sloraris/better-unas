@@ -153,9 +153,9 @@ class ToolsScreen:
     def render(self, canvas):
         current = self.updater.installed_label() or "(no VERSION)"
         name = f"better-unas {current}"
-        canvas.text(0, 1, name, "normal", bold=True)
+        canvas.text(0, 0, name, "normal", bold=True)
         text, tone = self.headline()
-        canvas.text(0, len(name) + 4, W.fit(text, max(0, canvas.width - len(name) - 5)), tone,
+        canvas.text(0, len(name) + 3, W.fit(text, max(0, canvas.width - len(name) - 4)), tone,
                     bold=tone == "warn")
         sub = []
         branch = self.updater.dev_branch()
@@ -163,7 +163,7 @@ class ToolsScreen:
             sub.append(f"developer mode: following {branch}")
         if self.status:
             sub.insert(0, f"checked {when(self.status['checked_at'])}")
-        canvas.text(1, 1, W.fit("  ".join(sub), canvas.width - 2), "warn" if branch else "dim")
+        canvas.text(1, 0, W.fit("  ".join(sub), canvas.width - 1), "warn" if branch else "dim")
         self.table.render(canvas.sub(3, 0, canvas.height - 3, canvas.width))
 
     # ------------------------------------------------------------ keys
@@ -230,6 +230,7 @@ class ToolsScreen:
 
     def check(self):
         self.status = self.ctx.run_slow(lambda: self.updater.check(force=True), "Checking for updates")
+        self.app.forget_badge()
         text, tone = self.headline()
         self.ctx.message(text, "bad" if self.status["error"] else tone)
 
@@ -258,6 +259,7 @@ class ToolsScreen:
             return
         report = self.ctx.run_slow(lambda: self.updater.update_to(s), f"Updating to {s['latest']}")
         self.status = self.updater.cached_status()
+        self.app.forget_badge()
         failed = [n for n, ok, _ in report["tools"] if not ok]
         out = [(f"Updated from {report['from'] or '?'} to {report['to']}.", "good"), ""]
         for name, ok, text in report["tools"]:

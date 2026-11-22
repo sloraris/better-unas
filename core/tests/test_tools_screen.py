@@ -89,6 +89,13 @@ class ToolsScreenTests(SnapshotMixin, unittest.TestCase):
         self.assertSnapshot("tools_update_available", text)
         self.assertIn("u update", text.split("\n")[22])
 
+    def test_version_badge(self):
+        app = self.make_app()
+        self.assertTrue(self.term.text().split("\n")[0].endswith("▲ v0.3.0"))
+        app.press(TOOLS_TAB, "u", "y", "n")
+        self.assertTrue(self.term.text().split("\n")[0].endswith("v0.3.0"))
+        self.assertNotIn("▲", self.term.text().split("\n")[0])
+
     def test_not_checked_and_up_to_date(self):
         os.remove(os.path.join(self.home, U.CACHE))
         app = self.make_app()

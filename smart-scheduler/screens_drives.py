@@ -545,8 +545,8 @@ class DrivesScreen:
 
     def render(self, c):
         if self.error:
-            c.text(0, 1, _fit(self.error, c.width - 2), "bad", bold=True)
-            c.text(1, 1, "Press r to try again.", "dim")
+            c.text(0, 0, _fit(self.error, c.width - 1), "bad", bold=True)
+            c.text(1, 0, "Press r to try again.", "dim")
             return
         if not self.data:
             return
@@ -564,7 +564,7 @@ class DrivesScreen:
         self.table.render(c.sub(0, 0, table_h, c.width))
         y = table_h + 1
         for text, tone in bottom:
-            c.text(y, 1, _fit(text, c.width - 2), tone)
+            c.text(y, 0, _fit(text, c.width - 1), tone)
             y += 1
         self.actions.render(c)
 
@@ -623,16 +623,16 @@ class DriveScreen:
 
     def render(self, c):
         if self.error:
-            c.text(0, 1, _fit(self.error, c.width - 2), "bad", bold=True)
-            c.text(1, 1, "Press r to try again, Esc to go back.", "dim")
+            c.text(0, 0, _fit(self.error, c.width - 1), "bad", bold=True)
+            c.text(1, 0, "Press r to try again, Esc to go back.", "dim")
             return
         if not self.drive:
             return
         ss = self.env()[0]
         d = self.drive
-        left_w = c.width - 33
-        rx = left_w + 1
-        c.text(0, 1, "Schedule", bold=True)
+        left_w = c.width - 31
+        rx = left_w
+        c.text(0, 0, "Schedule", bold=True)
         lines = schedule_lines(ss, d, self.now.tzinfo)
         spare = 8 - len(lines)          # rows 1-8; long lines wrap while there's room
         rows = []
@@ -644,8 +644,8 @@ class DriveScreen:
             else:
                 rows.append((label, text, tone))
         for i, (label, text, tone) in enumerate(rows[:8]):
-            c.text(1 + i, 1, f"{label:<10}", "dim")
-            c.text(1 + i, 12, _fit(text, left_w - 12), tone, bold=tone == "warn")
+            c.text(1 + i, 0, f"{label:<10}", "dim")
+            c.text(1 + i, 11, _fit(text, left_w - 12), tone, bold=tone == "warn")
         c.text(0, rx, "SMART", bold=True)
         for i, (label, value, note, tone) in enumerate(smart_lines(d, self.extra)):
             c.text(1 + i, rx, f"{label:<19}", "dim")
@@ -659,7 +659,7 @@ class DriveScreen:
         if (self.extra or {}).get("attrs") is None:
             c.text(y, rx, "smartctl values unavailable", "dim")
         y += 1
-        c.text(y, 1, "UniFi test history", bold=True)
+        c.text(y, 0, "UniFi test history", bold=True)
         self.history.render(c.sub(y + 1, 0, max(2, c.height - y - 2), c.width))
         self.actions.render(c)
 

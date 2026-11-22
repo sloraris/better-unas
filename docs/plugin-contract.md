@@ -435,6 +435,14 @@ one used in tests (#4) have the same methods:
 | `canvas.fill(y, x, h, w, ch=" ", tone="normal")` | Fills a rectangle. |
 | `canvas.box(y, x, h, w, title="")` | Draws a line box with an optional title. |
 | `canvas.sub(y, x, h, w)` | A canvas for a region of this one, with its own origin and clipping. |
+| `canvas.styled(y, x, s, role="value")` | Draws `s` in a text role: `heading`, `label`, `value`, `strong`, `note` (with `↳`), `reason` (with `!`), `tag`, `id`, `chip`. Returns the column after it. Prefer this to picking tones. |
+| `canvas.status(y, x, kind, s="")` | A status glyph plus text in its tone: `ok` ✓, `failed` ✗, `warning` !, `running` ▶, `planned` ○, `scrub` ↻, `backup` ⇡, `update` ▲. ASCII terminals get `+ x ! > o s b ^`. |
+| `canvas.symbols` | Box, arrow and status characters, Unicode or ASCII. |
+
+The body canvas a screen gets already has a 1-column margin on each side, so
+draw from column 0. The roles, glyphs and layout rules are in
+[tui-style.md](tui-style.md); `ctx.widgets` has `heading`, `panel` and
+`KeyValue` for blocks laid out the way it describes.
 
 Tones, from the design's color rules:
 

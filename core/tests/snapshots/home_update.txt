@@ -1,16 +1,14 @@
  1 Home │ 2 Calendar │ 3 Drives │ 4 Settings │ 5 Alerts │ 6 Tools
  Home ────────────────────────────────────────────────────────────────────────
-›better-unas v0.2.0  Update available: v0.3.0  checked Sat 21 Nov 18:00
+ › better-unas v0.2.0  Update available: v0.3.0  checked Sat 21 Nov 18:00
 
- Alerts  No active alerts.
+   Alerts  No active alerts.
 
- smart-scheduler  1.2.3  ok  7 drives scheduled, no tests run yet
-   Next test        Sun 22 Nov 01:00, slot 1
-   Last result      None yet
-   Next scrub       Sun 6 Dec 02:30
-   Next backup      Mon 23 Nov 03:00, cloud backup (~1 h)
-
-
+   smart-scheduler  1.2.3  ok  7 drives scheduled, no tests run yet
+     Next test        Sun 22 Nov 01:00, slot 1
+     Last result      None yet
+     Next scrub       Sun 6 Dec 02:30
+     Next backup      Mon 23 Nov 03:00, cloud backup (~1 h)
 
 
 
@@ -20,5 +18,7 @@
 
 
 
- ↑↓ select  Enter open  a alerts  t tools  r refresh ───────────────────────────
- 1-6/Tab tabs  ? help  q quit
+
+
+ Enter open  a alerts  t tools  r refresh                             ↑↓ select
+ 1-6/Tab tabs                                                    ? help  q quit

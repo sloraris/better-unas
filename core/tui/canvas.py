@@ -6,17 +6,22 @@ TextSurface keeps cells in memory (the headless renderer used by tests and
 calls, so a screen can't tell them apart (docs/plugin-contract.md, section 7).
 """
 
-from .theme import TONES
+from .theme import ROLES, STATUS, TONES
 
 UNICODE = {
     "h": "─", "v": "│", "tl": "┌", "tr": "┐", "bl": "└", "br": "┘",
     "up": "↑", "down": "↓", "more": "…", "marker": "›", "dot": "•",
     "left": "‹", "right": "›", "sep": "│",
+    # status glyphs (docs/tui-style.md §3)
+    "ok": "✓", "failed": "✗", "warning": "!", "running": "▶", "planned": "○",
+    "scrub": "↻", "backup": "⇡", "note": "↳", "update": "▲",
 }
 ASCII = {
     "h": "-", "v": "|", "tl": "+", "tr": "+", "bl": "+", "br": "+",
     "up": "^", "down": "v", "more": "~", "marker": ">", "dot": "*",
     "left": "<", "right": ">", "sep": "|",
+    "ok": "+", "failed": "x", "warning": "!", "running": ">", "planned": "o",
+    "scrub": "s", "backup": "b", "note": "-", "update": "^",
 }
 
 
@@ -46,6 +51,31 @@ class Canvas:
         s = s[: max(0, self.width - x)]
         if s:
             self.surface.put(self.y0 + y, self.x0 + x, s, tone, bold)
+
+    def styled(self, y, x, s, role="value"):
+        """Draw s in a text role (docs/tui-style.md §3). Notes and reasons get
+        their glyph in front, tags and chips a space each side. Returns the
+        column just after what was drawn."""
+        if role not in ROLES:
+            raise ValueError(f"unknown role {role!r}")
+        tone, bold = ROLES[role]
+        s = str(s)
+        if role == "note":
+            s = f"{self.symbols['note']} {s}"
+        elif role == "reason":
+            s = f"{self.symbols['warning']} {s}"
+        elif role in ("tag", "chip"):
+            s = f" {s} "
+        self.text(y, x, s, tone, bold)
+        return x + len(s)
+
+    def status(self, y, x, kind, s=""):
+        """A status: its glyph and text in its tone, e.g. `✗ failed`. Returns
+        the column just after it."""
+        tone = STATUS[kind]
+        s = f"{self.symbols[kind]} {s}" if s else self.symbols[kind]
+        self.text(y, x, s, tone, bold=kind == "failed")
+        return x + len(s)
 
     def fill(self, y, x, h, w, ch=" ", tone="normal"):
         for row in range(y, y + h):

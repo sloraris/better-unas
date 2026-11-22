@@ -1,12 +1,12 @@
- 1 Home │ 2 Settings │ 3 Alerts │ 4 Tools
+ 1 Home │ 2 Settings │ 3 Alerts │ 4 Tools                              ▲ v0.3.0
  Tools ───────────────────────────────────────────────────────────────────────
  better-unas v0.2.0   Update available: v0.3.0. Press u to update.
  checked Sun 22 Nov 01:00
 
-  Tool               State          Summary
-› alpha  ┌─ Confirm ──────────────────────────────────────────────────┐
-  beta   │                                                            │
-  gamma  │ Update better-unas v0.2.0 to v0.3.0?                       │
+   Tool               State          Summary
+ › alpha ┌─ Confirm ──────────────────────────────────────────────────┐
+   beta  │                                                            │
+   gamma │ Update better-unas v0.2.0 to v0.3.0?                       │
          │                                                            │
          │ Downloads the release from GitHub and replaces better-unas │
          │ and the tools' files. Config and state stay as they are.   │
@@ -20,5 +20,5 @@
 
 
 
- y yes  n no  ←→ choose  Enter pick  Esc no ────────────────────────────────────
+ y yes  n no  Enter pick  Esc no                                      ←→ choose
 

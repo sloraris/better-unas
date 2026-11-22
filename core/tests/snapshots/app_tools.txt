@@ -3,9 +3,9 @@
  better-unas (no VERSION)   Updates not checked yet. Press c to check.
 
 
-  Tool               State          Summary
-› fixture            warn           Fixture tool for the TUI tests
-  space-watch        ok             Warns when a volume is nearly full (contra…
+   Tool               State          Summary
+ › fixture            warn           Fixture tool for the TUI tests
+   space-watch        ok             Warns when a volume is nearly full (cont…
 
 
 
@@ -20,5 +20,5 @@
 
 
 
- x uninstall  c check  R remove  Enter info  i reinstall  ↑↓ move ──────────────
- 1-6/Tab tabs  ? help  q quit
+ x uninstall  c check  R remove  Enter info  i reinstall                ↑↓ move
+ 1-6/Tab tabs                                                    ? help  q quit

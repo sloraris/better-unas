@@ -26,6 +26,11 @@ real NAS.
   settings, review, install), with `--dry-run`, `--ref` and `--force`. Finds
   an install made by the old `install.sh` and moves it over, keeping config
   and state. The root `install.sh` is gone (#15).
+- Screen style (docs/tui-style.md, step 1): keys on the action bar are
+  reversed chips and the nav bar is dim, so the two no longer blend; the tab
+  bar shows the installed version, or `▲ v…` when an update is out; screens
+  get 1-column margins; text roles and status glyphs (with ASCII fallbacks)
+  and `heading`, `panel` and `KeyValue` blocks for the screens to come.
 - After an update, install or uninstall on Tools, the app offers to restart
   itself so the change loads without quitting and reopening.
 - Developer mode (Settings → better-unas): follow the newest commit on a

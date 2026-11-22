@@ -1,13 +1,13 @@
  1 Home │ 2 Calendar │ 3 Drives │ 4 Settings │ 5 Alerts │ 6 Tools
  Drives ─────────────────────────────────────────────────────── smart-scheduler
-  Slot Serial        Temp Last test  Next test   Every Status
-     1 SERIAL1       41 C never      Thu 26 Nov    90d due
-›    2 SERIAL2       42 C never      Fri 27 Nov    90d due
-     3 SERIAL3       38 C never      Sat 28 Nov    90d due
-     4 SERIAL4       48 C never      Mon 23 Nov    60d due
-     5 SERIAL5       48 C never      Tue 24 Nov    60d due
-     6 SERIAL6   ┌─ Second confirm ──────────────────────────┐
-     7 SERIAL7   │                                           │
+   Slot Serial        Temp Last test  Next test   Every Status
+      1 SERIAL1       41 C never      Thu 26 Nov    90d due
+ ›    2 SERIAL2       42 C never      Fri 27 Nov    90d due
+      3 SERIAL3       38 C never      Sat 28 Nov    90d due
+      4 SERIAL4       48 C never      Mon 23 Nov    60d due
+      5 SERIAL5       48 C never      Tue 24 Nov    60d due
+      6 SERIAL6  ┌─ Second confirm ──────────────────────────┐
+      7 SERIAL7  │                                           │
                  │ Override these checks and start the test? │
  Slot 2  ST4000VN│                                           │
    never tested; │             [ Yes ]   [ No ]              │
@@ -20,5 +20,5 @@
 
 
 
- y yes  n no  ←→ choose  Enter pick  Esc no ────────────────────────────────────
+ y yes  n no  Enter pick  Esc no                                      ←→ choose
 
