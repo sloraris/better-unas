@@ -131,6 +131,14 @@ and shows it on Home and Tools. Update with `u` on the Tools tab or
 better-unas and every tool, and updates keep each tool's `config` and state.
 A tool you uninstalled stays off.
 
+To try unreleased changes, turn on **Developer mode** in Settings →
+better-unas. Updates then follow the newest commit on a GitHub branch
+(`main` unless you change **Branch**) instead of releases: Tools shows each
+new commit as an update, `b` on the Tools tab lists the branches to pick
+from, and `better-unas update` installs the branch's newest commit. For a
+one-off, `better-unas update --ref <branch|tag|commit>` works without it.
+Turn developer mode off and the next update goes back to the latest release.
+
 ## Removing
 
 - One tool: `x` on the Tools tab, or `better-unas uninstall <tool>`. Its

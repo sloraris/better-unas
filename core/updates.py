@@ -26,6 +26,7 @@ import tarfile
 import tempfile
 import threading
 import urllib.error
+import urllib.parse
 import urllib.request
 
 from . import install as I
@@ -33,7 +34,12 @@ from . import install as I
 REPO = "sloraris/better-unas"
 API_URL = f"https://api.github.com/repos/{REPO}/releases/latest"
 TARBALL_URL = f"https://github.com/{REPO}/archive/{{tag}}.tar.gz"
+COMMIT_URL = f"https://api.github.com/repos/{REPO}/commits/{{ref}}"
+BRANCHES_URL = f"https://api.github.com/repos/{REPO}/branches?per_page=100"
 CACHE = ".update-check.json"
+CORE_CONFIG = "better-unas.conf"   # in the home: better-unas's own settings (core/settings.json)
+COMMIT_FILE = ".commit"            # in the home: the commit installed in developer mode or by --ref
+SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 CHECK_HOURS = 6
 ERROR_RETRY_MINUTES = 30      # a failed check is retried sooner than a good one
 TIMEOUT = 10
@@ -169,6 +175,84 @@ def _filter():
     return {"filter": "fully_trusted"} if hasattr(tarfile, "fully_trusted_filter") else {}
 
 
+# --------------------------------------------------------------------- developer mode
+
+SCHEMA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "settings.json")
+
+
+def core_schema():
+    from . import plugins as P
+    return P.load_schema(SCHEMA_PATH)
+
+
+def core_settings(home):
+    """better-unas's own settings: {"DEV_MODE": bool, "DEV_BRANCH": str}.
+    Defaults when the file is missing; a bad value falls back to its default."""
+    from . import plugins as P
+    schema = core_schema()
+    try:
+        raw, _ = P.read_keyvalue(os.path.join(home, CORE_CONFIG))
+    except OSError:
+        raw = {}
+    typed, _ = P.validate_config(schema, raw)
+    return typed
+
+
+def dev_branch(home):
+    """The branch developer mode follows, or None when it's off."""
+    cfg = core_settings(home)
+    branch = cfg.get("DEV_BRANCH") or "main"
+    return branch if cfg.get("DEV_MODE") and valid_ref(branch) else None
+
+
+def installed_commit(home):
+    try:
+        with open(os.path.join(home, COMMIT_FILE)) as f:
+            sha = f.read().strip()
+    except OSError:
+        return None
+    return sha if SHA_RE.match(sha) else None
+
+
+def commit_label(ref, sha):
+    return f"{ref} @ {sha[:7]}" if sha else ref
+
+
+def fetch_head(branch, commit_url=COMMIT_URL, timeout=TIMEOUT):
+    """(sha, ISO date) of the newest commit on branch. LookupError when the
+    branch doesn't exist, OSError when GitHub can't be reached."""
+    if not valid_ref(branch):
+        raise LookupError(f"invalid branch {branch!r}")
+    try:
+        with _get(commit_url.format(ref=urllib.parse.quote(branch, safe="/")), timeout) as r:
+            data = json.load(r)
+    except urllib.error.HTTPError as e:
+        if e.code in (404, 422):
+            raise LookupError(f"no branch {branch!r} on GitHub") from None
+        raise OSError(f"GitHub answered {e.code}") from None
+    except ValueError:
+        raise OSError("GitHub's answer wasn't JSON") from None
+    sha = data.get("sha") if isinstance(data, dict) else None
+    if not isinstance(sha, str) or not SHA_RE.match(sha):
+        raise OSError("GitHub's answer had no commit")
+    date = ((data.get("commit") or {}).get("committer") or {}).get("date")
+    return sha, date if isinstance(date, str) else None
+
+
+def fetch_branches(branches_url=BRANCHES_URL, timeout=TIMEOUT):
+    """Branch names on GitHub (first 100), main first."""
+    try:
+        with _get(branches_url, timeout) as r:
+            data = json.load(r)
+    except urllib.error.HTTPError as e:
+        raise OSError(f"GitHub answered {e.code}") from None
+    except ValueError:
+        raise OSError("GitHub's answer wasn't JSON") from None
+    names = [b.get("name") for b in data if isinstance(b, dict)] if isinstance(data, list) else []
+    names = [n for n in names if isinstance(n, str) and valid_ref(n)]
+    return sorted(names, key=lambda n: (n != "main", n))
+
+
 # --------------------------------------------------------------------- the check
 
 def _read_cache(home):
@@ -194,12 +278,31 @@ def _write_cache(home, data):
 
 
 def _status(home, cache):
-    current = suite_version(home)
+    """The status dict. In developer mode current and latest are labels like
+    "main @ 1a2b3c4", "latest_ref" is the commit to install and "branch" is set."""
     latest = cache.get("latest") if isinstance(cache.get("latest"), str) else None
     error = cache.get("error") if isinstance(cache.get("error"), str) else None
+    branch = cache.get("branch") if cache.get("mode") == "dev" else None
+    if branch:
+        have = installed_commit(home) if installed_ref(home) == branch else None
+        return {"current": commit_label(branch, have) if have else (suite_version(home) or "?"),
+                "latest": commit_label(branch, latest) if latest else None,
+                "available": bool(latest) and latest != have,
+                "checked_at": cache["checked_at"], "error": error,
+                "branch": branch, "latest_ref": latest, "latest_date": cache.get("latest_date")}
+    current = suite_version(home)
     return {"current": current, "latest": latest,
             "available": bool(latest) and is_newer(latest, current),
-            "checked_at": cache["checked_at"], "error": error}
+            "checked_at": cache["checked_at"], "error": error,
+            "branch": None, "latest_ref": latest, "latest_date": None}
+
+
+def _matches_mode(home, cache):
+    """A cached answer counts only for the mode (and branch) it was made in."""
+    branch = dev_branch(home)
+    if branch:
+        return cache.get("mode") == "dev" and cache.get("branch") == branch
+    return cache.get("mode", "release") == "release"
 
 
 def cached_status(home):
@@ -208,7 +311,7 @@ def cached_status(home):
     "checked_at", "error"}. current is read from VERSION now, so the answer
     is right straight after an update."""
     cache = _read_cache(home)
-    return None if cache is None else _status(home, cache)
+    return None if cache is None or not _matches_mode(home, cache) else _status(home, cache)
 
 
 def _fresh(cache, now, hours):
@@ -223,22 +326,31 @@ def _fresh(cache, now, hours):
     return dt.timedelta(0) <= age < limit
 
 
-def check(home, force=False, now=None, hours=CHECK_HOURS, fetch=None):
+def check(home, force=False, now=None, hours=CHECK_HOURS, fetch=None, fetch_head_fn=None):
     """The update status, from the cache when it's fresh, else from GitHub
-    (the answer, or the error, is cached). Never raises for network trouble."""
+    (the answer, or the error, is cached). Never raises for network trouble.
+    In developer mode it asks for the newest commit on the branch instead of
+    the latest release."""
     now = now or _now()
     cache = _read_cache(home)
-    if cache is not None and not force and _fresh(cache, now, hours):
+    if cache is not None and not force and _matches_mode(home, cache) and _fresh(cache, now, hours):
         return _status(home, cache)
-    fetch = fetch or fetch_latest
+    branch = dev_branch(home)
+    date = None
     try:
-        latest, error = fetch(), None
+        if branch:
+            latest, date = (fetch_head_fn or fetch_head)(branch)
+        else:
+            latest = (fetch or fetch_latest)()
+        error = None
     except LookupError as e:
         latest, error = None, str(e)
     except (OSError, ValueError) as e:
         latest, error = None, f"couldn't reach GitHub ({getattr(e, 'reason', e)})"
     data = {"latest": latest, "error": error, "checked_at": now.isoformat(timespec="seconds"),
-            "checked_with": suite_version(home)}
+            "checked_with": suite_version(home), "mode": "dev" if branch else "release"}
+    if branch:
+        data.update(branch=branch, latest_date=date)
     _write_cache(home, data)
     return _status(home, data)
 
@@ -252,14 +364,22 @@ def check_in_background(home, fetch=None):
 
 # --------------------------------------------------------------------- updating
 
+def _remove(path):
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+
+
 class Updater:
     """Where updates come from and what they touch. Tests point the URLs at
     file:// fixtures, the link at a temporary folder and run at a fake."""
 
     def __init__(self, home, api_url=API_URL, tarball_url=TARBALL_URL, link="default",
-                 run=None):
+                 run=None, commit_url=COMMIT_URL, branches_url=BRANCHES_URL):
         self.home = os.path.abspath(home)
         self.api_url, self.tarball_url = api_url, tarball_url
+        self.commit_url, self.branches_url = commit_url, branches_url
         if link == "default":
             # As install.sh: the short command only for the real install.
             link = I.LINK if self.home == I.DEFAULT_HOME else None
@@ -270,8 +390,26 @@ class Updater:
     def fetch_latest(self):
         return fetch_latest(self.api_url)
 
+    def fetch_head(self, branch):
+        return fetch_head(branch, self.commit_url)
+
+    def fetch_branches(self):
+        return fetch_branches(self.branches_url)
+
     def check(self, force=False, now=None):
-        return check(self.home, force=force, now=now, fetch=self.fetch_latest)
+        return check(self.home, force=force, now=now, fetch=self.fetch_latest,
+                     fetch_head_fn=self.fetch_head)
+
+    def dev_branch(self):
+        return dev_branch(self.home)
+
+    def update_to(self, status):
+        """Install what a check offered: the release, or in developer mode
+        the commit (recorded with its branch)."""
+        if status.get("branch"):
+            return self.update(status["latest_ref"], ref=True, label=status["branch"],
+                               commit=status["latest_ref"])
+        return self.update(status["latest"])
 
     def cached_status(self):
         return cached_status(self.home)
@@ -302,28 +440,44 @@ class Updater:
         work = self.fetch_release(tag)
         return work, work
 
-    def update(self, tag=None, ref=False):
+    def update(self, tag=None, ref=False, label=None, commit=None):
         """Install release tag (default: the latest), or with ref=True any
-        branch or tag. Returns a report dict: {"from", "to", "tools":
-        [(name, ok, output)], "skipped": [names not in the release], "link": bool}.
-        The home remembers a ref install (REF_FILE); a release install clears it."""
+        branch, tag or commit (label: the branch to remember it by; commit: the
+        exact commit, when known). Returns a report dict: {"from", "to",
+        "tools": [(name, ok, output)], "skipped": [names not in the release],
+        "link": bool}. The home remembers a ref install (REF_FILE, COMMIT_FILE);
+        a release install clears both."""
         tag = tag or self.fetch_latest()
+        before = self.installed_label()
         work = self.fetch_release(tag)
         try:
             report = self.update_from(work, tag)
         finally:
             shutil.rmtree(work, ignore_errors=True)
-        path = os.path.join(self.home, REF_FILE)
+        ref_path, commit_path = os.path.join(self.home, REF_FILE), os.path.join(self.home, COMMIT_FILE)
+        report["from"] = before or report["from"]
         if ref:
-            with open(path, "w") as f:
-                f.write(tag + "\n")
-            report["to"] = f"{tag} ({self.current() or '?'})"
+            name = label or tag
+            with open(ref_path, "w") as f:
+                f.write(name + "\n")
+            if commit and SHA_RE.match(commit):
+                with open(commit_path, "w") as f:
+                    f.write(commit + "\n")
+                report["to"] = commit_label(name, commit)
+            else:
+                _remove(commit_path)
+                report["to"] = f"{name} ({self.current() or '?'})"
         else:
-            try:
-                os.remove(path)
-            except OSError:
-                pass
+            _remove(ref_path)
+            _remove(commit_path)
         return report
+
+    def installed_label(self):
+        """What's installed, for people: "v0.2.0", or "main @ 1a2b3c4"."""
+        ref = installed_ref(self.home)
+        if ref:
+            return commit_label(ref, installed_commit(self.home))
+        return self.current()
 
     def update_from(self, src, tag=None):
         old = self.current()

@@ -3,7 +3,7 @@
 Settings by tool. The config files stay the source of truth.
 
 › space-watch          5 settings, 1 problem(s) in the config file
-
+  better-unas          2 settings
 
 
 

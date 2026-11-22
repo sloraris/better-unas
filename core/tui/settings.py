@@ -172,6 +172,26 @@ class SettingsForm:
         self.form.render(canvas)
 
 
+CORE_NAME = "better-unas"
+
+
+def core_entry(app):
+    """(Tool, Context) for better-unas's own settings (core/settings.json,
+    saved to better-unas.conf in the home), or None if the schema can't load."""
+    from .. import updates as U
+    from .app import Context
+    from .tools import home_of
+    home = home_of(app)
+    try:
+        schema = U.core_schema()
+    except Exception:
+        return None
+    manifest = {"NAME": CORE_NAME, "CONFIG": U.CORE_CONFIG, "LOCK": ".lock",
+                "SUMMARY": "better-unas itself: updates and developer mode"}
+    tool = P.Tool(home, manifest, schema)
+    return tool, Context(app, tool)
+
+
 class SettingsScreen:
     """The Settings tab: pick a tool to see its settings form."""
 
@@ -179,7 +199,8 @@ class SettingsScreen:
 
     def __init__(self, ctx):
         self.ctx = ctx
-        self.tools = [t for t in ctx.app.tools if t.schema]
+        self.core = core_entry(ctx.app)
+        self.tools = [t for t in ctx.app.tools if t.schema] + ([self.core[0]] if self.core else [])
         self.list = W.ListView([], empty="No installed tool has settings.")
         self.refresh()
 
@@ -211,7 +232,10 @@ class SettingsScreen:
         if k == "enter" and self.tools:
             tool = self.tools[self.list.index]
             app = self.ctx.app
-            self.ctx.push(FormScreen(app.contexts[tool.name], app.plugins.get(tool.name)))
+            if self.core and tool is self.core[0]:
+                self.ctx.push(FormScreen(self.core[1]))
+            else:
+                self.ctx.push(FormScreen(app.contexts[tool.name], app.plugins.get(tool.name)))
             return True
         return self.list.key(k)
 

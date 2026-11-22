@@ -1,0 +1,28 @@
+{
+ "contract": 1,
+ "groups": [
+  {
+   "id": "updates",
+   "title": "Updates",
+   "fields": [
+    {
+     "key": "DEV_MODE",
+     "type": "bool",
+     "label": "Developer mode",
+     "default": "no",
+     "help": "Follow the latest commit on a GitHub branch instead of releases. The Tools tab then offers each new commit as an update. For testing unreleased changes; turn it off to go back to releases on the next update."
+    },
+    {
+     "key": "DEV_BRANCH",
+     "type": "text",
+     "label": "Branch",
+     "default": "main",
+     "required": true,
+     "pattern": "[A-Za-z0-9._/-]+",
+     "max_length": 200,
+     "help": "The branch developer mode follows, e.g. main or a pull request's branch. On the Tools tab, b lists the branches on GitHub to pick from."
+    }
+   ]
+  }
+ ]
+}

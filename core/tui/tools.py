@@ -13,6 +13,10 @@ network is used only when the user presses c (check), u (update), or i for a
 tool that isn't in the kept release. Every change asks first, and in
 --dry-run only says what it would do. Tool tabs come and go with a restart,
 so after a change the screen says to quit and start better-unas again.
+
+In developer mode (Settings → better-unas) the headline offers the newest
+commit on the followed branch instead of a release, and b picks the branch
+from GitHub's list.
 """
 
 import os
@@ -121,6 +125,8 @@ class ToolsScreen:
         ks = []
         if self.status and self.status["available"]:
             ks.append(("u", "update"))
+        if self.updater.dev_branch():
+            ks.append(("b", "branch"))
         r = self.current
         if r and r["where"] == "installed":
             ks.append(("x", "uninstall"))
@@ -140,17 +146,24 @@ class ToolsScreen:
         if s["error"]:
             return f"Update check: {s['error']}.", "dim"
         if s["available"]:
-            return f"Update available: {s['latest']}. Press u to update.", "warn"
+            what = "New commit" if s.get("branch") else "Update available"
+            return f"{what}: {s['latest']}. Press u to update.", "warn"
         return "Up to date.", "good"
 
     def render(self, canvas):
-        current = self.updater.current() or "(no VERSION)"
+        current = self.updater.installed_label() or "(no VERSION)"
         name = f"better-unas {current}"
         canvas.text(0, 1, name, "normal", bold=True)
         text, tone = self.headline()
-        canvas.text(0, len(name) + 4, text, tone, bold=tone == "warn")
+        canvas.text(0, len(name) + 4, W.fit(text, max(0, canvas.width - len(name) - 5)), tone,
+                    bold=tone == "warn")
+        sub = []
+        branch = self.updater.dev_branch()
+        if branch:
+            sub.append(f"developer mode: following {branch}")
         if self.status:
-            canvas.text(1, 1, f"checked {when(self.status['checked_at'])}", "dim")
+            sub.insert(0, f"checked {when(self.status['checked_at'])}")
+        canvas.text(1, 1, W.fit("  ".join(sub), canvas.width - 2), "warn" if branch else "dim")
         self.table.render(canvas.sub(3, 0, canvas.height - 3, canvas.width))
 
     # ------------------------------------------------------------ keys
@@ -174,6 +187,9 @@ class ToolsScreen:
             return True
         if k == "R":
             self.remove_all()
+            return True
+        if k == "b" and self.updater.dev_branch():
+            self.pick_branch()
             return True
         return self.table.key(k)
 
@@ -227,8 +243,12 @@ class ToolsScreen:
             return
         have = I.installed_tools(self.updater.home)
         off = I.uninstalled_tools(self.updater.home)
-        lines = ["Downloads the release from GitHub and replaces better-unas",
-                 "and the tools' files. Config and state stay as they are."]
+        if s.get("branch"):
+            lines = [f"Downloads commit {s['latest_ref'][:7]} of {s['branch']} from GitHub. This is",
+                     "unreleased code (developer mode). Config and state stay as they are."]
+        else:
+            lines = ["Downloads the release from GitHub and replaces better-unas",
+                     "and the tools' files. Config and state stay as they are."]
         if have:
             lines.append(f"Then runs the installer of: {', '.join(have)}.")
         if off:
@@ -236,7 +256,7 @@ class ToolsScreen:
         title = f"Update better-unas {s['current'] or '?'} to {s['latest']}?"
         if self.dry(f"update to {s['latest']}") or not self.ctx.confirm(title, lines):
             return
-        report = self.ctx.run_slow(lambda: self.updater.update(s["latest"]), f"Updating to {s['latest']}")
+        report = self.ctx.run_slow(lambda: self.updater.update_to(s), f"Updating to {s['latest']}")
         self.status = self.updater.cached_status()
         failed = [n for n, ok, _ in report["tools"] if not ok]
         out = [(f"Updated from {report['from'] or '?'} to {report['to']}.", "good"), ""]
@@ -250,6 +270,32 @@ class ToolsScreen:
         self.ctx.push(DetailScreen("Update", out))
         self.ctx.message(f"Updated to {report['to']}" + (f"; {', '.join(failed)} failed." if failed else ". ")
                          + ("" if failed else RESTART), "bad" if failed else "good")
+
+    def pick_branch(self):
+        """Developer mode: list the branches on GitHub and follow the one picked."""
+        try:
+            names = self.ctx.run_slow(self.updater.fetch_branches, "Listing branches on GitHub")
+        except (OSError, ValueError) as e:
+            self.ctx.message(f"Couldn't list branches: {getattr(e, 'reason', e)}.", "bad")
+            return
+        if not names:
+            self.ctx.message("GitHub listed no branches.", "bad")
+            return
+        self.ctx.push(BranchScreen(self, names, self.updater.dev_branch()))
+
+    def follow(self, branch):
+        """Save DEV_BRANCH and check that branch right away."""
+        from .. import configfile
+        home = self.updater.home
+        if self.dry(f"follow {branch}"):
+            return
+        try:
+            with self.app.lock(os.path.join(home, ".lock"), 10):
+                configfile.save(os.path.join(home, U.CORE_CONFIG), {"DEV_BRANCH": branch}, U.core_schema())
+        except Exception as e:
+            self.ctx.message(f"Couldn't save the branch: {e}", "bad")
+            return
+        self.check()
 
     def install(self, r):
         name, m = r["name"], r["manifest"]
@@ -314,3 +360,29 @@ class ToolsScreen:
         self.ctx.message("better-unas removed." if not failed else f"Failed: {', '.join(failed)}.",
                          "bad" if failed else "good")
 
+
+class BranchScreen:
+    """Pick the branch developer mode follows."""
+
+    title = "Branch"
+
+    def __init__(self, tools, names, current):
+        self.tools, self.names = tools, names
+        self.list = W.ListView([f"{n}  (following)" if n == current else n for n in names])
+        if current in names:
+            self.list.index = names.index(current)
+
+    def keys(self):
+        return [("Enter", "follow")] + self.list.keys()
+
+    def render(self, canvas):
+        canvas.text(0, 0, "Branches on GitHub. Developer mode installs the newest commit of the one you pick.", "dim")
+        self.list.render(canvas.sub(2, 0, canvas.height - 2, canvas.width))
+
+    def key(self, k):
+        if k == "enter":
+            branch = self.names[self.list.index]
+            self.tools.ctx.pop()
+            self.tools.follow(branch)
+            return True
+        return self.list.key(k)
