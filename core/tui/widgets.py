@@ -23,6 +23,7 @@ import textwrap
 
 from .. import plugins as P
 from .keys import is_printable
+from .theme import STATUS
 
 NAV = ("up", "down", "pgup", "pgdn", "home", "end")
 
@@ -256,10 +257,32 @@ class Table:
                 body.text(y, 0, marker, "selected")
             x = 2
             for (title, _, align), w, c in zip(self.columns, widths, self.rows[i] + [""] * len(widths)):
-                text, tone = cell(c)
-                body.text(y, x, pad(text, w, align, more), "selected" if sel else tone)
+                if isinstance(c, tuple) and len(c) >= 3 and c[0] == "status":
+                    self.status_cell(body, y, x, w, align, c, sel)
+                else:
+                    text, tone = cell(c)
+                    body.text(y, x, pad(text, w, align, more), "selected" if sel else tone)
                 x += w + 1
         _indicators(body, self.scroll.top, body.height, len(self.rows))
+
+    @staticmethod
+    def status_cell(canvas, y, x, w, align, c, sel):
+        """("status", kind, text[, aside]): the status glyph and text in the
+        kind's tone (canvas.status), then the aside dim. kind None: no glyph,
+        the text plain (so a column of statuses can have quiet rows)."""
+        kind, text = c[1], str(c[2])
+        aside = str(c[3]) if len(c) > 3 and c[3] else ""
+        glyph = canvas.symbols[kind] + " " if kind else ""
+        full = glyph + text + ("  " + aside if aside else "")
+        s = pad(full, w, align, canvas.symbols["more"])
+        if sel:
+            canvas.text(y, x, s, "selected")
+            return
+        lead = len(s) - len(s.lstrip(" ")) if align == "right" else 0
+        main = s[lead: lead + len(glyph + text)]
+        canvas.text(y, x, s[:lead])
+        canvas.text(y, x + lead, main, STATUS[kind] if kind else "normal", bold=kind == "failed")
+        canvas.text(y, x + lead + len(main), s[lead + len(main):], "dim")
 
 
 # ------------------------------------------------------------------ text, spinner, toast

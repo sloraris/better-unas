@@ -117,6 +117,16 @@ def rich(test):
 
 # --------------------------------------------------------------------------- screens
 
+def list_rows(text):
+    """{slot: line} for the Drives list's rows."""
+    out = {}
+    for line in text.splitlines()[3:]:
+        m = re.match(r"^ [›> ]\s+(\d+) ", line)
+        if m:
+            out[m.group(1)] = line
+    return out
+
+
 class DrivesScreenTests(DrivesFixture, unittest.TestCase):
     def test_list(self):
         rich(self)
@@ -124,30 +134,55 @@ class DrivesScreenTests(DrivesFixture, unittest.TestCase):
         self.assertSnapshot("drives_list", text)
         self.assertSnapshot("drives_list_tones", self.term.tones())
         self.assertIn("3 Drives", text)
-        rows = {re.search(r"SERIAL\d", line).group(): line for line in text.splitlines() if " C " in line}
-        self.assertEqual(len(rows), 7)
-        self.assertIn("test running", rows["SERIAL1"])
-        self.assertIn("last test failed", rows["SERIAL4"])
-        self.assertIn("snoozed to 25 Nov", rows["SERIAL6"])
-        self.assertIn("Tue 03 Nov", rows["SERIAL3"])           # last passed test
-        self.assertIn("Wed 25 Nov", rows["SERIAL6"])           # next planned: after the snooze
+        rows = list_rows(text)
+        self.assertEqual(sorted(rows), list("1234567"))
+        self.assertNotIn("Status", text)                       # its meaning is in the glyphs now
+        self.assertNotIn("SERIAL3", text)                      # serials sit in the selection panel
+        self.assertIn("▶ running", rows["1"])
+        self.assertIn("✗ Thu 12 Nov", rows["4"])               # the last test, failed
+        self.assertIn("✓ Tue 03 Nov", rows["3"])               # the last test, passed
+        self.assertIn("never", rows["2"])
+        self.assertIn("○ Wed 25 Nov", rows["6"])               # next planned: after the snooze
+        self.assertIn("Sun 21 Feb 2027", rows["1"])            # after the running test; year shown
+        self.assertIn("48°C", rows["4"])
+        self.assertIn("┌─ Slot 1 · ST4000VN006-3CW104 · SERIAL1 ", text)
+        self.assertIn("▶ Extended test running, started Sun 00:10. Next: Sun 21 Feb 2027.", text)
+        self.assertIn("Enter slot 1", text)
 
     def test_list_follows_the_selection(self):
         rich(self)
         self.drives()
         text = self.to_slot(5)
-        self.assertIn("Slot 5  WDC WD4002FYYZ-01B7CB0", text)
-        self.assertIn("SMART attribute rose since last test: 197 went 0 -> 3", text)
+        self.assertIn("┌─ Slot 5 · WDC WD4002FYYZ-01B7CB0 · SERIAL5 ", text)
+        self.assertIn("○ Next test Mon 23 Nov 00:00 · warning signs · every 30 days", text)
+        self.assertIn("Enter slot 5", text)
+        text = self.to_slot(2)                                 # 5 + 1 = slot 6, snoozed
+        self.assertIn("Snoozed to Wed 25 Nov (waiting for a spare). Next test Wed 25 Nov.", text)
+        self.assertIn(("u", "unsnooze"), self.app.screen.keys())   # only offered on a snoozed drive
+        self.app.press("up")
+        self.assertNotIn(("u", "unsnooze"), self.app.screen.keys())
+
+    def test_list_under_ascii(self):
+        rich(self)
+        self.app = self.make_app()
+        self.term.ascii = self.term.surface.ascii = True
+        text = self.app.press("3")
+        self.assertIn("41C", text)
+        self.assertIn("+- Slot 1 - ST4000VN006-3CW104 - SERIAL1 ", text)
+        self.assertIn("> running", text)
 
     def test_excluded_drive(self):
         self.write_config("EXCLUDE_SERIALS=SERIAL7\n")
         text = self.drives()
-        row = next(line for line in text.splitlines() if "SERIAL7" in line)
-        self.assertIn("excluded", row)
-        self.to_slot(7)
+        self.assertIn("excluded", list_rows(text)["7"])
+        text = self.to_slot(7)
+        self.assertIn("Excluded from testing (EXCLUDE_SERIALS). Run now still works.", text)
+        self.assertIn("x include", text)
         text = self.app.press("enter")
-        self.assertIn("Next test  none: excluded", text)
-        self.assertIn("Excluded   yes (EXCLUDE_SERIALS)", text)
+        self.assertRegex(text, r"Next test +none")
+        self.assertRegex(text, r"Why +excluded")
+        self.assertRegex(text, r"Excluded +yes  EXCLUDE_SERIALS")
+        self.assertIn("excluded", text.splitlines()[2])          # the state, top right
 
     def test_detail(self):
         rich(self)
@@ -156,13 +191,20 @@ class DrivesScreenTests(DrivesFixture, unittest.TestCase):
         text = self.app.press("enter")
         self.assertSnapshot("drives_detail", text)
         self.assertSnapshot("drives_detail_tones", self.term.tones())
-        self.assertIn("Slot 5: WDC WD4002FYYZ-01B7CB0 (SERIAL5)", text)
-        self.assertIn("Last test  Tue 20 Oct (passed)", text)
-        self.assertIn("Interval   30 days: SMART attribute 197 is 3", text)
-        self.assertIn("197 Pending             3 +3", text)       # rose since the last test
-        self.assertNotIn("199 CRC errors          2 +", text)    # no baseline for 199
-        self.assertIn("quick     Sat 21 Nov 09:00 Sat 21 Nov 09:02 passed", text)
-        self.assertIn("extended  Tue 20 Oct 01:00 Tue 20 Oct 11:00 passed", text)
+        lines = text.splitlines()
+        self.assertIn("Drives › Slot 5 ─", lines[1])
+        self.assertRegex(lines[2], r"^ WDC WD4002FYYZ-01B7CB0   SERIAL5   4 TB +! warning signs$")
+        self.assertIn("Last test   ✓ Tue 20 Oct  passed", text)
+        self.assertIn("Next test   ○ Mon 23 Nov 00:00", text)
+        self.assertIn("Why         warning signs", text)
+        self.assertIn("Interval    30 days  warning signs", text)
+        self.assertIn("Power-on            59,080 h  6.7y", text)
+        # The count comes first, the attribute id dim after it; a rise is marked.
+        self.assertRegex(text, r"Pending sectors +3 ↑3 +197 │")
+        self.assertRegex(text, r"Interface CRC errors +2 +199 │")      # no baseline for 199
+        self.assertNotIn("↑2", text)
+        self.assertIn("quick     Sat 21 Nov 09:00  2m      ✓ passed", text)
+        self.assertIn("extended  Tue 20 Oct 01:00  10h 00m ✓ passed", text)
         # Newest first: the quick test is above the extended one.
         self.assertLess(text.index("quick "), text.index("extended  Tue 20 Oct"))
         self.app.press("esc")
@@ -175,31 +217,38 @@ class DrivesScreenTests(DrivesFixture, unittest.TestCase):
         self.to_slot(6)
         text = self.app.press("enter")
         self.assertSnapshot("drives_detail_snoozed", text)
-        self.assertIn("Interval   14 days: set for this drive", text)
-        self.assertIn("Snooze     until Wed 25 Nov 2026 (waiting for", text)   # long lines wrap
-        self.assertIn("            a spare)", text)
-        self.assertIn("Excluded   no", text)
-        self.assertIn("Next test  Wed 25 Nov", text)
+        self.assertIn("Interval    14 days  per drive", text)
+        self.assertIn("Snoozed     until Wed 25 Nov", text)
+        self.assertIn("            ↳ waiting for a spare", text)
+        self.assertIn("Why         snoozed", text)
+        self.assertIn("Excluded    no", text)
+        self.assertIn("Next test   ○ Wed 25 Nov", text)
+        self.assertIn("u unsnooze", text)
 
     def test_detail_failed_and_running(self):
         rich(self)
         self.drives()
         text = self.app.press("enter")
-        self.assertIn("Next test  a test is running now", text)
-        self.assertIn("extended  Sun 22 Nov 00:10", text)
-        self.assertIn("running", text)
+        self.assertIn("Next test   ▶ running now", text)
+        self.assertIn("▶ test running", text.splitlines()[2])
+        self.assertIn("extended  Sun 22 Nov 00:10          ▶ running", text)
         self.app.press("esc")
         self.to_slot(4)
         text = self.app.press("enter")
-        self.assertIn("failed (failed/failed)", text)
-        self.assertIn("Why        retrying: last test ended", text)
+        self.assertIn("✗ last test failed", text.splitlines()[2])
+        self.assertIn("Last test   ✗ Thu 12 Nov  failed", text)
+        self.assertIn("Why         retry", text)
+        self.assertIn("Interval    60 days  old drive", text)
+        self.assertIn("2h 10m  ✗ failed", text)
+        self.assertNotIn("failed/failed", text)               # the plain failure says it once
 
     def test_detail_without_smartctl(self):
         ss.serial_to_device = lambda: {}
         self.drives("enter")
         text = self.term.text()
-        self.assertIn("smartctl values unavailable", text)
-        self.assertIn("Temperature          41 C", text)          # from UniFi Drive, not smartctl
+        self.assertIn("↳ unknown: no smartctl reading", text)
+        self.assertNotIn("Pending sectors", text)
+        self.assertIn("Temperature                   41°C", text)   # from UniFi Drive, not smartctl
 
     def test_api_problem_is_shown_not_raised(self):
         ss.api = lambda *a, **k: (500, None)
@@ -439,8 +488,7 @@ class ConfigEditTests(DrivesFixture, unittest.TestCase):
         self.assertIn("EXCLUDE_SERIALS=SERIAL5", text)
         self.assertIn("INTERVAL_OVERRIDES=SERIAL6:21", text)
         screen = self.app.screen
-        row = next(line for line in self.term.text().splitlines() if "SERIAL5" in line)
-        self.assertIn("excluded", row)
+        self.assertIn("excluded", list_rows(self.term.text())["5"])
         self.assertEqual(next(d for d in screen.data["drives"] if d["serial"] == "SERIAL6")["interval"], 21)
         self.app.press("i")
         self.type("99999")

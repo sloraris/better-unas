@@ -1,21 +1,21 @@
  1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings
- Drives › Slot 6: WDC WD4002FYYZ-01B7CB0 (SERIAL6) ──────────── smart-scheduler
- Schedule                                       SMART
- Last test  none passed yet                     Temperature          48 C
- Next test  Wed 25 Nov 00:00 (planned)          Power-on hours     57,642
- Interval   14 days: set for this drive           5 Reallocated         -
- Why        never tested; first test sets a     187 Uncorrectable       -
-            baseline                            197 Pending             -
- Snooze     until Wed 25 Nov 2026 (waiting for  198 Offline uncorr.    14
-            a spare)                            199 CRC errors          -
- Excluded   no
+ Drives › Slot 6 ────────────────────────────────────────────── smart-scheduler
+ WDC WD4002FYYZ-01B7CB0   SERIAL6   4 TB                                snoozed
 
- UniFi test history
-   Type      Started          Finished         Result
+ ┌─ Schedule ─────────────────────────┐  ┌─ Health ───────────────────────────┐
+ │ Last test   never                  │  │ Temperature                   48°C │
+ │ Next test   ○ Wed 25 Nov 00:00     │  │ Power-on            57,642 h  6.6y │
+ │ Why         snoozed                │  │                                    │
+ │ Interval    14 days  per drive     │  │ Reallocated sectors  none        5 │
+ │ Snoozed     until Wed 25 Nov       │  │ Uncorrectable errors none      187 │
+ │             ↳ waiting for a spare  │  │ Pending sectors      none      197 │
+ │ Excluded    no                     │  │ Offline uncorrectable  14      198 │
+ │                                    │  │ Interface CRC errors none      199 │
+ └────────────────────────────────────┘  └────────────────────────────────────┘
+
+ Test history (UniFi Drive)
+   Type      Started           Took    Result
    No tests on record.
-
-
-
 
 
 

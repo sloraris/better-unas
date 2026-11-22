@@ -56,6 +56,14 @@ real NAS.
   result open that drive's page. Alerts are one stop. The action bar says
   where Enter goes. Summary items gain `target` (`"Tab:arg"`), `target_label`
   and `status`, and a screen may take `open(arg)`.
+- Drives and Drive (docs/tui-style.md, step 6): the Drives list drops its
+  Status column for status glyphs in Last test and Next test, shows the
+  model, and explains the selected drive in a panel under the list. A drive's
+  page has its model, serial, size and state on top, Schedule and Health
+  panels side by side, and the test history with how long each test took.
+  Values use smart-scheduler's short words (Why `baseline`, `retry`, …;
+  interval `old drive`, `per drive`, …); SMART attribute ids come after the
+  count. Table cells can be status cells.
 - Screen style (docs/tui-style.md, step 1): keys on the action bar are
   reversed chips and the nav bar is dim, so the two no longer blend; the tab
   bar shows the installed version, or `▲ v…` when an update is out; screens

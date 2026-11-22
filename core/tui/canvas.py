@@ -15,6 +15,7 @@ UNICODE = {
     # status glyphs (docs/tui-style.md §3)
     "ok": "✓", "failed": "✗", "warning": "!", "running": "▶", "planned": "○",
     "scrub": "↻", "backup": "⇡", "note": "↳", "update": "▲",
+    "deg": "°", "mid": "·",
 }
 ASCII = {
     "h": "-", "v": "|", "tl": "+", "tr": "+", "bl": "+", "br": "+",
@@ -22,6 +23,7 @@ ASCII = {
     "left": "<", "right": ">", "sep": "|",
     "ok": "+", "failed": "x", "warning": "!", "running": ">", "planned": "o",
     "scrub": "s", "backup": "b", "note": "-", "update": "^",
+    "deg": "", "mid": "-",
 }
 
 

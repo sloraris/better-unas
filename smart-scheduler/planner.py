@@ -121,28 +121,33 @@ def assess(cfg, disk, history, attrs, baseline, t):
     if disk.get("state") not in (None, "optimal"):
         warn.append(f"UniFi state {disk.get('state')}")
     increased = [k for k, v in attrs.items() if baseline is not None and v > baseline.get(k, 0)]
+    # `source` and `cause` are the short words screens show (docs/tui-style.md
+    # §8, smart-scheduler vocabulary); `why` and `reason` are the long forms
+    # for the CLI and the log.
     if serial in cfg.overrides:
-        interval, why = cfg.overrides[serial], "set in config"
+        interval, why, source = cfg.overrides[serial], "set in config", "per drive"
     elif warn:
-        interval, why = cfg.int("WARN_INTERVAL_DAYS"), "; ".join(warn)
+        interval, why, source = cfg.int("WARN_INTERVAL_DAYS"), "; ".join(warn), "warning signs"
     elif (disk.get("powerOnHours") or 0) >= cfg.int("OLD_DRIVE_HOURS"):
-        interval, why = cfg.int("OLD_INTERVAL_DAYS"), f"{disk['powerOnHours']:,} power-on hours"
+        interval, why, source = cfg.int("OLD_INTERVAL_DAYS"), f"{disk['powerOnHours']:,} power-on hours", "old drive"
     else:
-        interval, why = cfg.int("INTERVAL_DAYS"), "healthy"
+        interval, why, source = cfg.int("INTERVAL_DAYS"), "healthy", "default"
 
     if latest is not None and not is_good(latest):
         due = parse_time(latest["finishedAt"]) + dt.timedelta(days=cfg.int("RETRY_FAILED_DAYS"))
-        reason = f"retrying: last test ended {latest.get('status')}/{latest.get('result')}"
+        reason, cause = f"retrying: last test ended {latest.get('status')}/{latest.get('result')}", "retry"
     elif last_good is None:
-        due, reason = t, "never tested; first test sets a baseline"
+        due, reason, cause = t, "never tested; first test sets a baseline", "baseline"
     elif increased:
-        due = t
+        due, cause = t, "warning signs"
         reason = "SMART attribute rose since last test: " + ", ".join(
             f"{k} went {baseline.get(k, 0)} -> {attrs[k]}" for k in increased)
     else:
         due = parse_time(last_good["finishedAt"]) + dt.timedelta(days=interval)
         reason = f"every {interval} days ({why})"
+        cause = "per-drive interval" if source == "per drive" else "due"
     return {"running": any(is_running(h) for h in history), "interval": interval, "why": why,
+            "source": source, "cause": cause, "rose": sorted(increased),
             "due": due, "reason": reason, "last": last_good.get("finishedAt") if last_good else None}
 
 

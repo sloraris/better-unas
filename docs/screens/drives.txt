@@ -1,16 +1,13 @@
  1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings                  v0.2.0
  Drives ─────────────────────────────────────────────────────── smart-scheduler
-   Slot Serial        Temp Last test  Next test   Every Status
- ›    1 SERIAL1       41 C never      Sun 21 Feb    90d test running
-      2 SERIAL2       42 C never      Thu 26 Nov    90d due
-      3 SERIAL3       38 C Tue 03 Nov Tue 02 Feb    90d ok
-      4 SERIAL4       48 C never      Tue 24 Nov    60d last test failed
-      5 SERIAL5       48 C Tue 20 Oct Sun 20 Dec    60d ok
-      6 SERIAL6       48 C never      Mon 23 Nov    30d due
-      7 SERIAL7       45 C never      Wed 25 Nov    60d due
-
- Slot 1  ST4000VN006-3CW104
-   never tested; first test sets a baseline
+   Slot Model                   Temp Last test         Next test         Every
+ ›    1 ST4000VN006-3CW104      41°C ▶ running         Sun 21 Feb 2027     90d
+      2 ST4000VN006-3CW104      42°C never             ○ Thu 26 Nov        90d
+      3 WDC WD40EFRX-68N32N0    38°C ✓ Tue 03 Nov      ○ Tue 02 Feb 2027   90d
+      4 WDC WD4002FYYZ-01B7CB0  48°C ✗ Thu 12 Nov      ○ Tue 24 Nov        60d
+      5 WDC WD4002FYYZ-01B7CB0  48°C ✓ Tue 20 Oct      ○ Sun 20 Dec        60d
+      6 WDC WD4002FYYZ-01B7CB0  48°C never             ○ Mon 23 Nov        30d
+      7 WDC WD4002FYYZ-01B7CB0  45°C never             ○ Wed 25 Nov        60d
 
 
 
@@ -20,5 +17,8 @@
 
 
 
- Enter details  t test  z snooze  x exclude  i interval  u unsnooze  r refresh
+ ┌─ Slot 1 · ST4000VN006-3CW104 · SERIAL1 ────────────────────────────────────┐
+ │ ▶ Extended test running, started Sun 00:10. Next: Sun 21 Feb 2027.         │
+ └────────────────────────────────────────────────────────────────────────────┘
+ Enter slot 1  t test  z snooze  x exclude  i interval  r refresh       ↑↓ move
  1-5/Tab tabs                                                    ? help  q quit

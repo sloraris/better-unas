@@ -467,7 +467,7 @@ function and screen. In tests, a small fake stands in for it (see
 | `ctx.theme` | The theme (section 7). Screens usually just pass tone names to the canvas. |
 | `ctx.log(text)` | Appends to the TUI's own log (not the journal) for debugging. Never pass secrets. |
 | `ctx.LockBusy` | The exception `ctx.lock()` raises, so a screen can catch it without importing the core. |
-| `ctx.widgets` | The core's widget module (`core/tui/widgets.py`): `ListView`, `Table`, `ScrollText`, `Form` and the rest, so a plugin uses them without relying on `sys.path`. |
+| `ctx.widgets` | The core's widget module (`core/tui/widgets.py`): `ListView`, `Table`, `ScrollText`, `Form`, `panel`, `KeyValue` and the rest, so a plugin uses them without relying on `sys.path`. A `Table` cell is a string, a `(text, tone)` pair, or `("status", kind, text[, aside])` for a status glyph and text in the kind's tone with a dim aside after it (kind `None`: plain text, no glyph). |
 
 The core implements this context (#4). Functions beyond this list are the
 core's business and may change; a tool that needs more should ask for it in a
@@ -487,7 +487,7 @@ one used in tests (#4) have the same methods:
 | `canvas.sub(y, x, h, w)` | A canvas for a region of this one, with its own origin and clipping. |
 | `canvas.styled(y, x, s, role="value")` | Draws `s` in a text role: `heading`, `label`, `value`, `strong`, `note` (with `↳`), `reason` (with `!`), `tag`, `id`, `chip`. Returns the column after it. Prefer this to picking tones. |
 | `canvas.status(y, x, kind, s="")` | A status glyph plus text in its tone: `ok` ✓, `failed` ✗, `warning` !, `running` ▶, `planned` ○, `scrub` ↻, `backup` ⇡, `update` ▲. ASCII terminals get `+ x ! > o s b ^`. |
-| `canvas.symbols` | Box, arrow and status characters, Unicode or ASCII. |
+| `canvas.symbols` | Box, arrow and status characters, Unicode or ASCII; also `deg` (`°`, nothing in ASCII) and `mid` (`·`, `-` in ASCII) for text. |
 
 The body canvas a screen gets already has a 1-column margin on each side, so
 draw from column 0. The roles, glyphs and layout rules are in

@@ -1,6 +1,6 @@
 # better-unas TUI: style and layout
 
-Status: steps 1 to 5 of the build order (§12) are built: roles, glyphs, chips, the action and nav bars, margins, the version in the tab bar, `heading`, `panel` and `KeyValue`; the Tools tab is gone, with updates and remove in Settings › better-unas and install / uninstall on each tool's page; the webhook and heartbeat are in Settings › Notifications (`better-unas.conf`) with `t` send test, and Alerts shows where alerts are sent; an editing text field opens a full-width box, and `on_change: install` makes saving do the follow-up step (smart-scheduler's Enabled); Home tool cards are panels with one stop each, and only items that lead elsewhere (a drive's page) are stops too. The rest is spec. It applies to every screen in the core and in every tool. The building blocks it describes live in `core/tui/widgets.py`, so a screen that follows this spec has little to decide for itself. What the app does is in [tui-design.md](tui-design.md); this file covers how it looks and reads.
+Status: steps 1 to 6 of the build order (§12) are built: roles, glyphs, chips, the action and nav bars, margins, the version in the tab bar, `heading`, `panel` and `KeyValue`; the Tools tab is gone, with updates and remove in Settings › better-unas and install / uninstall on each tool's page; the webhook and heartbeat are in Settings › Notifications (`better-unas.conf`) with `t` send test, and Alerts shows where alerts are sent; an editing text field opens a full-width box, and `on_change: install` makes saving do the follow-up step (smart-scheduler's Enabled); Home tool cards are panels with one stop each, and only items that lead elsewhere (a drive's page) are stops too; the Drives list and Drive page have the layouts in §10 and smart-scheduler's vocabulary (§8). The rest is spec. It applies to every screen in the core and in every tool. The building blocks it describes live in `core/tui/widgets.py`, so a screen that follows this spec has little to decide for itself. What the app does is in [tui-design.md](tui-design.md); this file covers how it looks and reads.
 
 Where this came from: the first hardware run showed screens that worked but read as a wall of same-looking text. The problems are covered in the rules below. Each rule says which problem it fixes, so it doesn't get "simplified" away later.
 
@@ -267,7 +267,7 @@ The mockups below show layout only. Tones and chips are described under each one
  ›  1   ST4000VN006       41°C   ▶ running 80%    Sun 21 Feb        90d
     2   ST4000VN006       42°C   never            ! due now         90d
     3   ST4000VN006       38°C   ✓ Tue 03 Nov     Tue 02 Feb        90d
-    4   WD4002FYYZ        48°C   ✗ Thu 12 Nov     ○ Tue 24 Nov       7d
+    4   WD4002FYYZ        48°C   ✗ Thu 12 Nov     ○ Tue 24 Nov      60d
     5   WD4002FYYZ        48°C   ✓ Tue 20 Oct     Sun 20 Dec        60d
     6   ST4000VN006       48°C   never            ○ Mon 23 Nov      30d
     7   ST4000VN006       45°C   never            ○ Wed 25 Nov      60d
@@ -283,6 +283,7 @@ The mockups below show layout only. Tones and chips are described under each one
 ```
 
 - The Status column is gone: its meaning now sits as glyphs in Last test and Next test. The serial moves to the selection panel.
+- Interval is always the drive's interval and where it comes from. A retry after a failed test is a reason for the next date (Why `retry`), not an interval.
 
 ### Drive
 
@@ -294,7 +295,7 @@ The mockups below show layout only. Tones and chips are described under each one
  │ Last test   Thu 12 Nov  ✗ failed   │  │ Temperature                   48°C  │
  │ Next test   Tue 24 Nov  ○ planned  │  │ Power-on             59,052 h  6.7y │
  │ Why         retry                  │  │                                     │
- │ Interval    7 days  retry          │  │ Reallocated sectors         0    5  │
+ │ Interval    60 days  old drive      │  │ Reallocated sectors         0    5  │
  │ Snoozed     no                     │  │ Uncorrectable errors        0  187  │
  │ Excluded    no                     │  │ Pending sectors             0  197  │
  │                                    │  │ Offline uncorrectable       0  198  │

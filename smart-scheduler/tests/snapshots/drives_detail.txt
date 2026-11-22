@@ -1,24 +1,24 @@
  1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings
- Drives › Slot 5: WDC WD4002FYYZ-01B7CB0 (SERIAL5) ──────────── smart-scheduler
- Schedule                                       SMART
- Last test  Tue 20 Oct (passed)                 Temperature          48 C
- Next test  Mon 23 Nov 00:00 (planned)          Power-on hours     59,080
- Interval   30 days: SMART attribute 197 is 3     5 Reallocated         0
- Why        SMART attribute rose since last     187 Uncorrectable       0
-            test: 197 went 0 -> 3               197 Pending             3 +3
- Snooze     none                                198 Offline uncorr.     0
- Excluded   no                                  199 CRC errors          2
+ Drives › Slot 5 ────────────────────────────────────────────── smart-scheduler
+ WDC WD4002FYYZ-01B7CB0   SERIAL5   4 TB                        ! warning signs
 
-                                                +N: rose since last test
- UniFi test history
-   Type      Started          Finished         Result
-   quick     Sat 21 Nov 09:00 Sat 21 Nov 09:02 passed
-   extended  Tue 20 Oct 01:00 Tue 20 Oct 11:00 passed
+ ┌─ Schedule ─────────────────────────┐  ┌─ Health ───────────────────────────┐
+ │ Last test   ✓ Tue 20 Oct  passed   │  │ Temperature                   48°C │
+ │ Next test   ○ Mon 23 Nov 00:00     │  │ Power-on            59,080 h  6.7y │
+ │ Why         warning signs          │  │                                    │
+ │ Interval    30 days  warning signs │  │ Reallocated sectors     0        5 │
+ │ Snoozed     no                     │  │ Uncorrectable errors    0      187 │
+ │ Excluded    no                     │  │ Pending sectors         3 ↑3   197 │
+ │                                    │  │ Offline uncorrectable   0      198 │
+ │                                    │  │ Interface CRC errors    2      199 │
+ └────────────────────────────────────┘  └────────────────────────────────────┘
+
+ Test history (UniFi Drive)
+   Type      Started           Took    Result
+   quick     Sat 21 Nov 09:00  2m      ✓ passed
+   extended  Tue 20 Oct 01:00  10h 00m ✓ passed
 
 
 
-
-
-
- t test  z snooze  x exclude  i interval  u unsnooze  r refresh      ↑↓ history
+ t test  z snooze  x exclude  i interval  r refresh                  ↑↓ history
  Esc back  1-5/Tab tabs                                          ? help  q quit

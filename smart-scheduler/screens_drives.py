@@ -31,10 +31,8 @@ import datetime as dt
 DAY = dt.timedelta(days=1)
 
 # The SMART attributes the details show, with short names.
-ATTRS = [(5, "Reallocated"), (187, "Uncorrectable"), (197, "Pending"),
-         (198, "Offline uncorr."), (199, "CRC errors")]
-
-OUTCOME_TONE = {"running": "warn", "passed": "good", "failed": "bad"}
+ATTRS = [(5, "Reallocated sectors"), (187, "Uncorrectable errors"), (197, "Pending sectors"),
+         (198, "Offline uncorrectable"), (199, "Interface CRC errors")]
 
 
 class DrivesError(Exception):
@@ -63,18 +61,22 @@ def gather(env, ctx):
         for e in v["planned"]:
             if e["serial"] not in nxt or e["start"] < nxt[e["serial"]]["start"]:
                 nxt[e["serial"]] = e
-    failed = {}
+    done, since = {}, {}
     for day in sorted(data["days"]):
         for x in data["days"][day]["tests"]:
-            if x["outcome"] != "running":
-                failed[x["serial"]] = x["outcome"] == "failed"
+            if x["outcome"] == "running":
+                if not x.get("outside"):
+                    since[x["serial"]] = x["start"]
+            else:
+                done[x["serial"]] = {"at": x["end"] or x["start"], "outcome": x["outcome"]}
     snoozes = {z["serial"]: z for z in data["snoozes"]}
     drives = []
     for d in sorted(data["drives"], key=lambda d: _slot_key(d["slot"])):
         disk = disks.get(d["serial"], {})
         drives.append(dict(d, disk=disk, next=nxt.get(d["serial"]), snooze=snoozes.get(d["serial"]),
                            override=cfg.overrides.get(d["serial"]),
-                           last_failed=failed.get(d["serial"], False)))
+                           last_done=done.get(d["serial"]), running_since=since.get(d["serial"]),
+                           last_failed=(done.get(d["serial"]) or {}).get("outcome") == "failed"))
     return {"now": data["now"], "drives": drives, "problems": data["problems"]}
 
 
@@ -110,90 +112,214 @@ def _slot_key(slot):
 
 
 # --------------------------------------------------------------------------- text
+# Words follow docs/tui-style.md §8: a value answers its label's question,
+# a fact is said once, and smart-scheduler's vocabulary for Why and the
+# interval's source.
 
-def _date(t):
-    return f"{t:%a %d %b}" if t else "never"
+def _date(t, now=None):
+    """'Thu 12 Nov', with the year outside the current one; 'never' for None."""
+    if not t:
+        return "never"
+    s = f"{t:%a %d %b}"
+    return s + f" {t.year}" if now is not None and t.year != now.year else s
 
 
-def status_cell(d, today):
-    """(text, tone) for the list's status column. Says it in words, not color."""
-    if d.get("excluded"):
-        return "excluded", "dim"
-    if d.get("error"):
-        return "no history", "bad"
-    if d.get("running"):
-        return "test running", "warn"
-    if d.get("last_failed"):
-        return "last test failed", "bad"
-    if d.get("snooze"):
-        return f"snoozed to {d['snooze']['until']:%d %b}", "normal"
-    if d.get("due") and d["due"].date() <= today:
-        return "due", "warn"
-    return "ok", "good"
+def _when(t, now=None):
+    return f"{_date(t, now)} {t:%H:%M}"
+
+
+def _took(start, end):
+    if not start or not end or end < start:
+        return ""
+    m = int((end - start).total_seconds() // 60)
+    return f"{m // 60}h {m % 60:02d}m" if m >= 60 else f"{m}m"
+
+
+def _size(n):
+    if not isinstance(n, (int, float)) or n <= 0:
+        return ""
+    for unit, k in (("TB", 1e12), ("GB", 1e9)):
+        if n >= k:
+            v = n / k
+            num = f"{v:.0f}" if v >= 10 else f"{v:.1f}".removesuffix(".0")
+            return f"{num} {unit}"
+    return f"{n / 1e6:.0f} MB"
 
 
 def last_test(ss, d, tz):
+    """The last passed extended test's time (UniFi's history), or None."""
     t = ss.parse_time(d.get("last")) if d.get("last") else None
     return t.astimezone(tz) if t else None
 
 
-def schedule_lines(ss, d, tz):
-    """[(label, text, tone)] for the details' schedule block."""
-    last = last_test(ss, d, tz)
-    out = [("Last test", f"{_date(last)} (passed)" if last else "none passed yet", "normal" if last else "dim")]
+def last_done(ss, d, tz):
+    """(time, "passed" | "failed") of the last finished extended test, or None."""
+    if d.get("last_done"):
+        return d["last_done"]["at"], d["last_done"]["outcome"]
+    t = last_test(ss, d, tz)
+    return (t, "passed") if t else None
+
+
+def percent_done(d):
+    left = d.get("remaining_percent")
+    return None if left is None else max(0, min(100, 100 - left))
+
+
+def why(d):
+    """Why the next test is when it is, in one word or a short phrase."""
     if d.get("excluded"):
-        out.append(("Next test", "none: excluded", "dim"))
-    elif d.get("running"):
-        how = ""
+        return "excluded"
+    if d.get("error"):
+        return "unknown"
+    if d.get("snooze"):
+        return "snoozed"
+    return d.get("cause") or "due"
+
+
+def state(d, today):
+    """(status kind or None, word) for the drive as a whole: the Drive page's
+    top-right and the selection panel's glyph."""
+    if d.get("error"):
+        return "failed", "history unreadable"
+    if d.get("excluded"):
+        return None, "excluded"
+    if d.get("running"):
+        return "running", "test running"
+    if d.get("last_failed"):
+        return "failed", "last test failed"
+    if d.get("snooze"):
+        return None, "snoozed"
+    if d.get("cause") == "warning signs" or d.get("source") == "warning signs":
+        return "warning", "warning signs"
+    if d.get("due") and d["due"].date() <= today:
+        return "warning", "due now"
+    return "ok", "up to date"
+
+
+def last_cell(ss, d, now):
+    """The list's Last test cell."""
+    if d.get("running") and not d.get("excluded"):
+        pct = percent_done(d)
+        return ("status", "running", f"running {pct}%" if pct is not None else "running")
+    if d.get("error"):
+        return ("unknown", "dim")
+    done = last_done(ss, d, now.tzinfo)
+    if not done:
+        return "never"
+    return ("status", "ok" if done[1] == "passed" else "failed", _date(done[0], now))
+
+
+def next_cell(d, now):
+    """The list's Next test cell."""
+    if d.get("excluded"):
+        return ("excluded", "dim")
+    if d.get("error"):
+        return ("unknown", "dim")
+    nxt = d["next"]["start"] if d.get("next") else None
+    if nxt and d.get("running"):
+        return _date(nxt, now)                    # after the running test: nothing to flag
+    if nxt:
+        return ("status", "planned", _date(nxt, now))
+    if d.get("snooze"):
+        return f"snoozed to {d['snooze']['until']:%d %b}"
+    if d.get("due") and d["due"].date() <= now.date():
+        return ("status", "warning", "due now")
+    if d.get("due"):
+        return _date(d["due"], now)
+    return ("none", "dim")
+
+
+def panel_line(ss, d, now, mid="·"):
+    """(status kind or None, sentence, tone) for the list's selection panel."""
+    tz = now.tzinfo
+    nxt = d["next"]["start"] if d.get("next") else None
+    then = f"Next: {_date(nxt, now)}." if nxt else ""
+    if d.get("error"):
+        return "failed", f"History unreadable: {d.get('reason', 'unknown error')}.", "bad"
+    if d.get("excluded"):
+        return None, "Excluded from testing (EXCLUDE_SERIALS). Run now still works.", "dim"
+    if d.get("running"):
+        pct = percent_done(d)
         if d.get("outside_drive"):
-            left = d.get("remaining_percent")
-            how = " (started outside UniFi Drive" + (f", {left}% left)" if left is not None else ")")
-        out.append(("Next test", "a test is running now" + how, "warn"))
-    elif d.get("next"):
-        out.append(("Next test", f"{d['next']['start']:%a %d %b %H:%M} (planned)", "warn"))
+            s = "Test running outside UniFi Drive" + (f", {pct}%" if pct is not None else "") + "."
+        else:
+            started = d.get("running_since")
+            s = ("Extended test running" + (f", {pct}%" if pct is not None else "")
+                 + (f", started {started:%a %H:%M}" if started else "") + ".")
+        return "running", f"{s} {then}".strip(), "normal"
+    done = last_done(ss, d, tz)
+    plan = f"{_when(nxt, now)}" if nxt else "not in the plan yet"
+    if d.get("last_failed") and done:
+        return "failed", f"Last test failed {_date(done[0], now)}. Retry: {plan}.", "normal"
+    if d.get("snooze"):
+        z = d["snooze"]
+        note = f" ({z['note']})" if z.get("note") else ""
+        later = f"Next test {_date(nxt, now)}." if nxt else "Not in the plan yet."
+        return None, f"Snoozed to {_date(z['until'], now)}{note}. {later}", "normal"
+    kind = "planned" if nxt else "warning"
+    source = d.get("source", "default")
+    every = f"every {d.get('interval')} days" + ("" if source in (why(d), "default") else f" ({source})")
+    return kind, f" {mid} ".join([f"Next test {plan}", why(d), every]), "normal"
+
+
+def schedule_rows(ss, d, now):
+    """KeyValue rows for the Drive page's Schedule panel."""
+    tz = now.tzinfo
+    done = last_done(ss, d, tz)
+    if done:
+        rows = [("Last test", ("status", "ok" if done[1] == "passed" else "failed", _date(done[0], now)),
+                 done[1])]
     else:
-        out.append(("Next test", "not in the plan yet", "dim"))
+        rows = [("Last test", "never")]
+    nxt = d["next"]["start"] if d.get("next") else None
+    if d.get("excluded"):
+        rows.append(("Next test", ""))
+    elif d.get("running"):
+        pct = percent_done(d)
+        rows.append(("Next test", ("status", "running", "running now"),
+                     f"{pct}% done" if pct is not None else None))
+    elif nxt:
+        rows.append(("Next test", ("status", "planned", _when(nxt, now))))
+    elif d.get("due") and d["due"].date() <= now.date():
+        rows.append(("Next test", ("status", "warning", "due now"), "not in the plan yet"))
+    else:
+        rows.append(("Next test", ""))
+    rows.append(("Why", why(d)))
     if d.get("interval"):
-        why = "set for this drive" if d.get("override") else d.get("why", "")
-        out.append(("Interval", f"{d['interval']} days: {why}", "normal"))
-    if d.get("reason") and not d.get("excluded"):
-        out.append(("Why", d["reason"], "normal"))
+        rows.append(("Interval", f"{d['interval']} days", d.get("source")))
+    else:
+        rows.append(("Interval", ""))
     z = d.get("snooze")
-    out.append(("Snooze", f"until {z['until']:%a %d %b %Y}" + (f" ({z['note']})" if z["note"] else "")
-                if z else "none", "normal" if z else "dim"))
-    out.append(("Excluded", "yes (EXCLUDE_SERIALS)" if d.get("excluded") else "no",
-                "warn" if d.get("excluded") else "dim"))
-    return out
+    rows.append(("Snoozed", f"until {_date(z['until'], now)}" if z else "no"))
+    if z and z.get("note"):
+        rows.append(("note", z["note"]))
+    rows.append(("Excluded", "yes" if d.get("excluded") else "no", "EXCLUDE_SERIALS" if d.get("excluded") else None))
+    return rows
 
 
-def smart_lines(d, extra):
-    """[(label, value, note, tone)] for the details' SMART block."""
+def health_rows(d, extra):
+    """[(label, value, tone, rise, attr id)] for the Health panel; rise is the
+    increase since the last test (or 0), attr id None for non-attributes."""
     disk = d.get("disk") or {}
-    temp = disk.get("temperature")
-    hours = disk.get("powerOnHours")
-    out = [("Temperature", f"{temp} C" if temp is not None else "?", "", "normal"),
-           ("Power-on hours", f"{hours:,}" if isinstance(hours, int) else "?", "", "normal")]
     attrs = (extra or {}).get("attrs")
     base = (extra or {}).get("baseline")
+    out = []
     for a, name in ATTRS:
-        label = f"{a:>3} {name}"
         if attrs is None:
-            out.append((label, "?", "", "dim"))
+            out.append((name, "unknown", "dim", 0, a))
             continue
         v = attrs.get(a)
         if v is None:
-            out.append((label, "-", "", "dim"))
+            out.append((name, "none", "dim", 0, a))
             continue
         was = None if base is None else base.get(str(a), base.get(a))
-        if was is not None and v > was:
-            out.append((label, str(v), f"+{v - was} since last test", "warn"))
-        else:
-            out.append((label, str(v), "", "normal"))
-    return out
+        rise = v - was if was is not None and v > was else 0
+        out.append((name, f"{v:,}", "bad" if rise else "normal", rise, a))
+    return disk.get("temperature"), disk.get("powerOnHours"), out
 
 
-def history_rows(ss, history, tz):
-    """Table rows, newest first: type, started, finished, result."""
+def history_rows(ss, history, tz, now=None):
+    """Table rows, newest first: type, started, took, result."""
     rows = []
 
     def when(h):
@@ -203,12 +329,19 @@ def history_rows(ss, history, tz):
     stamped.sort(key=lambda p: p[0] or dt.datetime.min.replace(tzinfo=tz), reverse=True)
     for start, h in stamped:
         fin = ss.parse_time(h.get("finishedAt"))
-        outcome = "running" if ss.is_running(h) else "passed" if ss.is_good(h) else "failed"
-        word = outcome if outcome != "failed" else f"failed ({h.get('status')}/{h.get('result')})"
+        if ss.is_running(h):
+            left = ss.drive_progress_left(h)
+            result = ("status", "running", "running", f"{100 - left}% done" if left is not None else "")
+            took = ""
+        else:
+            good = ss.is_good(h)
+            detail = "" if good else "/".join(str(h.get(k) or "?") for k in ("status", "result"))
+            result = ("status", "ok" if good else "failed", "passed" if good else "failed",
+                      "" if detail == "failed/failed" else detail)
+            took = _took(start, fin)
         rows.append([str(h.get("type", "?")).lower(),
-                     f"{start.astimezone(tz):%a %d %b %H:%M}" if start else "?",
-                     f"{fin.astimezone(tz):%a %d %b %H:%M}" if fin and outcome != "running" else "",
-                     (word, OUTCOME_TONE[outcome])])
+                     _when(start.astimezone(tz), now) if start else ("unknown", "dim"),
+                     took, result])
     return rows
 
 
@@ -247,12 +380,14 @@ class Actions:
     def busy(self):
         return self.prompt is not None or self.picking is not None
 
-    def keys(self):
+    def keys(self, drive=None):
         if self.prompt:
             return self.prompt[1].keys()
         if self.picking:
             return [("e", "extended"), ("k", "quick"), ("Esc", "cancel")]
-        return [("t", "test"), ("z", "snooze"), ("x", "exclude"), ("i", "interval"), ("u", "unsnooze")]
+        out = [("t", "test"), ("z", "snooze"), ("x", "include" if (drive or {}).get("excluded") else "exclude"),
+               ("i", "interval")]
+        return out + ([("u", "unsnooze")] if (drive or {}).get("snooze") else [])
 
     def key(self, k, drive):
         """Handle an action key (or input for one in progress). True if used."""
@@ -471,15 +606,12 @@ def _cap(s):
     return s[:1].upper() + s[1:]
 
 
-def _fit(s, width):
-    return s if len(s) <= width else s[: max(0, width - 1)] + "~"
-
-
 class DrivesScreen:
     title = "Drives"
 
-    COLUMNS = [("Slot", 4, "right"), ("Serial", 12), ("Temp", 5, "right"), ("Last test", 10),
-               ("Next test", 10), ("Every", 6, "right"), ("Status", None)]
+    COLUMNS = [("Slot", 4, "right"), ("Model", None), ("Temp", 5, "right"), ("Last test", 17),
+               ("Next test", 17), ("Every", 5, "right")]
+    PANEL_H = 3
 
     def __init__(self, ctx, env):
         """env() returns (ss, actions, calendar module); plugin.py binds it to the live tool."""
@@ -492,7 +624,9 @@ class DrivesScreen:
     def keys(self):
         if self.actions.busy:
             return self.actions.keys()
-        return [("Enter", "details")] + self.actions.keys() + [("r", "refresh")]
+        d = self.current
+        lead = [("Enter", f"slot {d['slot']}")] if d else []
+        return lead + self.actions.keys(d) + [("r", "refresh"), ("↑↓", "move")]
 
     def show(self):
         self.actions.cancel()
@@ -506,22 +640,19 @@ class DrivesScreen:
             self.data, self.error = None, str(e)
         self.table.set_rows(self.rows())
 
-    def rows(self):
+    def rows(self, symbols=None):
         if not self.data:
             return []
+        deg = (symbols or {}).get("deg", "°")
         ss = self.env()[0]
-        tz = self.data["now"].tzinfo
-        today = self.data["now"].date()
+        now = self.data["now"]
         out = []
         for d in self.data["drives"]:
             temp = (d.get("disk") or {}).get("temperature")
-            last = last_test(ss, d, tz)
-            nxt = d["next"]["start"] if d.get("next") else None
-            out.append([str(d["slot"]), d["serial"], f"{temp} C" if temp is not None else "?",
-                        (_date(last), "dim") if last else ("never", "dim"),
-                        (f"{nxt:%a %d %b}", "warn") if nxt else ("-", "dim"),
-                        f"{d['interval']}d" if d.get("interval") else "-",
-                        status_cell(d, today)])
+            out.append([str(d["slot"]), d.get("model", "?"),
+                        f"{temp}{deg}C" if temp is not None else ("unknown", "dim"),
+                        last_cell(ss, d, now), next_cell(d, now),
+                        "" if d.get("excluded") or not d.get("interval") else f"{d['interval']}d"])
         return out
 
     @property
@@ -557,49 +688,55 @@ class DrivesScreen:
         return True
 
     def render(self, c):
+        W = self.ctx.widgets
         if self.error:
-            c.text(0, 0, _fit(self.error, c.width - 1), "bad", bold=True)
+            c.text(0, 0, W.fit(self.error, c.width - 1), "bad", bold=True)
             c.text(1, 0, "Press r to try again.", "dim")
             return
         if not self.data:
             return
-        n = len(self.data["drives"])
-        extra = [(f"Problem: {p}", "bad") for p in self.data["problems"]]
+        self.table.set_rows(self.rows(c.symbols))
+        problems = self.data["problems"]
         d = self.current
-        info = []
-        if d:
-            info.append((f"Slot {d['slot']}  {d.get('model', '?')}", "normal"))
-            if d.get("reason"):
-                info.append(("  " + d["reason"], "dim" if d.get("excluded") else "normal"))
-        bottom = info + extra
-        bottom = bottom[: max(0, c.height - 4 - min(n, 3))]
-        table_h = max(3, min(n + 1, c.height - len(bottom) - 1))
+        panel_top = c.height - self.PANEL_H if d else c.height
+        room = max(0, panel_top - 1 - (len(self.data["drives"]) + 1) - 1)
+        problems = problems[:room]
+        table_h = max(3, panel_top - len(problems) - (1 if problems else 0))
         self.table.render(c.sub(0, 0, table_h, c.width))
-        y = table_h + 1
-        for text, tone in bottom:
-            c.text(y, 0, _fit(text, c.width - 1), tone)
+        y = panel_top - len(problems)
+        for p in problems:
+            c.styled(y, 0, W.fit(p, c.width - 3), "reason")
             y += 1
+        if d:
+            mid = f" {c.symbols['mid']} "
+            title = mid.join(x for x in (f"Slot {d['slot']}", d.get("model"), d["serial"]) if x)
+            inner = W.panel(c, panel_top, 0, self.PANEL_H, c.width, title)
+            kind, text, tone = panel_line(self.env()[0], d, self.data["now"], c.symbols["mid"])
+            x = inner.status(0, 0, kind) + 1 if kind else 0
+            inner.text(0, x, W.fit(text, inner.width - x), tone)
         self.actions.render(c)
 
 
 class DriveScreen:
-    """One drive's details, pushed by Enter on the list."""
+    """One drive's page, pushed by Enter on the list."""
+
+    PANEL_H = 10
 
     def __init__(self, ctx, env, serial):
         self.ctx, self.env, self.serial = ctx, env, serial
-        self.title = f"Drive {serial}"
+        self.title = serial
         self.drive = None
         self.extra = None
         self.error = None
         self.now = ctx.now()
-        self.history = ctx.widgets.Table([("Type", 9), ("Started", 16), ("Finished", 16), ("Result", None)],
+        self.history = ctx.widgets.Table([("Type", 9), ("Started", 17), ("Took", 7), ("Result", None)],
                                          selectable=False, empty="No tests on record.")
         self.actions = Actions(ctx, env, self.load)
 
     def keys(self):
         if self.actions.busy:
             return self.actions.keys()
-        return self.actions.keys() + [("↑↓", "history"), ("r", "refresh")]
+        return self.actions.keys(self.drive) + [("r", "refresh"), ("↑↓", "history")]
 
     def show(self):
         self.actions.cancel()
@@ -617,10 +754,10 @@ class DriveScreen:
         except DrivesError as e:
             self.drive, self.extra, self.error = None, None, str(e)
         if self.drive:
-            self.title = f"Slot {self.drive['slot']}: {self.drive.get('model', '?')} ({self.serial})"
+            self.title = f"Slot {self.drive['slot']}"
         ss = self.env()[0]
         hist = (self.extra or {}).get("history")
-        self.history.set_rows(history_rows(ss, hist, self.now.tzinfo) if hist else [])
+        self.history.set_rows(history_rows(ss, hist, self.now.tzinfo, self.now) if hist else [])
         if self.extra and self.extra.get("history_error"):
             self.history.empty = f"History unavailable: {self.extra['history_error']}"
 
@@ -635,46 +772,69 @@ class DriveScreen:
         return self.actions.key(k, self.drive)
 
     def render(self, c):
+        W = self.ctx.widgets
         if self.error:
-            c.text(0, 0, _fit(self.error, c.width - 1), "bad", bold=True)
+            c.text(0, 0, W.fit(self.error, c.width - 1), "bad", bold=True)
             c.text(1, 0, "Press r to try again, Esc to go back.", "dim")
             return
         if not self.drive:
             return
         ss = self.env()[0]
         d = self.drive
-        left_w = c.width - 31
-        rx = left_w
-        c.text(0, 0, "Schedule", bold=True)
-        lines = schedule_lines(ss, d, self.now.tzinfo)
-        spare = 8 - len(lines)          # rows 1-8; long lines wrap while there's room
-        rows = []
-        for label, text, tone in lines:
-            parts = self.ctx.widgets.wrap(text, left_w - 12)
-            if len(parts) > 1 and spare > 0:
-                rows += [(label, parts[0], tone), ("", " ".join(parts[1:]), tone)]
-                spare -= 1
-            else:
-                rows.append((label, text, tone))
-        for i, (label, text, tone) in enumerate(rows[:8]):
-            c.text(1 + i, 0, f"{label:<10}", "dim")
-            c.text(1 + i, 11, _fit(text, left_w - 12), tone, bold=tone == "warn")
-        c.text(0, rx, "SMART", bold=True)
-        for i, (label, value, note, tone) in enumerate(smart_lines(d, self.extra)):
-            c.text(1 + i, rx, f"{label:<19}", "dim")
-            c.text(1 + i, rx + 19, f"{value:>6}", tone, bold=bool(note))
-            if note:
-                c.text(1 + i, rx + 26, note.split()[0], tone, bold=True)
-        rises = [n for _, _, n, _ in smart_lines(d, self.extra) if n]
-        y = 9
-        if rises:
-            c.text(y, rx, "+N: rose since last test", "warn")
-        if (self.extra or {}).get("attrs") is None:
-            c.text(y, rx, "smartctl values unavailable", "dim")
-        y += 1
-        c.text(y, 0, "UniFi test history", bold=True)
-        self.history.render(c.sub(y + 1, 0, max(2, c.height - y - 2), c.width))
+        # Identity on the first line, the drive's state at its right.
+        kind, word = state(d, self.now.date())
+        right = len(word) + (2 if kind else 0)
+        x = c.styled(0, 0, W.fit(d.get("model", "?"), c.width - right - 2), "strong")
+        for part, role in ((d["serial"], "id"), (_size((d.get("disk") or {}).get("size")), "value")):
+            if part and x + 3 + len(part) < c.width - right - 1:
+                x = c.styled(0, x + 3, part, role)
+        if kind:
+            c.status(0, c.width - right, kind, word)
+        else:
+            c.styled(0, c.width - right, word, "label")
+        # Schedule and Health, side by side.
+        lw = (c.width - 2) // 2
+        rw = c.width - lw - 2
+        h = min(self.PANEL_H, max(4, c.height - 6))
+        inner = W.panel(c, 2, 0, h, lw, "Schedule")
+        W.KeyValue(schedule_rows(ss, d, self.now)).render(inner)
+        self.render_health(W.panel(c, 2, lw + 2, h, rw, "Health"), d)
+        # History fills the rest.
+        y = 2 + h + 1
+        W.heading(c, y, 0, "Test history (UniFi Drive)")
+        self.history.render(c.sub(y + 1, 0, max(2, c.height - y - 1), c.width))
         self.actions.render(c)
+
+    def render_health(self, c, d):
+        W = self.ctx.widgets
+        temp, hours, attrs = health_rows(d, self.extra)
+        w = c.width
+
+        def right(y, text, role="value", end=w):
+            c.styled(y, max(0, end - len(text)), text, role)
+
+        c.styled(0, 0, "Temperature", "label")
+        right(0, f"{temp}{c.symbols['deg']}C" if temp is not None else "unknown",
+              "value" if temp is not None else "label")
+        c.styled(1, 0, "Power-on", "label")
+        if isinstance(hours, int):
+            right(1, f"{hours / 8766:.1f}y", "label")
+            right(1, f"{hours:,} h", end=w - 6)
+        else:
+            right(1, "unknown", "label")
+        if (self.extra or {}).get("attrs") is None:
+            c.styled(3, 0, "SMART counts", "label")
+            c.styled(4, 0, W.fit("unknown: no smartctl reading", w - 2), "note")
+            return
+        for i, (name, value, tone, rise, a) in enumerate(attrs):
+            y = 3 + i
+            c.styled(y, 0, W.fit(name, max(1, w - 10 - len(value))), "label")
+            right(y, str(a), "id")
+            if rise:
+                c.text(y, w - 8, f"{c.symbols['up']}{rise}", "dim")
+                c.text(y, w - 9 - len(value), value, "bad", bold=True)
+            else:
+                c.text(y, w - 9 - len(value), value, tone)
 
 
 class ChecksScreen:
