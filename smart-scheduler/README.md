@@ -125,8 +125,9 @@ Every action takes the run lock, and with `--dry-run` nothing changes.
   result, the next scrub, and snoozed drives. Enter on the card opens the
   Calendar; the running test and the last result open that drive.
 - **Calendar:** a month grid. Each night shows the drive(s) tested or
-  planned (`S6` planned or passed, `S6!` failed, `S6*` running), `sc` marks a
-  scrub and `bk` a UniFi backup. Arrows move days, PgUp/PgDn months, `t`
+  planned as a glyph and the slot (`○6` planned, `✓6` passed, `✗6` failed,
+  `▶6` running), `↻` marks a scrub and `⇡` a UniFi backup, with the legend
+  under the grid. Arrows move days, PgUp/PgDn months, `t`
   goes to today, `r` recalculates, and Enter explains a day: each test, why
   it's planned, and why a night was skipped. The plan runs forward until
   every drive has one test. ([capture](../docs/screens/calendar.txt))

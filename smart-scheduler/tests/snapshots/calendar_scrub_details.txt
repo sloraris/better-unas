@@ -1,11 +1,11 @@
  1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings
  Calendar › Mon 30 Nov 2026 ─────────────────────────────────── smart-scheduler
-  Why no test starts this night
-    - would overlap pool 2 scrub at Mon 30 Nov 02:30
+ No test this night
+ ! scrub on pool 2 at 02:30
 
-  Scrubs and backups
-    - Pool 2 data scrub starts 02:30. No test may be running from 00:30 (2 h
-    margin), and no test starts again that night.
+ Scrubs and backups
+ ↻ Pool 2 data scrub starts 02:30. No test may be running from 00:30 (2 h
+   margin), and no test starts again that night.
 
 
 

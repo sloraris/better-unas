@@ -1,24 +1,24 @@
  1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings
  Calendar ───────────────────────────────────────────────────── smart-scheduler
- ‹ December 2026 ›                                        plan until Sun 21 Feb
+ ‹ December 2026 ›                              planned through Sun 21 Feb 2027
   Mon        Tue        Wed        Thu        Fri        Sat        Sun
               1          2          3          4          5          6
 
    7          8          9         10         11         12         13
 
   14         15         16         17         18         19         20
-                                                                    S5
-  21         22         23         24         25         26         27
-                                   S6
-  28         29         30         31  sc
+                                                                    ○5
+  21        [22]        23         24         25         26         27
+                                   ○6
+  28         29         30         31  ↻
 
-
- Tue 22 Dec 2026
+ ── ○ planned  ✓ passed  ✗ failed  ▶ running  ↻ scrub  ⇡ backup ───────────────
+ Tuesday 22 December
    Nothing planned.
 
 
 
 
- S6 planned   S6 passed   S6! failed   S6* running   sc scrub   bk backup
- Enter details  t today  r recalculate                Arrows day  PgUp/Dn month
+
+ Enter day details  t today  r recalculate              ←→↑↓ day  PgUp/Dn month
  1-5/Tab tabs                                                    ? help  q quit

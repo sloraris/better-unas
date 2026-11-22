@@ -1,24 +1,24 @@
         dSSSSSSSSSSSSd          d          d
           ddddddddddddddddddddddddddddddddddddddddddddddddddddd ddddddddddddddd
-                                                          ddddddddddddddddddddd
- dddd       dddd       dddd       dddd       dddd       dddd       dddd
-                                                                   dddd
+ aaaaaaaaaaaaaaaaa                              ddddddddddddddddddddddddddddddd
+  ddd        ddd        ddd        ddd        ddd        ddd        ddd
+                                                                    dd
 
- dddd       dddd       dddd dd    dddd       dddd       dddd       dddd
-             gg
- dddd       dddd       dddd       dddd       dddd       dddd       dddd
-                                   rrr
- dddd       dddd       dddd       dddd       dddd       dddd       SSSS
-                                                                    yyy
+  dd         dd         dd  d      dd         dd         dd         dd
+             dd
+  dd         dd         dd         dd         dd         dd         dd
+                                   rr
+  dd         dd         dd         dd         dd         dd         SS  aaaaa
+                                                                    aa
 
   yy         yy         yy         yy
+      a
+
+ dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+ aaaaaaaaaaaaaaaaaa  SSSSSSS
+   a
+   yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
 
 
-
-
-   yyyyyyyyyyyyyyyyyyyyyy
-
-
- yy ddddddd   gg dddddd   rrr dddddd   yyy ddddddd      ddddd      dddddd
-SSSSSSS        SSS      SSS                           ddddddddddddddddddddddddd
+SSSSSSS            SSS      SSS                         ddddddddddddddddddddddd
  dddddddddddd                                                    dddddddddddddd

@@ -1,11 +1,11 @@
  1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings
  Calendar › Wed 25 Nov 2026 ─────────────────────────────────── smart-scheduler
-  Planned (assuming earlier tests pass)
-    Slot 6  WDC WD4002FYYZ-01B7CB0 (SERIAL6)
-      starts 00:00, ends about 14:16
-      why: never tested; first test sets a baseline
-      waited for: snoozed until Wed 25 Nov 2026 (waiting for a spare);
-      waiting its turn (1 start(s) per night, most urgent first)
+ Planned (assuming earlier tests pass)
+ ○ Slot 6  WDC WD4002FYYZ-01B7CB0  SERIAL6
+   ↳ starts 00:00, ends about 14:16
+   ↳ why: baseline (never tested; first test sets a baseline)
+   ↳ waited for: snoozed until Wed 25 Nov 2026 (waiting for a spare); waiting
+     its turn (1 start(s) per night, most urgent first)
 
 
 

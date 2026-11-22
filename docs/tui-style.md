@@ -1,6 +1,6 @@
 # better-unas TUI: style and layout
 
-Status: steps 1 to 6 of the build order (§12) are built: roles, glyphs, chips, the action and nav bars, margins, the version in the tab bar, `heading`, `panel` and `KeyValue`; the Tools tab is gone, with updates and remove in Settings › better-unas and install / uninstall on each tool's page; the webhook and heartbeat are in Settings › Notifications (`better-unas.conf`) with `t` send test, and Alerts shows where alerts are sent; an editing text field opens a full-width box, and `on_change: install` makes saving do the follow-up step (smart-scheduler's Enabled); Home tool cards are panels with one stop each, and only items that lead elsewhere (a drive's page) are stops too; the Drives list and Drive page have the layouts in §10 and smart-scheduler's vocabulary (§8). The rest is spec. It applies to every screen in the core and in every tool. The building blocks it describes live in `core/tui/widgets.py`, so a screen that follows this spec has little to decide for itself. What the app does is in [tui-design.md](tui-design.md); this file covers how it looks and reads.
+Status: steps 1 to 7 of the build order (§12) are built: roles, glyphs, chips, the action and nav bars, margins, the version in the tab bar, `heading`, `panel` and `KeyValue`; the Tools tab is gone, with updates and remove in Settings › better-unas and install / uninstall on each tool's page; the webhook and heartbeat are in Settings › Notifications (`better-unas.conf`) with `t` send test, and Alerts shows where alerts are sent; an editing text field opens a full-width box, and `on_change: install` makes saving do the follow-up step (smart-scheduler's Enabled); Home tool cards are panels with one stop each, and only items that lead elsewhere (a drive's page) are stops too; the Drives list, Drive page and Calendar have the layouts in §10 and smart-scheduler's vocabulary (§8). The rest is spec. It applies to every screen in the core and in every tool. The building blocks it describes live in `core/tui/widgets.py`, so a screen that follows this spec has little to decide for itself. What the app does is in [tui-design.md](tui-design.md); this file covers how it looks and reads.
 
 Where this came from: the first hardware run showed screens that worked but read as a wall of same-looking text. The problems are covered in the rules below. Each rule says which problem it fixes, so it doesn't get "simplified" away later.
 
@@ -341,7 +341,9 @@ The mockups below show layout only. Tones and chips are described under each one
 - Each cell's first line has the day number, then scrub/backup glyphs in accent. The second line holds drive chips: a glyph plus the slot number, in the status tone. Up to three fit, then `+2`.
 - Today: the day number is reversed, and `today` is a tag. The selected day gets brackets around its number (`[22]`).
 - The legend sits in the rule above the day panel, always visible and dim.
-- Day panel: the date as a heading, then status rows and `!` reasons indented under it.
+- Day panel: the date as a heading, then status rows and `!` reasons indented under it. It shows as many rows as fit, then `N more: Enter for day details`.
+- Day details (Enter): headed sections (Planned, Test history, No test this night, Scrubs and backups, Snoozed drives) with status rows and `↳` notes; long rows wrap.
+- A night with no test and a reason gets `!` on its chip line. The header's "planned through" date carries the year when it isn't this one.
 
 ### Settings › smart-scheduler
 

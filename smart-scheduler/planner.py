@@ -374,6 +374,7 @@ def plan(storage, drives, state, cfg, now, horizon=None, windows=(), not_before=
             if not s.get("excluded") and not s.get("error") and s.get("interval"):
                 s["due"] = s["busy_until"] + dt.timedelta(days=s["interval"])
                 s["reason"] = f"every {s['interval']} days ({s.get('why', 'after the running test')})"
+                s["cause"] = "per-drive interval" if s.get("source") == "per drive" else "due"
         s["running"] = False
         sim.append(s)
     wanted = {s["serial"] for s in sim if not s.get("excluded") and not s.get("error") and s.get("due")}
@@ -422,7 +423,7 @@ def plan(storage, drives, state, cfg, now, horizon=None, windows=(), not_before=
             end = t + test_length(cfg, d.get("minutes"))
             entries.append({"serial": d["serial"], "slot": d["slot"], "model": d.get("model", "?"),
                             "night": nk, "start": t, "end": end, "due": d["due"],
-                            "interval": d["interval"], "reason": d["reason"],
+                            "interval": d["interval"], "reason": d["reason"], "cause": d.get("cause") or "due",
                             "delayed_by": delays.pop(d["serial"], [])})
             planned.add(d["serial"])
             starts[nk] = starts.get(nk, 0) + 1
@@ -430,6 +431,7 @@ def plan(storage, drives, state, cfg, now, horizon=None, windows=(), not_before=
             d["busy_until"] = end
             d["due"] = end + dt.timedelta(days=d["interval"])
             d["reason"] = f"every {d['interval']} days ({d.get('why', 'after the planned test')})"
+            d["cause"] = "per-drive interval" if d.get("source") == "per drive" else "due"
         if not started and reasons:
             skipped.append({"night": nk, "reasons": reasons})
         if horizon is not None and night_bounds(cfg, day, now.tzinfo)[0] > horizon:

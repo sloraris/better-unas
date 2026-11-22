@@ -17,6 +17,7 @@ This file is loaded by plugin.py, which hands it the smart_scheduler module
 import calendar
 import datetime as dt
 import json
+import re
 
 DAY = dt.timedelta(days=1)
 
@@ -198,112 +199,174 @@ def gather(ss, ctx):
     }
 
 
+def _fit(s, width, more="…"):
+    s = str(s)
+    return s if len(s) <= width else s[: max(0, width - 1)] + more
+
+
 # --------------------------------------------------------------------------- text
+# docs/tui-style.md §10 (Calendar) and §8: drive chips are a status glyph plus
+# the slot number; "No test tonight" reasons start with what blocks it.
 
-MARKS = {"failed": "!", "running": "*", "passed": ""}
-TONES = {"failed": "bad", "running": "warn", "passed": "good"}
+KIND = {"passed": "ok", "failed": "failed", "running": "running"}
+EMPTY = {"tests": [], "planned": [], "skipped": [], "blocks": []}
+LEGEND = [("planned", "planned"), ("ok", "passed"), ("failed", "failed"), ("running", "running"),
+          ("scrub", "scrub"), ("backup", "backup")]
 
 
-def tokens(info):
-    """[(text, tone)] for a day cell's slot line: history first, then the plan."""
-    out = [(f"S{x['slot']}{MARKS[x['outcome']]}", TONES[x["outcome"]]) for x in info["tests"]]
-    out += [(f"S{e['slot']}", "warn") for e in info["planned"]]
-    return out
+def chips(info):
+    """[(status kind, slot)] for a day cell's second line: history, then the plan."""
+    return ([(KIND[x["outcome"]], str(x["slot"])) for x in info["tests"]]
+            + [("planned", str(e["slot"])) for e in info["planned"]])
 
 
 def marks(info):
+    """The status kinds of the day's scrubs and backups, in that order."""
     kinds = {b["kind"] for b in info["blocks"]}
-    return [m for k, m in (("scrub", "sc"), ("backup", "bk")) if k in kinds]
+    return [k for k in ("scrub", "backup") if k in kinds]
 
 
-def outcome_text(x):
+def short_reason(r):
+    """A planner reason in the calendar's words: what blocks it, first."""
+    m = re.match(r"would overlap pool (\S+) scrub at .*?(\d\d:\d\d)$", r)
+    if m:
+        return f"scrub on pool {m.group(1)} at {m.group(2)}"
+    if r.startswith("would overlap "):
+        return "overlaps " + r[len("would overlap "):]
+    return {"a SMART test is already running": "one is already running",
+            "outside start window": "outside the start window",
+            "paused (MAX_STARTS_PER_NIGHT=0 in config)": "paused (MAX_STARTS_PER_NIGHT is 0)"}.get(r, r)
+
+
+def _pct_done(left):
+    return None if left is None else max(0, min(100, 100 - left))
+
+
+def test_text(x):
+    """'extended test running, 80% done, started 00:10' and the like."""
     word = {"passed": "passed", "failed": "failed", "running": "running"}[x["outcome"]]
-    detail = f" ({x['status']}/{x['result']})" if x["outcome"] == "failed" else ""
+    pct = _pct_done(x.get("left")) if x["outcome"] == "running" else None
     if x.get("outside"):
-        left = f", {x['left']}% left" if x.get("left") is not None else ""
-        return word, f"started outside UniFi Drive{left}"
-    span = f"{x['start']:%H:%M}" + (f"-{_hm(x['end'], x['start'].date())}" if x["end"] else "")
-    if x["outcome"] == "running" and x.get("left") is not None:
-        span += f", {x['left']}% left"
-    return word + detail, span
+        return "test running outside UniFi Drive" + (f", {pct}% done" if pct is not None else "")
+    parts = [f"extended test {word}"]
+    if pct is not None:
+        parts.append(f"{pct}% done")
+    if x["outcome"] == "running":
+        parts.append(f"started {x['start']:%H:%M}")
+    else:
+        parts.append(f"{x['start']:%H:%M}" + (f"-{_hm(x['end'], x['start'].date())}" if x["end"] else ""))
+    detail = f"{x.get('status')}/{x.get('result')}"
+    if x["outcome"] == "failed" and detail != "failed/failed":
+        parts.append(detail)
+    return ", ".join(parts)
 
 
-def summary_lines(data, d):
-    """Short [(text, tone)] lines about one day, for the area under the grid."""
-    info = data["days"].get(d) or {"tests": [], "planned": [], "skipped": [], "blocks": []}
+def no_test(d, today):
+    return "No test tonight" if d == today else "No test this night"
+
+
+def day_rows(data, d):
+    """The day panel's rows: ("status", kind, text), ("reason", text) or
+    (text, role)."""
+    info = data["days"].get(d) or EMPTY
     out = []
     for x in info["tests"]:
-        word, span = outcome_text(x)
-        out.append((f"S{x['slot']} test {word}, {span}", TONES[x["outcome"]]))
+        out.append(("status", KIND[x["outcome"]], f"Slot {x['slot']}  {test_text(x)}"))
     for e in info["planned"]:
-        out.append((f"S{e['slot']} planned {e['start']:%H:%M}: {e['reason']}", "warn"))
+        out.append(("status", "planned",
+                    f"Slot {e['slot']}  planned {e['start']:%H:%M}-{_hm(e['end'], e['start'].date())}, "
+                    f"{e.get('cause') or 'due'}"))
     if info["skipped"]:
-        out.append(("No test: " + "; ".join(info["skipped"]), "normal"))
+        out.append(("reason", f"{no_test(d, data['today'])}: " + "; ".join(short_reason(r) for r in info["skipped"])))
     for b in info["blocks"]:
-        out.append((b["short"][0].upper() + b["short"][1:] + (" (done)" if b["past"] else ""), "dim"))
+        text = b["short"][0].upper() + b["short"][1:]
+        out.append(("status", b["kind"], text + (" (done)" if b["past"] else "")))
+    for z in data["snoozes"]:
+        if z["until"] > d >= data["today"]:
+            out.append((f"Slot {z['slot']} snoozed to {z['until']:%a %d %b}"
+                        + (f" ({z['note']})" if z["note"] else ""), "label"))
     if not out:
         if data["plan_until"] is not None and d > data["plan_until"]:
-            out.append(("Beyond the plan, which ends once every drive has a test.", "dim"))
+            out.append(("Beyond the plan, which ends once every drive has a test.", "label"))
         elif d < data["today"]:
-            out.append(("No test on record.", "dim"))
+            out.append(("No test on record.", "label"))
         else:
-            out.append(("Nothing planned.", "dim"))
+            out.append(("Nothing planned.", "label"))
     return out
 
 
-def detail_lines(data, d):
-    """[(text, tone)] paragraphs for the day details screen."""
-    info = data["days"].get(d) or {"tests": [], "planned": [], "skipped": [], "blocks": []}
+def detail_rows(data, d):
+    """The day details screen: (heading,) rows, then rows as in day_rows plus
+    ("note", text) lines under them."""
+    info = data["days"].get(d) or EMPTY
     out = []
     if info["planned"]:
-        out += [("Planned (assuming earlier tests pass)", "warn")]
+        out.append(("heading", "Planned (assuming earlier tests pass)"))
         for e in info["planned"]:
-            out.append((f"  Slot {e['slot']}  {e['model']} ({e['serial']})", "normal"))
-            out.append((f"    starts {e['start']:%H:%M}, ends about {_hm(e['end'], e['start'].date())}", "normal"))
-            out.append((f"    why: {e['reason']}", "normal"))
+            out.append(("status", "planned", f"Slot {e['slot']}  {e['model']}  {e['serial']}"))
+            out.append(("note", f"starts {e['start']:%H:%M}, ends about {_hm(e['end'], e['start'].date())}"))
+            out.append(("note", f"why: {e.get('cause') or 'due'} ({e['reason']})"))
             if e["delayed_by"]:
-                out.append(("    waited for: " + "; ".join(e["delayed_by"]), "normal"))
-        out.append(("", "normal"))
+                out.append(("note", "waited for: " + "; ".join(short_reason(r) for r in e["delayed_by"])))
+        out.append(("",))
     if info["tests"]:
-        out += [("Test history (UniFi Drive)", "normal")]
+        out.append(("heading", "Test history (UniFi Drive)"))
         for x in info["tests"]:
-            word, span = outcome_text(x)
-            out.append((f"  Slot {x['slot']}  {x['model']} ({x['serial']}): extended test {word}, {span}",
-                        TONES[x["outcome"]]))
-        out.append(("", "normal"))
+            out.append(("status", KIND[x["outcome"]], f"Slot {x['slot']}  {x['model']}  {x['serial']}"))
+            out.append(("note", test_text(x)))
+        out.append(("",))
     if info["skipped"]:
-        out += [("Why no test starts this night", "normal")]
-        out += [(f"  - {r}", "normal") for r in info["skipped"]]
-        out.append(("", "normal"))
+        out.append(("heading", no_test(d, data["today"])))
+        out += [("reason", short_reason(r)) for r in info["skipped"]]
+        out.append(("",))
     if info["blocks"]:
-        out += [("Scrubs and backups", "normal")]
-        out += [(f"  - {b['text']}", "dim" if b["past"] else "normal") for b in info["blocks"]]
-        out.append(("", "normal"))
+        out.append(("heading", "Scrubs and backups"))
+        for b in info["blocks"]:
+            out.append(("status", b["kind"], b["text"]))
+        out.append(("",))
     held = [z for z in data["snoozes"] if z["until"] > d >= data["today"]]
     if held:
-        out += [("Snoozed drives", "normal")]
-        out += [(f"  - Slot {z['slot']} ({z['serial']}): {z['text']}", "normal") for z in held]
-        out.append(("", "normal"))
+        out.append(("heading", "Snoozed drives"))
+        out += [("value", f"Slot {z['slot']}  {z['serial']}: {z['text']}") for z in held]
+        out.append(("",))
     if data["plan_until"] is not None and d > data["plan_until"]:
-        out.append((f"The plan stops on {data['plan_until']:%a %d %b}, once every drive has a planned "
-                    "test. Later tests depend on how those go.", "dim"))
+        out.append(("label", f"The plan stops on {data['plan_until']:%a %d %b}, once every drive has a planned "
+                             "test. Later tests depend on how those go."))
     elif not out:
-        out.append(("Nothing tested, planned or blocked on this day.", "dim"))
-    while out and not out[-1][0]:
+        out.append(("label", "Nothing tested, planned or blocked on this day."))
+    while out and out[-1] == ("",):
         out.pop()
     return out
 
 
-def _fit(s, width):
-    return s if len(s) <= width else s[: max(0, width - 1)] + "~"
+def _date_y(d, today):
+    """'Sun 21 Feb', with the year outside today's."""
+    return f"{d:%a %d %b}" + (f" {d.year}" if d.year != today.year else "")
 
 
 # --------------------------------------------------------------------------- screens
 
 GRID_TOP = 2          # month line, weekday line
-WEEK_ROWS = 2         # day line, slot line (a month spans at most 6 weeks)
-LEGEND = [("S6", "warn", "planned"), ("S6", "good", "passed"), ("S6!", "bad", "failed"),
-          ("S6*", "warn", "running"), ("sc", "normal", "scrub"), ("bk", "normal", "backup")]
+WEEK_ROWS = 2         # day line, chip line (a month spans at most 6 weeks)
+MAX_CHIPS = 3
+
+
+def draw_row(c, y, x, row, width):
+    """One day_rows / detail_rows row at (y, x)."""
+    def W_fit(s, w):
+        return _fit(s, w, c.symbols["more"])
+    if row[0] == "status":
+        end = c.status(y, x, row[1]) + 1
+        c.text(y, end, W_fit(row[2], width - (end - x)), "dim" if row[2].endswith("(done)") else "normal")
+    elif row[0] == "reason":
+        c.styled(y, x, W_fit(row[1], width - 2), "reason")
+    elif row[0] == "note":
+        c.styled(y, x + 2, W_fit(row[1], width - 4), "note")
+    elif row[0] == "heading":
+        c.styled(y, x, W_fit(row[1], width), "heading")
+    elif len(row) == 2:
+        role, text = (row[0], row[1]) if row[0] in ("value", "label") else (row[1], row[0])
+        c.styled(y, x, W_fit(text, width), role)
 
 
 class CalendarScreen:
@@ -318,8 +381,8 @@ class CalendarScreen:
         self.sel = None
 
     def keys(self):
-        return [("Arrows", "day"), ("PgUp/Dn", "month"), ("Enter", "details"),
-                ("t", "today"), ("r", "recalculate")]
+        return [("Enter", "day details"), ("t", "today"), ("r", "recalculate"),
+                ("←→↑↓", "day"), ("PgUp/Dn", "month")]
 
     def show(self):
         try:
@@ -357,88 +420,147 @@ class CalendarScreen:
             return
         sym = c.symbols
         month = dt.date(self.sel.year, self.sel.month, 1)
-        c.text(0, 0, f"{sym['left']} {month:%B %Y} {sym['right']}", bold=True)
+        c.styled(0, 0, f"{sym['left']} {month:%B %Y} {sym['right']}", "heading")
         if self.error:
             c.text(2, 0, _fit(self.error, c.width - 1), "bad", bold=True)
             c.text(3, 0, "Press r to try again.", "dim")
             return
         data = self.data
-        right = (f"plan until {data['plan_until']:%a %d %b}" if data["plan_until"]
+        right = (f"planned through {_date_y(data['plan_until'], data['today'])}" if data["plan_until"]
                  else "nothing planned")
-        c.text(0, c.width - len(right), right, "dim")
+        c.styled(0, c.width - len(right), right, "label")
 
         cw = max(10, c.width // 7)
         for i, name in enumerate(calendar.day_abbr):
-            c.text(1, i * cw, f" {name}", "dim")
+            c.styled(1, i * cw + 1, name, "label")
         weeks = calendar.Calendar().monthdatescalendar(month.year, month.month)
         for w, week in enumerate(weeks):
             for i, d in enumerate(week):
                 if d.month == month.month:
                     self.cell(c.sub(GRID_TOP + w * WEEK_ROWS, i * cw, WEEK_ROWS, cw - 1), d)
 
-        top = GRID_TOP + len(weeks) * WEEK_ROWS + 1
-        legend_y = c.height - 1
-        extra = [(f"Snoozed: S{z['slot']} until {z['until']:%a %d %b}" + (f" ({z['note']})" if z["note"] else ""),
-                  "normal") for z in data["snoozes"]]
-        extra += [(f"Problem: {p}", "bad") for p in data["problems"]]
-        room = legend_y - top - 1            # rows for the selected day, below its heading
-        extra = extra[: max(0, room - 1)]
-        head = f"{self.sel:%a %d %b %Y}" + ("  today" if self.sel == data["today"] else "")
-        c.text(top, 0, head, bold=True)
-        lines = summary_lines(data, self.sel)
-        room -= len(extra)
-        if len(lines) > room:
-            lines = lines[: room - 1] + [(f"{sym['more']} {len(lines) - room + 1} more: Enter for details", "dim")]
-        for i, (text, tone) in enumerate(lines):
-            c.text(top + 1 + i, 2, _fit(text, c.width - 3), tone)
-        for i, (text, tone) in enumerate(extra):
-            c.text(legend_y - len(extra) + i, 0, _fit(text, c.width - 1), tone)
-        x = 0
-        for sample, tone, label in LEGEND:
-            c.text(legend_y, x, sample, tone, bold=tone in ("warn", "bad"))
-            c.text(legend_y, x + len(sample) + 1, label, "dim")
-            x += len(sample) + len(label) + 4
+        # The legend in the rule, then the selected day.
+        rule = GRID_TOP + len(weeks) * WEEK_ROWS
+        c.text(rule, 0, sym["h"] * c.width, "dim")
+        x = 3
+        for kind, label in LEGEND:
+            item = f"{sym[kind]} {label}"
+            if x + len(item) + 2 >= c.width:
+                break
+            c.text(rule, x - 1, f" {item} ", "dim")
+            x += len(item) + 2
+        top = rule + 1
+        head = f"{self.sel:%A %d %B}" + (f" {self.sel.year}" if self.sel.year != data["today"].year else "")
+        end = c.styled(top, 0, head, "heading")
+        if self.sel == data["today"]:
+            c.styled(top, end + 2, "today", "tag")
+        rows = day_rows(data, self.sel)
+        rows += [("reason", p) for p in data["problems"]]
+        room = c.height - top - 1
+        if len(rows) > room:
+            rows = rows[: max(0, room - 1)] + [(f"{len(rows) - room + 1} more: Enter for day details", "label")]
+        for i, row in enumerate(rows):
+            draw_row(c, top + 1 + i, 2, row, c.width - 3)
 
     def cell(self, c, d):
         data = self.data
-        info = data["days"].get(d) or {"tests": [], "planned": [], "skipped": [], "blocks": []}
+        info = data["days"].get(d) or EMPTY
+        past = d < data["today"]
         today = d == data["today"]
-        num = f"[{d.day:>2}]" if today else f" {d.day:>2} "
-        tone = "selected" if d == self.sel else ("dim" if d < data["today"] else "normal")
-        c.text(0, 0, num, tone, bold=today)
-        c.text(0, 5, " ".join(marks(info)), "dim" if d < data["today"] else "normal")
-        toks = tokens(info)
-        if not toks:
-            if info["skipped"]:
-                c.text(1, 1, "skipped", "dim")
+        chosen = d == self.sel
+        # Day number: brackets when selected, reversed digits for today.
+        if chosen:
+            c.text(0, 0, "[", "normal", bold=True)
+            c.text(0, 3, "]", "normal", bold=True)
+        c.text(0, 1, f"{d.day:>2}", "selected" if today else ("dim" if past else "normal"), bold=chosen)
+        x = 5
+        for kind in marks(info):
+            c.text(0, x, c.symbols[kind], "dim" if past else "accent")
+            x += 2
+        if today and x + 5 <= c.width:
+            c.text(0, x, "today", "accent")
+        items = chips(info)
+        if not items:
+            if info["skipped"] and not past:
+                c.text(1, 1, c.symbols["warning"], "warn")
             return
-        x, width = 1, c.width
-        for i, (text, tone) in enumerate(toks):
-            left = len(toks) - i
+        x = 1
+        for i, (kind, slot) in enumerate(items):
+            left = len(items) - i
+            text = f"{c.symbols[kind]}{slot}"
             more = f"+{left}"
-            if x + len(text) > width or (left > 1 and x + len(text) + 1 + len(more) > width):
+            if i == MAX_CHIPS or x + len(text) > c.width or (left > 1 and x + len(text) + 1 + len(more) > c.width):
                 c.text(1, x, more, "dim")
                 return
-            c.text(1, x, text, tone, bold=tone in ("warn", "bad"))
+            c.text(1, x, text, "dim" if past and kind == "ok" else STATUS_TONE[kind], bold=kind == "failed")
             x += len(text) + 1
 
 
+STATUS_TONE = {"ok": "good", "failed": "bad", "running": "accent", "planned": "warn"}
+
+
 class DayScreen:
-    """One day's details, pushed by Enter on the calendar."""
+    """One day's details, pushed by Enter on the calendar. Long rows wrap."""
 
     def __init__(self, ctx, data, day):
         self.ctx = ctx
         self.title = f"{day:%a %d %b %Y}"
-        self.text = ctx.widgets.ScrollText(detail_lines(data, day))
+        self.rows = detail_rows(data, day)
+        self.top = 0
+        self.page = 10
+        self.total = len(self.rows)
 
     def keys(self):
-        return self.text.keys()
+        return [("↑↓", "scroll")]
+
+    def lines(self, width):
+        """Each row wrapped: [(row for the first line or None, indent, text)]."""
+        wrap = self.ctx.widgets.wrap
+        out = []
+        for row in self.rows:
+            if row == ("",):
+                out.append((None, 0, ""))
+                continue
+            if row[0] == "status":
+                indent, text = 2, row[2]
+            elif row[0] in ("reason", "note"):
+                indent, text = (2 if row[0] == "reason" else 4), row[1]
+            elif row[0] == "heading":
+                indent, text = 0, row[1]
+            else:
+                indent, text = 0, row[1] if row[0] in ("value", "label") else row[0]
+            parts = wrap(text, max(10, width - indent)) or [""]
+            first = (row[0], row[1], parts[0]) if row[0] == "status" else (row[0], parts[0])
+            out.append((first, 0, ""))
+            out += [(None, indent, p) for p in parts[1:]]
+        return out
 
     def render(self, c):
-        self.text.render(c.sub(0, 1, c.height, c.width - 1))
+        lines = self.lines(c.width - 1)
+        self.total, self.page = len(lines), max(1, c.height)
+        self.top = max(0, min(self.top, max(0, self.total - self.page)))
+        for y, (row, indent, text) in enumerate(lines[self.top: self.top + c.height]):
+            if row is not None:
+                draw_row(c, y, 0, row, c.width - 1)
+            elif text:
+                c.text(y, indent, text, "dim" if indent == 4 else "normal")
+        if self.top + c.height < self.total:
+            c.text(c.height - 1, c.width - 1, c.symbols["down"], "dim")
+        if self.top:
+            c.text(0, c.width - 1, c.symbols["up"], "dim")
 
     def key(self, k):
-        return self.text.key(k)
+        step = {"up": -1, "down": 1, "pgup": -self.page, "pgdn": self.page}
+        if k in step:
+            self.top += step[k]
+        elif k == "home":
+            self.top = 0
+        elif k == "end":
+            self.top = self.total
+        else:
+            return False
+        self.top = max(0, min(self.top, max(0, self.total - self.page)))
+        return True
 
 
 def shift_month(d, n):
