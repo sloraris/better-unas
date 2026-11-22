@@ -6,7 +6,8 @@ never draws a screen, so it works in scripts, cron and over plain ssh:
     better-unas                          open the terminal app
     better-unas status                   suite version, then each tool's status
     better-unas list                     installed, uninstalled and available tools
-    better-unas update [--check] [--yes] update the suite and installed tools
+    better-unas update [--check] [--yes] [--ref <branch|tag>]
+                                         update the suite and installed tools
     better-unas install <tool>... [--yes]
     better-unas uninstall <tool> [--purge] [--yes]
     better-unas <tool> <command...>      a tool's own command (tool.conf CLI)
@@ -52,6 +53,10 @@ Commands:
                             an uninstalled tool stays off
       --check               only check for an update, change nothing
       --yes, -y             don't ask before updating
+      --ref <branch|tag>    install that branch or tag from GitHub instead,
+                            released or not (e.g. --ref main to test
+                            unreleased changes); plain `update` goes back
+                            to the latest release
   install <tool>...         install tools from the installed release
       --yes, -y             don't ask first
   uninstall <tool>          run the tool's uninstall.sh; its config is kept
@@ -175,8 +180,13 @@ class CLI:
             self.say(f"    {line}")
 
     # ------------------------------------------------------------- commands
+    def version_text(self, missing):
+        ref = U.installed_ref(self.home)
+        ver = self.up.current() or missing
+        return f"{ver} (from {ref}, not a release)" if ref else ver
+
     def cmd_version(self):
-        self.say(f"{PROG} {self.up.current() or 'unknown'}")
+        self.say(f"{PROG} {self.version_text('unknown')}")
         return OK
 
     def update_line(self):
@@ -191,7 +201,7 @@ class CLI:
         return self.c.green(f"up to date (checked {st['checked_at']})")
 
     def cmd_status(self):
-        self.say(f"{self.c.bold(PROG)} {self.up.current() or 'unknown version'}")
+        self.say(f"{self.c.bold(PROG)} {self.version_text('unknown version')}")
         self.say(f"  {self.update_line()}")
         tools = I.installed_tools(self.home)
         if not tools:
@@ -221,7 +231,7 @@ class CLI:
     def cmd_list(self):
         rows = I.catalog(self.home)
         rel = I.release_source(self.home)
-        self.say(f"{self.c.bold(PROG)} {self.up.current() or 'unknown version'}")
+        self.say(f"{self.c.bold(PROG)} {self.version_text('unknown version')}")
         if not rows:
             self.say("")
             self.say("No tools here yet.")
@@ -276,6 +286,31 @@ class CLI:
         self.say(f"Downloading {st['latest']} ...")
         try:
             report = self.up.update(st["latest"])
+        except (OSError, LookupError, I.InstallError) as e:
+            raise Problem(f"update failed: {e}") from None
+        return self.report(report)
+
+    def cmd_update_ref(self, ref, yes):
+        """Install a branch or tag from GitHub, release or not: for testing
+        unreleased changes. A later plain `update` goes back to releases."""
+        if not U.valid_ref(ref):
+            raise UsageError(f"invalid --ref {ref!r}")
+        self.need_root()
+        tools = I.installed_tools(self.home)
+        self.say(f"Install {self.c.bold(ref)} from GitHub over {self.up.current() or '?'}.")
+        self.say(self.c.yellow("  This can be unreleased development code. "
+                               f"`{PROG} update` goes back to the latest release."))
+        if tools:
+            self.say(f"  reinstalls: {', '.join(tools)} (config and state are kept)")
+        if not yes and self.ask is False:
+            self.say(f"Not updating without a terminal to ask on; run: {PROG} update --ref {ref} --yes")
+            return UPDATE_AVAILABLE
+        if not self.confirm(f"Install {ref}?", yes):
+            self.say("Cancelled.")
+            return OK
+        self.say(f"Downloading {ref} ...")
+        try:
+            report = self.up.update(ref, ref=True)
         except (OSError, LookupError, I.InstallError) as e:
             raise Problem(f"update failed: {e}") from None
         return self.report(report)
@@ -371,6 +406,9 @@ class CLI:
             return self.cmd_version()
         commands = {"status", "list", "update", "install", "uninstall"}
         if first in commands:
+            ref = None
+            if first == "update":
+                ref, rest = _take_value(rest, "--ref")
             flags, pos = _split(rest)
             if "-h" in flags or "--help" in flags:
                 self.say(USAGE.rstrip("\n"))
@@ -388,6 +426,10 @@ class CLI:
             if first == "list":
                 return self.cmd_list()
             if first == "update":
+                if ref is not None:
+                    if "--check" in flags:
+                        raise UsageError("--ref and --check don't go together (try --help)")
+                    return self.cmd_update_ref(ref, yes)
                 return self.cmd_update("--check" in flags, yes)
             if first == "install":
                 return self.cmd_install(pos, yes)
@@ -401,6 +443,26 @@ class CLI:
         if I.valid_name(first) and first in I.uninstalled_tools(self.home):
             raise Problem(f"{first} is uninstalled; {PROG} install {first} turns it back on")
         raise UsageError(f"unknown command or tool {first!r} (try --help)")
+
+
+def _take_value(args, name):
+    """Pull `name value` or `name=value` out of args. Returns (value or None, rest)."""
+    rest, value, i = [], None, 0
+    while i < len(args):
+        a = args[i]
+        if a == name:
+            if i + 1 >= len(args) or args[i + 1].startswith("-"):
+                raise UsageError(f"{name} needs a value (try --help)")
+            value, i = args[i + 1], i + 2
+            continue
+        if a.startswith(name + "="):
+            value = a[len(name) + 1:]
+            if not value:
+                raise UsageError(f"{name} needs a value (try --help)")
+        else:
+            rest.append(a)
+        i += 1
+    return value, rest
 
 
 def _split(args):
