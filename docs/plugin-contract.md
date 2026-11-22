@@ -424,10 +424,10 @@ class DrivesScreen:
 - **`show()`** is where reads happen (via `ctx.run_slow`), so the calendar is
   recalculated every time it opens. `render()` must only draw from what
   `show()` or `key()` loaded; it is called often.
-- **`render(canvas)`** gets a canvas the size of the area between the tab bar
-  and the footer, already cleared. It draws inside it; anything outside is
+- **`render(canvas)`** gets a canvas the size of the area between the nav box
+  and the action box, already cleared. It draws inside it; anything outside is
   clipped. It must cope with any size from 80x20 up (the core shows "please
-  widen" below 80x24 and never calls `render`).
+  widen" below 80x28 and never calls `render`).
 - **`key(k)`** gets one key name: a printable character (`"t"`, `"Z"`, `"?"`)
   or one of `up down left right enter esc tab backtab pgup pgdn home end
   backspace delete f1`...`f12`. Return `True` if the screen used it.

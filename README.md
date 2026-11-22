@@ -71,7 +71,8 @@ survives firmware updates). `better-unas` is linked from `/usr/local/bin`.
 
 Run `better-unas` to open it. Tabs along the top switch with the number keys
 or Tab, arrows and Enter work within a screen, Esc goes back, `?` lists the
-keys and `q` quits. The terminal needs to be at least 80x24. Colors follow
+keys and `q` quits. The terminal needs to be at least 80x28; the app asks a smaller one to grow
+where the terminal allows it. Colors follow
 your terminal (green good, yellow planned or warning, red failed, dim past),
 the words always say the same thing, and `NO_COLOR` is respected.
 
@@ -100,7 +101,7 @@ the words always say the same thing, and `NO_COLOR` is respected.
 
 Calendar and Drives come from smart-scheduler's plugin; a tool without
 screens just gets a Home card and a Settings section. The captures are the
-real app at 80x24 against the test fixtures (`python3 docs/screens/make.py`
+real app at 80x28 against the test fixtures (`python3 docs/screens/make.py`
 regenerates them).
 
 ## Commands

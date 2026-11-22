@@ -1,5 +1,7 @@
- 1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings                  v0.2.0
- Calendar › Sun 22 Nov 2026 ─────────────────────────────────── smart-scheduler
+┌───────────────────────────────────────────────────────────────────── v0.2.0 ─┐
+│    1 Home     │  2 Calendar   │   3 Drives    │   4 Alerts    │  5 Settings  │
+└─ Sun 22 Nov 2026 ────────────────────────────────────────── smart-scheduler ─┘
+
  Test history (UniFi Drive)
  ▶ Slot 1  ST4000VN006-3CW104  SERIAL1
    ↳ extended test running, started 00:10
@@ -20,5 +22,7 @@
 
 
 
-                                                                      ↑↓ scroll
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                                                   ↑↓ scroll  │
+└──────────────────────────────────────────────────────────────────────────────┘
  Esc back  1-5/Tab tabs                                          ? help  q quit

@@ -1,5 +1,7 @@
- 1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings                  v0.2.0
- Settings › smart-scheduler ──────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────── v0.2.0 ─┐
+│    1 Home     │  2 Calendar   │   3 Drives    │   4 Alerts    │  5 Settings  │
+└─ smart-scheduler ────────────────────────────────────────────────────────────┘
+
  ! installed   smart-scheduler/config                        no unsaved changes
  General
    Enabled                     [x] yes
@@ -14,11 +16,13 @@
    Warning attributes          5,187,197,198
    Per-drive intervals         (none)
    Never test                  (none)
-
- When tests may start                                                         ↓
- ──────────────────────────────────────────────────────────────────────────────
- The hourly check that starts tests when they're due. Off: saving removes its
- timer; running tests finish. On: saving puts the timer back.
-
- s save  p preview  Space toggle  x uninstall  i reinstall              ↑↓ move
+                                                                              ↓
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ The hourly check that starts tests when they're due. Off: saving removes its │
+│ timer; running tests finish. On: saving puts the timer back.                 │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  s save  p preview  Space toggle  x uninstall  i reinstall          ↑↓ move  │
+└──────────────────────────────────────────────────────────────────────────────┘
  Esc back  1-5/Tab tabs                                          ? help  q quit

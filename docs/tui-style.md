@@ -13,18 +13,27 @@ Where this came from: the first hardware run showed screens that worked but read
 5. **Only things that do something are selectable.** Each stop goes somewhere different.
 6. **Never rely on color alone.** Every colored meaning also has a glyph or a word, so `NO_COLOR` and ASCII terminals lose nothing.
 
-## 2. Screen anatomy (80x24 and up)
+## 2. Screen anatomy (80x28 and up)
 
 ```
- 0  tab bar     1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings    v0.2.1
- 1  title rule  Drives › Slot 4 ─────────────────────────────── smart-scheduler
- 2  body        (rows 2-21: 20 rows; see section 4)
-22  action bar  [t] test  [z] snooze  [x] exclude  [i] interval     ↑↓ history
-23  nav bar     Esc back   1-5 tabs                           ? help   q quit
+ 0  nav box     ┌──────────────────────────────────────────────── v0.2.1 ─┐
+ 1              │  1 Home  │ 2 Calendar │  3 Drives  │  4 Alerts │ 5 Set… │
+ 2              └─ Slot 4 ─────────────────────────────── smart-scheduler ─┘
+ 3  (blank)
+ 4  body        (rows 4-23: 20 rows; see section 4)
+19  info box    ┌─────────────────────────────────────────────────────────┐
+                │ help for the selected setting, up to three lines        │
+23              └─────────────────────────────────────────────────────────┘
+24  action box  ┌─────────────────────────────────────────────────────────┐
+25              │  [t] test  [z] snooze  [x] exclude          ↑↓ history  │
+26              └─────────────────────────────────────────────────────────┘
+27  nav bar     Esc back   1-5 tabs                         ? help   q quit
 ```
 
-- **Tab bar, right end:** the installed version, dim. When an update is available it becomes `▲ v0.2.2` in the warn tone, on every screen. Enter isn't involved: the update itself lives in Settings › better-unas (section 6).
-- **Action bar:** only this screen's own keys. Each key is drawn as a **chip**, the key letter in reverse video with a space on each side, followed by its label in normal text. Movement hints (`↑↓ history`, `←→ change`) go at the right end in dim, without chips. If the keys don't fit, the bar ends with `[?] more`. There's no `───` rule on this row any more, so it can't be mistaken for a title.
+- **Nav box:** the tabs share the full width equally, and the current one is reversed across its whole share. The installed version sits in the top edge at the right, dim. When an update is available it becomes `▲ v0.2.2` in the warn tone, on every screen; DRY RUN goes to its left. Enter isn't involved: the update itself lives in Settings › better-unas (section 6).
+- **Breadcrumb:** in the nav box's bottom edge at the left, accent and bold. It lists the screens below the tab (`Slot 4`, `space-watch › Preview`). The tab itself isn't repeated, because the highlighted tab right above already says it. Top-level screens show no breadcrumb. The tool that owns the screen sits at the right of that edge, dim.
+- **Info box:** shown only on screens with a form (Settings and the setup wizard). It spans the full width just above the action box and holds the selected field's help. The body loses its 5 rows.
+- **Action bar** (inside the action box): only this screen's own keys. Each key is drawn as a **chip**, the key letter in reverse video with a space on each side, followed by its label in normal text. Movement hints (`↑↓ history`, `←→ change`) go at the right end in dim, without chips. If the keys don't fit, the bar ends with `[?] more`. There's no `───` rule on this row any more, so it can't be mistaken for a title.
 - **Nav bar:** dim, no chips. Back and tabs on the left; help and quit on the right. It looks the same on every screen, which teaches people to stop reading it.
 - **Messages** (the toast after an action) replace the action bar for 4 seconds or until the next key. They start with their glyph (section 3) and carry its tone.
 
@@ -78,7 +87,7 @@ This fixes:
 5. **Use the height.** If a screen has a growing region (a list, a history, a log), that region takes all the height left after the fixed blocks. Fixed blocks don't get squeezed to make room for empty space at the bottom. Detail screens put their summary blocks at the top and the growing region below them, filling down to the action bar.
 6. **Tables.** Column headers are labels (dim). One column is flexible and takes the spare width; the others are sized to their content. A status column holds glyph + word, never a word alone.
 7. **Selection detail.** When a list screen shows more about the selected row, it goes in a panel at the bottom of the body. The panel's title names the row, so it can't be mistaken for part of the list.
-8. **Widths.** Everything has to work at 80x24. Wider terminals give the flexible column and the growing region more room, and nothing else changes. Layouts don't switch at breakpoints, except that at 100+ columns a third panel may sit beside the first two.
+8. **Widths.** Everything has to work at 80x28. Wider terminals give the flexible column and the growing region more room, and nothing else changes. Layouts don't switch at breakpoints, except that at 100+ columns a third panel may sit beside the first two.
 
 This fixes: SMART and schedule details bunched at the top with half the screen empty below.
 

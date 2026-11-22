@@ -312,7 +312,7 @@ class SettingsScreen:
         return "", glyph, state + extra, "dim" if glyph is None else "normal"
 
     def render(self, canvas):
-        y = 1
+        y = 0   # the chrome already leaves a blank line above the body
         stops = self.stops()
         for i, entry in enumerate(self.entries):
             if y >= canvas.height:

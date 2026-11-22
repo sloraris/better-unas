@@ -323,7 +323,7 @@ class PlanTests(Base):
 class WizardTests(SnapshotMixin, Base):
     def make_app(self, dry_run=False, setup=None):
         self.s = setup or self.setup()
-        self.term = HeadlessTerminal(80, 24)
+        self.term = HeadlessTerminal(80, 28)
         self.frames = []
         real_end = self.term.end_frame
 
@@ -356,15 +356,15 @@ class WizardTests(SnapshotMixin, Base):
     def test_full_install(self):
         app = self.make_app()
         text = app.press(" ", "enter")
-        self.assertIn("Setup › Notifications", text)
+        self.assertIn("└─ Notifications ", text)
         text = app.press("n")
         self.assertSnapshot("setup_essentials", text)
         # Healthy drive: 90 -> 60
         app.press("enter", "backspace", "backspace", "6", "0", "enter")
         text = app.press("n")
-        self.assertIn("Review", text.splitlines()[1])
+        self.assertIn("Review", text.splitlines()[2])
         self.assertIn("INTERVAL_DAYS=60   (was 90)", text)
-        self.assertIn("Enter install", text.split("\n")[22])
+        self.assertIn("Enter install", text.split("\n")[25])
         self.assertFalse(os.path.exists(self.home))
         app.press("enter", "n")                              # said no at the confirm
         self.assertIn("Install better-unas", self.frame_with("[ Yes ]"))
@@ -396,7 +396,7 @@ class WizardTests(SnapshotMixin, Base):
         app.press(" ", "enter", "n", "enter", "backspace", "backspace", "0", "enter")
         text = app.press("n")
         self.assertIn("Healthy drive:", text)
-        self.assertIn("settings", text.splitlines()[1])
+        self.assertIn("settings", text.splitlines()[2])
 
     def test_cancel_changes_nothing(self):
         app = self.make_app()
@@ -415,7 +415,7 @@ class WizardTests(SnapshotMixin, Base):
         text = app.press(" ", "enter", "n", "n")
         self.assertIn("Dry run: this is what setup would do.", text)
         self.assertIn("DRY RUN", text.splitlines()[0])
-        self.assertNotIn("Enter install", text.split("\n")[22])
+        self.assertNotIn("Enter install", text.split("\n")[25])
         text = app.press("enter")
         self.assertIn("Dry run: nothing was changed.", text)
         self.assertFalse(os.path.exists(self.home))
@@ -468,7 +468,7 @@ class LauncherTests(Base):
         return code, out.getvalue(), err.getvalue()
 
     def test_dry_run_headless(self):
-        code, out, _ = self.main("--source", self.src, "--dry-run", "--headless", "80x24",
+        code, out, _ = self.main("--source", self.src, "--dry-run", "--headless", "80x28",
                                  "--keys", "space enter n n")
         self.assertEqual(code, 0)
         self.assertIn(f"{TOOL} 0.1.1 (new)", out)
@@ -485,7 +485,7 @@ class LauncherTests(Base):
 
     def test_dry_run_shows_preflight_problems_as_warnings(self):
         with mock.patch.object(S, "preflight", return_value=["Missing tar; this firmware isn't supported."]):
-            code, out, _ = self.main("--source", self.src, "--dry-run", "--headless", "80x24")
+            code, out, _ = self.main("--source", self.src, "--dry-run", "--headless", "80x28")
         self.assertEqual(code, 0)
         self.assertIn("Not checked in a dry run: Missing tar", out)
 
@@ -501,10 +501,10 @@ class LauncherTests(Base):
         with open(os.path.join(self.home, S.MARKER), "w") as f:
             f.write("v0.2.0\n")
         with mock.patch.object(entry, "first_run") as fr:
-            code, out, _ = self.main("--headless", "80x24")
+            code, out, _ = self.main("--headless", "80x28")
         fr.assert_not_called()
         self.assertEqual(code, 0)
-        self.assertIn("Home", out.splitlines()[0])
+        self.assertIn("Home", out.splitlines()[1])
 
 
 if __name__ == "__main__":

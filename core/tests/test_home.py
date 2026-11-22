@@ -3,7 +3,7 @@
     python3 -m unittest discover -s core/tests
 
 Fake plugins stand in for real tools and a fake core.updates for the update
-checker; everything renders headless at 80x24. UPDATE_SNAPSHOTS=1 regenerates
+checker; everything renders headless at 80x28. UPDATE_SNAPSHOTS=1 regenerates
 the snapshots in core/tests/snapshots/.
 """
 
@@ -147,7 +147,7 @@ class HomeFixture(SnapshotMixin):
         patch.start()
         self.addCleanup(patch.stop)
         tools, broken = P.discover(self.home)
-        self.term = HeadlessTerminal(80, 24)
+        self.term = HeadlessTerminal(80, 28)
         app = App(self.term, tools, broken, clock=lambda: CLOCK, theme=Theme(True))
         app.start()
         app.draw()
@@ -171,11 +171,11 @@ class HomeSnapshotTests(HomeFixture, unittest.TestCase):
     def test_update_available(self):
         self.tool(FRESH)
         app = self.make_app(updates=UPDATE)
-        line = self.term.text().split("\n")[2]
+        line = self.term.text().split("\n")[4]
         self.assertIn("› ▲ Update available: v0.3.0", line)
         self.assertTrue(line.rstrip().endswith("Settings › better-unas"))
         self.assertEqual(self.updates.calls, [self.home])
-        self.assertIn("Enter open Settings › better-unas", self.term.text().split("\n")[22])
+        self.assertIn("Enter open Settings › better-unas", self.term.text().split("\n")[25])
         self.check("update", app)
 
     def test_active_alert(self):
@@ -221,7 +221,7 @@ class HomeBehaviourTests(HomeFixture, unittest.TestCase):
         app.press("1", "down", "enter")
         self.assertEqual(app.tab.title, "Calendar")
         text = app.press("1", "down", "down")
-        self.assertIn("Enter open Drives", text.split("\n")[22])
+        self.assertIn("Enter open Drives", text.split("\n")[25])
         self.assertIn("› Drives", text)                       # where it goes, at the right
         app.press("enter")
         self.assertEqual(app.tab.title, "Drives")
@@ -262,7 +262,7 @@ class HomeBehaviourTests(HomeFixture, unittest.TestCase):
         app = self.make_app(updates=UPDATE)
         app.press("enter")
         self.assertEqual(app.tab.title, "Settings")
-        self.assertIn("Settings › better-unas", self.term.text().split("\n")[1])
+        self.assertIn("└─ better-unas ", self.term.text().split("\n")[2])
 
     def test_item_targets(self):
         items = [{"label": "Odd", "value": "x", "target": "Nowhere"},          # no such tab: not a stop
@@ -323,7 +323,7 @@ class HomeBehaviourTests(HomeFixture, unittest.TestCase):
         self.tool(dict(FRESH, status={"enabled": False, "state": "off",
                                       "problems": ["Timer is missing; the next run restores it."]}))
         text = self.make_app() and self.term.text()
-        self.assertIn(" off ", text.split("\n")[4])
+        self.assertIn(" off ", text.split("\n")[6])
         self.assertIn("! Timer is missing", text)
 
     def test_broken_and_plugin_less_tools(self):
@@ -345,7 +345,7 @@ class HomeBehaviourTests(HomeFixture, unittest.TestCase):
         for i in range(4):
             self.tool(RUNNING, name=f"tool-{i}")
         app = self.make_app()
-        self.assertIn("…", self.term.text().splitlines()[21])
+        self.assertIn("…", self.term.text().splitlines()[23])
         app.press("end")
         lines = self.term.text().splitlines()
         self.assertTrue(any("tool-3" in line for line in lines))

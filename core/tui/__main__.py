@@ -2,7 +2,7 @@
 
     python3 -m core.tui --demo                 placeholder tabs + the space-watch example
     python3 -m core.tui                        the tools found next to core/
-    python3 -m core.tui --demo --headless 80x24 --keys "3 down enter"
+    python3 -m core.tui --demo --headless 80x28 --keys "3 down enter"
                                                render to text and print the last frame
 
 The headless keys are space-separated key names (see core/tui/keys.py), or
@@ -26,7 +26,7 @@ from .. import setup as S
 from .. import updates
 from . import demo
 from . import setup as wizard
-from .app import App
+from .app import MIN_H, MIN_W, App
 from .terminal import HeadlessTerminal, ScriptDone, run_curses
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -116,7 +116,7 @@ def main(argv=None, out=sys.stdout, execv=os.execv):
                 # Cached for a few hours, so this rarely touches the network;
                 # the tab bar, Home and Settings read it with updates.cached_status().
                 updates.check_in_background(home)
-            app = run_curses(build)
+            app = run_curses(build, min_size=(MIN_W, MIN_H))
             if app is not None and app.restart:
                 # curses has put the terminal back; replace this process.
                 cmd = restart_command(home, argv if argv is not None else sys.argv[1:])
@@ -169,7 +169,7 @@ def first_run(args, out):
         app.draw()
         print(term.text(), file=out)
         return 0
-    run_curses(build)
+    run_curses(build, min_size=(MIN_W, MIN_H))
     if not setup.done:
         print("Setup left; nothing was changed." if not args.dry_run else
               "Dry run finished; nothing was changed.", file=sys.stderr)

@@ -1,5 +1,7 @@
- 1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings
- Settings › smart-scheduler › Calendar preview (unsaved settings) ────────────
+┌──────────────────────────────────────────────────────────────────────────────┐
+│    1 Home     │  2 Calendar   │   3 Drives    │   4 Alerts    │  5 Settings  │
+└─ smart-scheduler › Calendar preview (unsaved settings) ──────────────────────┘
+
  ‹ November 2026 ›                                   planned through Wed 25 Nov
   Mon        Tue        Wed        Thu        Fri        Sat        Sun
                                                                      1
@@ -20,5 +22,7 @@
    ○ Slot 4  planned 02:00-16:16, baseline
 
 
- Enter day details  t today  r recalculate              ←→↑↓ day  PgUp/Dn month
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  Enter day details  t today  r recalculate          ←→↑↓ day  PgUp/Dn month  │
+└──────────────────────────────────────────────────────────────────────────────┘
  Esc back  1-5/Tab tabs                                          ? help  q quit

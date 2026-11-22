@@ -1,5 +1,7 @@
- 1 Home │ 2 Board │ 3 Space │ 4 Alerts │ 5 Settings
- Board › Help ───────────────────────────────────────────────────────── fixture
+┌──────────────────────────────────────────────────────────────────────────────┐
+│    1 Home     │    2 Board    │    3 Space    │   4 Alerts    │  5 Settings  │
+└─ Help ───────────────────────────────────────────────────────────── fixture ─┘
+
  Keys on this screen
    Enter        open
    b            boom
@@ -20,5 +22,7 @@
    ↻  scrub                  (cyan)
    ⇡  backup window          (cyan)
    ▲  update available       (yellow)
-                                                                      ↑↓ scroll
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                                                   ↑↓ scroll  │
+└──────────────────────────────────────────────────────────────────────────────┘
  Esc back  1-5/Tab tabs                                          ? help  q quit

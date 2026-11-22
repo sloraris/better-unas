@@ -1,15 +1,17 @@
-"""The app shell: tab bar, header, body, message line and footer; the screen
+"""The app shell: nav box, body, info box, action box and nav bar; the screen
 stacks; key routing; and the per-tool context from docs/plugin-contract.md.
 
-Layout at any size from 80x24 up:
+Layout at any size from 80x28 up (docs/tui-style.md §2):
 
-    row 0        tab bar          1 Home  2 Calendar  3 Drives ...
-    row 1        header           screen title (and breadcrumbs), tool name
-    rows 2..h-3  body             the screen's canvas (20 rows at 80x24)
-    row h-2      message line     toast, spinner or "waiting for the lock"
-    row h-1      footer           the keys that work right now
+    rows 0..2      nav box      tabs across the width; version in the top edge,
+                                breadcrumb and tool name in the bottom edge
+    row 3          blank
+    rows 4..h-5    body         the screen's canvas (20 rows at 80x28)
+    rows h-9..h-5  info box     only for screens with a form: the field's help
+    rows h-4..h-2  action box   the screen's keys, or a toast or spinner
+    row h-1        nav bar      back, tabs, help, quit
 
-Smaller than 80x24 shows only a "please widen" screen.
+Smaller than 80x28 shows only a "please widen" screen.
 """
 
 import contextlib
@@ -29,8 +31,12 @@ from .keys import RESIZE
 from .lock import LockBusy, run_lock
 from .theme import Theme
 
-MIN_W, MIN_H = 80, 24
-CHROME = 4   # rows outside the body
+MIN_W, MIN_H = 80, 28
+# Rows outside the body (docs/tui-style.md §2): the nav box (3) and a blank
+# line above it; the action box (3) and the nav bar below it.
+HEAD, FOOT = 4, 4
+CHROME = HEAD + FOOT
+INFO_H = 5   # the info box above the action box: three lines of help (§8)
 
 
 class Context:
@@ -402,9 +408,10 @@ class App:
                 core.render_too_small(canvas, MIN_W, MIN_H)
                 return
             h, w = canvas.height, canvas.width
-            self.draw_tabs(canvas.sub(0, 0, 1, w))
-            self.draw_header(canvas.sub(1, 0, 1, w))
-            body = canvas.sub(2, 1, h - CHROME, w - 2)   # 1-column margins (tui-style.md §4)
+            self.draw_nav_box(canvas.sub(0, 0, 3, w))
+            info = self.screen_info()
+            info_h = INFO_H if info is not None else 0
+            body = canvas.sub(HEAD, 1, h - CHROME - info_h, w - 2)   # 1-column margins (tui-style.md §4)
             try:
                 self.screen.render(body)
             except Exception as e:
@@ -413,42 +420,92 @@ class App:
                 body.text(0, 0, f"This screen failed to draw: {type(e).__name__}: {e}", "bad", bold=True)
             if self.overlay is not None:
                 self.overlay.render(body)
-            line = canvas.sub(h - 2, 0, 1, w)
+            if info_h:
+                top = h - FOOT - info_h
+                canvas.box(top, 0, info_h, w, tone="dim")
+                for i, text in enumerate(widgets.wrap(info, w - 4)[:info_h - 2]):
+                    canvas.text(top + 1 + i, 2, text, "dim")
+            canvas.box(h - 4, 0, 3, w, tone="dim")
+            line = canvas.sub(h - 3, 2, 1, w - 4)
             if self.spinner is not None:
-                self.spinner.render(line, 0, 1)
+                self.spinner.render(line, 0, 0)
             elif self.toast is not None:
-                self.toast.render(line, 0, 1)
+                self.toast.render(line, 0, 0)
             else:
                 self.draw_screen_keys(line)
             self.draw_footer(canvas.sub(h - 1, 0, 1, w))
         finally:
             self.term.end_frame()
 
-    def draw_tabs(self, c):
-        x = 0
-        sep = c.symbols["sep"]
-        full = sum(len(t.title) + 4 for t in self.tabs) <= c.width
-        for i, t in enumerate(self.tabs):
-            num = str(i + 1) if i < 9 else " "
-            label = f" {num} {t.title} " if full or i == self.current else f" {num} "
-            c.text(0, x, label, "selected" if i == self.current else "normal",
-                   bold=i == self.current)
-            x += len(label)
-            if i < len(self.tabs) - 1:
-                c.text(0, x, sep, "dim")
-                x += 1
-        right = c.width - 1
-        if self.dry_run:
-            right -= 9
-            c.text(0, right, " DRY RUN ", "warn", bold=True)
-            right -= 1
+    def screen_info(self):
+        """The info box's text for the current screen, or None for no box: the
+        screen's info() if it has one, else the help of the field selected in
+        its form (a widgets.Form at screen.form, which then leaves it out)."""
+        screen = self.screen
+        try:
+            if hasattr(screen, "info"):
+                return screen.info()
+            form = getattr(screen, "form", None)
+        except Exception as e:
+            self.log(f"info: {type(e).__name__}: {e}")
+            return None
+        if isinstance(form, widgets.Form):
+            form.help_outside = True
+            cur = form.current
+            return (cur.help or "") if cur is not None else ""
+        return None
+
+    def draw_nav_box(self, c):
+        """The nav box (docs/tui-style.md §2): the tabs spread across the width,
+        the version (or DRY RUN) in its top edge at the right, and in its
+        bottom edge the path below the tab, in accent (the tab itself is the
+        highlighted button, so it isn't repeated), with the tool at the right."""
+        w = c.width
+        c.box(0, 0, 3, w, tone="dim")
+        self.draw_tabs(c.sub(1, 1, 1, w - 2))
+        right = w - 2
         badge = self.version_badge()
         if badge:
             update, text = badge
-            if update:
-                text = f"{c.symbols['update']} {text}"
-            if x + len(text) + 2 <= right:
-                c.text(0, right - len(text), text, "warn" if update else "dim", bold=update)
+            text = f" {c.symbols['update']} {text} " if update else f" {text} "
+            c.text(0, right - len(text), text, "warn" if update else "dim", bold=update)
+            right -= len(text)
+        if self.dry_run:
+            c.text(0, right - 10, " DRY RUN ", "warn", bold=True)
+        st = self.stack()
+        owner = next((self.owners[id(s)] for s in reversed(st) if id(s) in self.owners), "")
+        end = w - 2
+        if owner:
+            end -= len(owner) + 2
+            c.text(2, end, f" {owner} ", "dim")
+        crumbs = [getattr(s, "title", "") for s in st[1:]]
+        if any(crumbs):
+            path = f" {c.symbols['right']} ".join(t for t in crumbs if t)
+            c.text(2, 2, f" {widgets.fit(path, max(1, end - 6))} ", "accent", bold=True)
+
+    def draw_tabs(self, c):
+        """Each tab gets an equal share of the row, separated by a dim bar; the
+        current one is reversed across its share."""
+        n = len(self.tabs)
+        if not n:
+            return
+        sep = c.symbols["sep"]
+        share, extra = divmod(c.width - (n - 1), n)
+        x = 0
+        for i, t in enumerate(self.tabs):
+            cw = share + (1 if i < extra else 0)
+            num = str(i + 1) if i < 9 else " "
+            label = f"{num} {t.title}"
+            if len(label) > cw - 2:
+                label = num
+            cur = i == self.current
+            pad_l = (cw - len(label)) // 2
+            cell = " " * pad_l + label + " " * (cw - pad_l - len(label))
+            c.text(0, x, cell, "selected" if cur else "normal", bold=cur)
+            x += cw
+            if i < n - 1:
+                c.text(0, x, sep, "dim")
+                x += 1
 
     def version_badge(self):
         """(update, text) for the right end of the tab bar: (False, installed
@@ -481,17 +538,6 @@ class App:
 
     def forget_badge(self):
         self._badge = None
-
-    def draw_header(self, c):
-        st = self.stack()
-        titles = [getattr(s, "title", "") or self.tab.title for s in st]
-        title = f" {c.symbols['right']} ".join(titles)
-        owner = next((self.owners[id(s)] for s in reversed(st) if id(s) in self.owners), "")
-        c.text(0, 1, widgets.fit(title, c.width - len(owner) - 6), "normal", bold=True)
-        x = min(len(title), c.width - len(owner) - 6) + 2
-        c.text(0, x, c.symbols["h"] * (c.width - x - len(owner) - 2), "dim")
-        if owner:
-            c.text(0, c.width - len(owner) - 1, owner, "dim")
 
     MOVES = ("↑", "↓", "←", "→", "Arrows", "PgUp", "PgDn", "Home", "End")
 

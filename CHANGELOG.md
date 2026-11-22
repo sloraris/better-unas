@@ -8,7 +8,7 @@ real NAS.
 ### better-unas
 
 - `better-unas` terminal app (curses, standard library only): Home, Settings,
-  Alerts and Tools tabs, plus tabs a tool brings. Minimum 80x24, `NO_COLOR`
+  Alerts and Tools tabs, plus tabs a tool brings. Minimum 80x24 (now 80x28), `NO_COLOR`
   respected, every screen also renders headless for tests (#4).
 - Plugin contract: `tool.conf` manifest, settings schema, optional plugin
   module for the Home card, alerts and screens; `python3 core/plugins.py check
@@ -93,6 +93,13 @@ real NAS.
   tag or commit for a one-off.
 - Plain commands: `better-unas status`, `list`, `update`, `install`,
   `uninstall`, `<tool> <command>`, with exit codes for scripts (#16).
+- Boxed chrome: the tabs sit in a nav box spanning the width, with the
+  version in its top edge and the breadcrumb (accent, without the tab it's
+  already under) in its bottom edge, then a blank line before the page. The
+  screen's keys sit in an action box above the nav bar, and on Settings and
+  setup forms the selected field's help sits in a full-width box above that.
+  The minimum size is now 80x28; at start the app asks a smaller terminal to
+  grow where the terminal allows it, and puts it back on quit.
 
 ### smart-scheduler
 

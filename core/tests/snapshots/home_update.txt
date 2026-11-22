@@ -1,5 +1,7 @@
- 1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings
- Home ────────────────────────────────────────────────────────────────────────
+┌──────────────────────────────────────────────────────────────────────────────┐
+│    1 Home     │  2 Calendar   │   3 Drives    │   4 Alerts    │  5 Settings  │
+└──────────────────────────────────────────────────────────────────────────────┘
+
  › ▲ Update available: v0.3.0                           Settings › better-unas
 
    ✓ No active alerts.
@@ -20,5 +22,7 @@
 
 
 
- Enter open Settings › better-unas  a alerts  r refresh                 ↑↓ move
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  Enter open Settings › better-unas  a alerts  r refresh             ↑↓ move  │
+└──────────────────────────────────────────────────────────────────────────────┘
  1-5/Tab tabs                                                    ? help  q quit

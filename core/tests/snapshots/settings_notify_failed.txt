@@ -1,5 +1,7 @@
- 1 Home │ 2 Alerts │ 3 Settings
- Settings › Notifications ────────────────────────────────────────────────────
+┌──────────────────────────────────────────────────────────────────────────────┐
+│          1 Home          │        2 Alerts         │       3 Settings        │
+└─ Notifications ──────────────────────────────────────────────────────────────┘
+
  better-unas/better-unas.conf        1 unsaved change(s); s saves, Esc discards
  Notifications
    Webhook URL                 (none)
@@ -15,10 +17,12 @@
 
 
 
-
- ──────────────────────────────────────────────────────────────────────────────
- Pinged each time a tool's scheduled check ends without errors, so a monitor
- such as healthchecks.io or Uptime Kuma notices when the pings stop.
-
- ✗ Heartbeat URL: test failed: HTTP 404 Not Found
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ Pinged each time a tool's scheduled check ends without errors, so a monitor  │
+│ such as healthchecks.io or Uptime Kuma notices when the pings stop.          │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ ✗ Heartbeat URL: test failed: HTTP 404 Not Found                             │
+└──────────────────────────────────────────────────────────────────────────────┘
  Esc back  1-3/Tab tabs                                          ? help  q quit

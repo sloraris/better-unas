@@ -2,7 +2,7 @@
 
     python3 -m unittest discover -s tests
 
-The TUI runs headless at 80x24 with the tool's real plugin, as in
+The TUI runs headless at 80x28 with the tool's real plugin, as in
 test_calendar (same fixture: UniFi Drive's API, smartctl and psql faked,
 clock Sun 22 Nov 2026 01:00). Action flows swap the plugin's `actions` for
 FakeActions, so nothing starts a test or writes a config; a few go through
@@ -182,7 +182,7 @@ class DrivesScreenTests(DrivesFixture, unittest.TestCase):
         self.assertRegex(text, r"Next test +none")
         self.assertRegex(text, r"Why +excluded")
         self.assertRegex(text, r"Excluded +yes  EXCLUDE_SERIALS")
-        self.assertIn("excluded", text.splitlines()[2])          # the state, top right
+        self.assertIn("excluded", text.splitlines()[4])          # the state, top right
 
     def test_detail(self):
         rich(self)
@@ -192,8 +192,8 @@ class DrivesScreenTests(DrivesFixture, unittest.TestCase):
         self.assertSnapshot("drives_detail", text)
         self.assertSnapshot("drives_detail_tones", self.term.tones())
         lines = text.splitlines()
-        self.assertIn("Drives › Slot 5 ─", lines[1])
-        self.assertRegex(lines[2], r"^ WDC WD4002FYYZ-01B7CB0   SERIAL5   4 TB +! warning signs$")
+        self.assertIn("└─ Slot 5 ─", lines[2])
+        self.assertRegex(lines[4], r"^ WDC WD4002FYYZ-01B7CB0   SERIAL5   4 TB +! warning signs$")
         self.assertIn("Last test   ✓ Tue 20 Oct  passed", text)
         self.assertIn("Next test   ○ Mon 23 Nov 00:00", text)
         self.assertIn("Why         warning signs", text)
@@ -230,12 +230,12 @@ class DrivesScreenTests(DrivesFixture, unittest.TestCase):
         self.drives()
         text = self.app.press("enter")
         self.assertIn("Next test   ▶ running now", text)
-        self.assertIn("▶ test running", text.splitlines()[2])
+        self.assertIn("▶ test running", text.splitlines()[4])
         self.assertIn("extended  Sun 22 Nov 00:10          ▶ running", text)
         self.app.press("esc")
         self.to_slot(4)
         text = self.app.press("enter")
-        self.assertIn("✗ last test failed", text.splitlines()[2])
+        self.assertIn("✗ last test failed", text.splitlines()[4])
         self.assertIn("Last test   ✗ Thu 12 Nov  failed", text)
         self.assertIn("Why         retry", text)
         self.assertIn("Interval    60 days  old drive", text)

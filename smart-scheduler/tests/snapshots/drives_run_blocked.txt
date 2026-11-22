@@ -1,5 +1,7 @@
- 1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings
- Drives › Can't start an extended test on slot 5 (SERIAL5) ──── smart-scheduler
+┌──────────────────────────────────────────────────────────────────────────────┐
+│    1 Home     │  2 Calendar   │   3 Drives    │   4 Alerts    │  5 Settings  │
+└─ Can't start an extended test on slot 5 (SERIAL5) ───────── smart-scheduler ─┘
+
   Safety checks for starting a test now:
 
     BLOCKS        a SMART test is already running on slot 1
@@ -20,5 +22,7 @@
 
 
 
- ✗ Can't start an extended test on slot 5 (SERIAL5): a SMART test is already ru…
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ ✗ Can't start an extended test on slot 5 (SERIAL5): a SMART test is already… │
+└──────────────────────────────────────────────────────────────────────────────┘
  Esc back  1-5/Tab tabs                                          ? help  q quit

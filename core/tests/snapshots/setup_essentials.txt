@@ -1,5 +1,7 @@
- 1 Setup
- Setup › Notifications › smart-scheduler settings ────────────────────────────
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                   1 Setup                                    │
+└─ Notifications › smart-scheduler settings ───────────────────────────────────┘
+
  Settings to check before the first run; the rest are on the Settings tab.
 
  How often each drive gets an extended test
@@ -15,10 +17,12 @@
 
 
 
-
- ──────────────────────────────────────────────────────────────────────────────
- Days between tests on a healthy drive.
-
-
- Enter edit  n next                                                     ↑↓ move
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ Days between tests on a healthy drive.                                       │
+│                                                                              │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  Enter edit  n next                                                 ↑↓ move  │
+└──────────────────────────────────────────────────────────────────────────────┘
  Esc back                                                        ? help  q quit

@@ -12,9 +12,9 @@ How often each drive gets an extended test
   Warning attributes          5,187,197,198
   Per-drive intervals         (none)
   Never test                  (none)
-
-When tests may start                                                           ↓
-────────────────────────────────────────────────────────────────────────────────
-The hourly check that starts tests when they're due. Off: saving removes its
-timer; running tests finish. On: saving puts the timer back.
-
+                                                                               ↓
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ The hourly check that starts tests when they're due. Off: saving removes its │
+│ timer; running tests finish. On: saving puts the timer back.                 │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘

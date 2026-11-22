@@ -143,7 +143,7 @@ class AppFixture(SnapshotMixin):
         no_updates.start()
         self.addCleanup(no_updates.stop)
 
-    def make_app(self, width=80, height=24, extra_tabs=(), **kw):
+    def make_app(self, width=80, height=28, extra_tabs=(), **kw):
         tools, broken = P.discover(self.home)
         self.term = HeadlessTerminal(width, height)
         self.frames = []
@@ -748,7 +748,7 @@ class AppTests(AppFixture, unittest.TestCase):
         self.assertEqual(app.plugins["fixture"].SEEN, ["show"])
         text = app.press("down", "enter")
         self.assertSnapshot("app_pushed", text)
-        self.assertIn("Board › Item", text)
+        self.assertIn("└─ Item ", text)
         self.assertIn("Esc back", text)
         app.press("esc")
         self.assertEqual(app.plugins["fixture"].SEEN, ["show", "show"])   # shown again
@@ -779,7 +779,7 @@ class AppTests(AppFixture, unittest.TestCase):
     def test_typing_into_a_field_never_quits_or_switches(self):
         app = self.make_app()
         app.press("5", "down", "down", "down", "enter")   # Settings > space-watch
-        self.assertIn("Settings › space-watch", self.term.text())
+        self.assertIn("└─ space-watch ", self.term.text())
         app.press("down", "enter")            # edit "Folder to watch"
         self.assertIsNotNone(W.active_editor())
         text = app.press("q", "2", "tab")
@@ -788,14 +788,14 @@ class AppTests(AppFixture, unittest.TestCase):
         self.assertIn("Enter done", text)     # footer shows the editor's keys
         self.assertNotIn("q quit", text)
         app.press("esc")                      # cancels the edit, not the screen
-        self.assertIn("Settings › space-watch", self.term.text())
+        self.assertIn("└─ space-watch ", self.term.text())
         self.assertIn("q quit", self.term.text())
 
     def test_leaving_a_changed_form_asks(self):
         app = self.make_app()
         app.press("5", "down", "down", "down", "enter", " ")   # toggle Enabled
         app.press("esc", "n")                 # discard? no
-        self.assertIn("Settings › space-watch", self.term.text())
+        self.assertIn("└─ space-watch ", self.term.text())
         app.press("2", "n")                   # switching tabs asks too
         self.assertEqual(app.tab.title, "Settings")
         app.press("esc", "y")
@@ -807,7 +807,7 @@ class AppTests(AppFixture, unittest.TestCase):
         # keys sit on the line above it.
         app = self.make_app()
         for k in ("2", "enter", "esc", "3", "4", "enter", "esc", "5", "6", "enter", "esc", "1"):
-            footer = app.press(k).split("\n")[23]
+            footer = app.press(k).split("\n")[27]
             self.assertIn("q quit", footer, k)
             self.assertIn("? help", footer, k)
 
@@ -825,13 +825,13 @@ class AppTests(AppFixture, unittest.TestCase):
             def key(self, k):
                 return False
 
-        app = self.make_app(80, 24, extra_tabs=[("Seven", lambda ctx: Seven())])
+        app = self.make_app(80, 28, extra_tabs=[("Seven", lambda ctx: Seven())])
         lines = app.press("2").split("\n")
-        self.assertTrue(lines[22].startswith(
-            " Enter details  t test  z snooze  x exclude  i interval  u unsnooze  r refresh"), lines[22])
-        self.assertNotIn("more", lines[22])
-        self.assertIn("/Tab tabs", lines[23])
-        self.assertTrue(lines[23].endswith("? help  q quit"), lines[23])
+        # Inside the action box six of them fit; the seventh gives way to ? more.
+        self.assertTrue(lines[25].strip("│ ").startswith(
+            "Enter details  t test  z snooze  x exclude  i interval  u unsnooze  ? more"), lines[25])
+        self.assertIn("/Tab tabs", lines[27])
+        self.assertTrue(lines[27].endswith("? help  q quit"), lines[27])
 
     def test_footer_cuts_long_key_lists_but_keeps_core_keys(self):
         class Busy:
@@ -848,9 +848,9 @@ class AppTests(AppFixture, unittest.TestCase):
 
         app = self.make_app(extra_tabs=[("Busy", lambda ctx: Busy())])
         lines = app.press("2").split("\n")
-        self.assertIn("F0 does a thing", lines[22])
-        self.assertTrue(lines[22].endswith("? more"), lines[22])
-        self.assertIn("q quit", lines[23])
+        self.assertIn("F0 does a thing", lines[25])
+        self.assertTrue(lines[25].strip("│ ").endswith("? more"), lines[25])
+        self.assertIn("q quit", lines[27])
 
     def test_footer_overflow_marker_always_fits(self):
         class Crowded:
@@ -867,15 +867,16 @@ class AppTests(AppFixture, unittest.TestCase):
                 return False
 
         screen = Crowded()
-        app = self.make_app(80, 24, extra_tabs=[("Crowded", lambda ctx: screen)])
+        app = self.make_app(80, 28, extra_tabs=[("Crowded", lambda ctx: screen)])
         app.press("2")
         for fill in range(40, 70):
             screen.fill = fill
             app.draw()
-            keys = self.term.text().split("\n")[22].rstrip()
-            self.assertLessEqual(len(keys), 79, (fill, keys))
+            line = self.term.text().split("\n")[25]
+            self.assertTrue(line.startswith("│  ") and line.endswith(" │"), (fill, line))   # inside the box
+            keys = line.strip("│ ")
             self.assertTrue(keys.endswith("c third") or keys.endswith("? more"), (fill, keys))
-            self.assertTrue(keys.startswith(" a xxxxxxxxxx"), (fill, keys))   # the first key always shows
+            self.assertTrue(keys.startswith("a xxxxxxxxxx"), (fill, keys))   # the first key always shows
 
     def test_alerts_and_settings(self):
         app = self.make_app()
@@ -918,12 +919,12 @@ class AppTests(AppFixture, unittest.TestCase):
 
 class SizeTests(AppFixture, unittest.TestCase):
     def test_too_small_shows_only_please_widen(self):
-        for w, h in ((79, 24), (80, 23), (40, 10)):
+        for w, h in ((79, 28), (80, 27), (40, 10)):
             app = self.make_app(w, h)
             text = self.term.text()
             self.assertIn("Please widen the terminal.", text)
             self.assertNotIn("Home", text)
-            if (w, h) == (79, 24):
+            if (w, h) == (79, 28):
                 self.assertSnapshot("too_small", text)
             app.press("2")                     # keys are ignored...
             self.assertEqual(app.tab.title, "Home")
@@ -939,8 +940,8 @@ class SizeTests(AppFixture, unittest.TestCase):
         app.press("2", "enter")
         text = app.press(("resize", 60, 20))
         self.assertIn("this one is 60x20", text)
-        text = app.press(("resize", 80, 24))
-        self.assertIn("Board › Item", text)    # state survived
+        text = app.press(("resize", 80, 28))
+        self.assertIn("Item", text.split("\n")[2])    # state survived
         text = app.press(("resize", 120, 40))
         self.assertSnapshot("app_120x40", text)
         self.assertEqual(len(text.split("\n")), 40)
@@ -951,9 +952,9 @@ class SizeTests(AppFixture, unittest.TestCase):
         app.plugins["space-watch"].sw.save_state({"peak": 97.0},
                                                  os.path.join(self.home, "space-watch", "state.json"))
         self.frames.clear()
-        app.press("x", ("resize", 70, 24), "y", ("resize", 80, 24), "n")
+        app.press("x", ("resize", 70, 28), "y", ("resize", 80, 28), "n")
         texts = [f for f in self.frames]
-        small = [i for i, f in enumerate(texts) if "this one is 70x24" in f]
+        small = [i for i, f in enumerate(texts) if "this one is 70x28" in f]
         self.assertTrue(small)
         self.assertIn("Forget the peak reading?", texts[small[-1] + 1])   # back after widening
         self.assertIsNone(app.overlay)
@@ -1059,12 +1060,77 @@ class FooterStyleTests(AppFixture, unittest.TestCase):
         self.make_app()
         lines = self.term.text().split("\n")
         surface = self.term.surface
-        y, x = 22, lines[22].index("Enter")
+        y, x = 25, lines[25].index("Enter")
         self.assertEqual(surface.tone_at(y, x), "selected")       # the key is a chip
         self.assertEqual(surface.tone_at(y, x + len("Enter ") + 1), "normal")   # its label
-        self.assertEqual(surface.tone_at(23, lines[23].index("q quit")), "dim")
-        self.assertNotIn("─", lines[22])
+        self.assertEqual(surface.tone_at(27, lines[27].index("q quit")), "dim")
+        self.assertNotIn("─", lines[25])
 
+
+
+class ChromeTests(AppFixture, unittest.TestCase):
+    """The nav box, the info box and the action box (docs/tui-style.md §2)."""
+
+    def test_nav_box_spans_the_width(self):
+        self.make_app(100, 30)
+        lines = self.term.text().split("\n")
+        surface = self.term.surface
+        self.assertTrue(lines[0].startswith("┌") and lines[0].endswith("┐"))
+        self.assertTrue(lines[1].startswith("│") and lines[1].endswith("│"))
+        self.assertTrue(lines[2].startswith("└") and lines[2].endswith("┘"))
+        self.assertEqual(lines[3], "")                          # a blank line before the page
+        # The current tab (Home) is reversed across its whole share, up to the first bar.
+        bar = lines[1].index("│", 1)
+        self.assertEqual({surface.tone_at(1, x) for x in range(1, bar)}, {"selected"})
+        self.assertEqual(surface.tone_at(1, bar + 1), "normal")
+        self.assertGreater(lines[1].rindex("5 Settings"), 80)   # the tabs reach the right edge
+
+    def test_breadcrumb_leaves_out_the_tab(self):
+        app = self.make_app()
+        app.press("2", "down", "enter")
+        lines = self.term.text().split("\n")
+        self.assertTrue(lines[2].startswith("└─ Item "), lines[2])
+        self.assertNotIn("Board", lines[2])
+        self.assertEqual(self.term.surface.tone_at(2, 3), "accent")
+        self.assertIn(" fixture ", lines[2])                    # the tool, at the right
+        app.press("esc")
+        self.assertNotIn("Item", self.term.text().split("\n")[2])
+
+    def test_info_box_spans_the_width_above_the_action_box(self):
+        app = self.make_app()
+        app.press("5", "down", "down", "down", "enter")         # Settings > space-watch
+        lines = self.term.text().split("\n")
+        self.assertTrue(lines[19].startswith("┌─") and lines[19].endswith("┐"), lines[19])
+        self.assertEqual(lines[20].index("Set to no"), 2)
+        self.assertTrue(lines[23].startswith("└") and lines[24].startswith("┌"))
+        self.assertEqual(sum(ln.count("┌") for ln in lines[4:19]), 0)   # the form draws no box of its own
+        app.press("esc")
+        self.assertNotIn("Set to no", self.term.text())
+
+
+class AskForSizeTests(unittest.TestCase):
+    class Tty(io.StringIO):
+        def isatty(self):
+            return True
+
+    def ask(self, size, env=None, out=None):
+        out = out if out is not None else self.Tty()
+        with mock.patch("shutil.get_terminal_size", return_value=os.terminal_size(size)), \
+                mock.patch("time.sleep"):
+            from core.tui.terminal import ask_for_size
+            return ask_for_size(80, 28, out=out, env=env or {}), out.getvalue()
+
+    def test_a_small_terminal_is_asked_to_grow(self):
+        self.assertEqual(self.ask((80, 24)), ((80, 24), "\x1b[8;28;80t"))
+        self.assertEqual(self.ask((120, 20)), ((120, 20), "\x1b[8;28;120t"))   # never narrower
+
+    def test_big_enough_asks_nothing(self):
+        self.assertEqual(self.ask((80, 28)), (None, ""))
+
+    def test_terminals_that_ignore_it_are_not_asked(self):
+        self.assertEqual(self.ask((80, 24), env={"TMUX": "/tmp/tmux-1/default"}), (None, ""))
+        self.assertEqual(self.ask((80, 24), env={"TERM_PROGRAM": "vscode"}), (None, ""))
+        self.assertEqual(self.ask((80, 24), out=io.StringIO()), (None, ""))   # not a terminal
 
 class PluginLoadingTests(AppFixture, unittest.TestCase):
     def test_broken_plugin_keeps_the_rest_working(self):
@@ -1076,7 +1142,7 @@ class PluginLoadingTests(AppFixture, unittest.TestCase):
         text = app.press(str(len(app.tabs)))
         self.assertIn("broken-one", text)
         self.assertIn("broken", text)
-        self.assertIn("Board", self.term.text().splitlines()[0])   # the fixture still loads
+        self.assertIn("Board", self.term.text().splitlines()[1])   # the fixture still loads
 
     def test_two_tools_on_one_tab_get_a_chooser(self):
         write_tool(self.home, "second")
@@ -1087,8 +1153,8 @@ class PluginLoadingTests(AppFixture, unittest.TestCase):
         self.assertIn("fixture: board", text)
         self.assertIn("second: board", text)
         text = app.press("down", "enter")
-        self.assertIn("Board › Board", text)
-        self.assertIn("second", text.splitlines()[1])   # header names the tool
+        self.assertIn("└─ Board ", text)
+        self.assertIn("second", text.splitlines()[2])   # the nav box names the tool
         first = app.stack()[-1]
         app.press("esc", "down", "enter")
         self.assertIs(app.stack()[-1], first)            # make() ran once
@@ -1141,7 +1207,7 @@ class ContextTests(AppFixture, unittest.TestCase):
         real_end = self.term.end_frame
 
         def end_frame():
-            frames.append(self.term.text().splitlines()[-2])
+            frames.append(self.term.text().splitlines()[-3])
             real_end()
 
         self.term.end_frame = end_frame
@@ -1191,8 +1257,8 @@ class ContextTests(AppFixture, unittest.TestCase):
         self.term.end_frame = end_frame
         self.term.feed("right", "enter")
         self.assertTrue(app.confirm("Go?", ["Line"], second=None))
-        self.assertIn("y yes", frames[0].splitlines()[-1])
-        self.assertNotIn("q quit", frames[0].splitlines()[-1])
+        self.assertIn("y yes", frames[0].split("\n")[25])
+        self.assertNotIn("q quit", frames[0].split("\n")[27])
         with self.assertRaises(ScriptDone):    # the dialog waits for a key
             app.confirm("Again?")
         self.assertIsNone(app.overlay)
@@ -1201,24 +1267,25 @@ class ContextTests(AppFixture, unittest.TestCase):
 class EntryPointTests(unittest.TestCase):
     def test_demo_runs_headless(self):
         out = io.StringIO()
-        self.assertEqual(entry.main(["--demo", "--headless", "80x24", "--keys", "3 down enter"], out=out), 0)
+        self.assertEqual(entry.main(["--demo", "--headless", "80x28", "--keys", "3 down enter"], out=out), 0)
         text = out.getvalue()
-        self.assertIn("1 Home │ 2 Calendar │ 3 Drives │ 4 Space │ 5 Alerts │ 6 Settings", text)
-        self.assertIn("Drives › Slot 2", text)
+        self.assertIn("1 Home", text)
+        self.assertIn("6 Settings", text)
+        self.assertIn("└─ Slot 2 ", text)
 
     def test_demo_second_confirm_headless(self):
         out = io.StringIO()
-        entry.main(["--demo", "--headless", "80x24", "--keys", "3 t y y"], out=out)
+        entry.main(["--demo", "--headless", "80x28", "--keys", "3 t y y"], out=out)
         self.assertIn("Demo: nothing was started.", out.getvalue())
         out = io.StringIO()
-        entry.main(["--demo", "--headless", "80x24", "--keys", "3 t y enter"], out=out)
+        entry.main(["--demo", "--headless", "80x28", "--keys", "3 t y enter"], out=out)
         self.assertIn("Not started.", out.getvalue())
 
     def run_with_restart(self, restart):
         calls = []
 
-        def fake_curses(build):
-            app = build(HeadlessTerminal(80, 24))
+        def fake_curses(build, **kw):
+            app = build(HeadlessTerminal(80, 28))
             app.restart = restart
             return app
 
@@ -1246,7 +1313,7 @@ class EntryPointTests(unittest.TestCase):
         self.assertEqual(entry.restart_command(home, ["--home", home]), [sys.executable, launcher])
 
     def test_request_restart_stops_the_loop(self):
-        app = App(HeadlessTerminal(80, 24), theme=Theme(True))
+        app = App(HeadlessTerminal(80, 28), theme=Theme(True))
         app.request_restart()
         self.assertTrue(app.restart)
         self.assertFalse(app.running)

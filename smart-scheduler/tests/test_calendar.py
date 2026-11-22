@@ -2,7 +2,7 @@
 
     python3 -m unittest discover -s tests
 
-The whole TUI runs headless (the core's text canvas, 80x24) with the tool's
+The whole TUI runs headless (the core's text canvas, 80x28) with the tool's
 real plugin, planner and backup code. UniFi Drive's API, smartctl, psql and
 systemctl are faked as in test_scheduling, so nothing touches a NAS.
 
@@ -82,7 +82,7 @@ class CalendarFixture:
 
     def make_app(self):
         tool = P.load_tool(self.tool_dir)
-        self.term = HeadlessTerminal(80, 24)
+        self.term = HeadlessTerminal(80, 28)
         app = App(self.term, [tool], {}, clock=lambda: NIGHT, theme=Theme(True),
                   log_path=os.path.join(self.home, "tui.log"))
         self.plugin = app.plugins["smart-scheduler"]
@@ -166,19 +166,19 @@ class CalendarScreenTests(CalendarFixture, unittest.TestCase):
         self.assertEqual(self.screen.data["plan_until"], dt.date(2027, 2, 21))
         self.assertEqual(self.planned()[-1], ("2027-02-21", "SERIAL1"))
         lines = text.splitlines()
-        self.assertIn("✓3", lines[7])                          # chips: a glyph and the slot
-        self.assertIn("✗4", lines[9])
-        self.assertIn("[22] today", lines[10])                 # selected: brackets; today: tagged
-        self.assertIn("▶1", lines[11])
-        self.assertIn("○6         ○4         ○7         ○2", lines[13])
-        self.assertIn("planned through Sun 21 Feb 2027", lines[2])   # the year: not this one
-        self.assertRegex(lines[16], r"^ ── ○ planned  ✓ passed  ✗ failed  ▶ running  ↻ scrub  ⇡ backup ─+$")
-        self.assertIn("Sunday 22 November", lines[17])
+        self.assertIn("✓3", lines[9])                          # chips: a glyph and the slot
+        self.assertIn("✗4", lines[11])
+        self.assertIn("[22] today", lines[12])                 # selected: brackets; today: tagged
+        self.assertIn("▶1", lines[13])
+        self.assertIn("○6         ○4         ○7         ○2", lines[15])
+        self.assertIn("planned through Sun 21 Feb 2027", lines[4])   # the year: not this one
+        self.assertRegex(lines[18], r"^ ── ○ planned  ✓ passed  ✗ failed  ▶ running  ↻ scrub  ⇡ backup ─+$")
+        self.assertIn("Sunday 22 November", lines[19])
         self.assertIn("▶ Slot 1  extended test running, started 00:10", text)
         self.assertNotIn("S1", text)
-        x = lines[10].index("[22]")
-        self.assertEqual(self.term.surface.tone_at(10, x + 1), "selected")   # today's number is reversed
-        self.assertEqual(self.term.surface.tone_at(16, 4), "dim")            # the legend is dim
+        x = lines[12].index("[22]")
+        self.assertEqual(self.term.surface.tone_at(12, x + 1), "selected")   # today's number is reversed
+        self.assertEqual(self.term.surface.tone_at(18, 4), "dim")            # the legend is dim
 
     def test_scrub_day_blocks_the_night(self):
         # Slot 3 is snoozed until the scrub day, so the scrub is what holds it next.
@@ -381,11 +381,11 @@ class PluginTests(CalendarFixture, unittest.TestCase):
         home = self.app.screen
         self.assertEqual([st.target for st in home.stops][-2:], ["Drives:SERIAL1", "Drives:SERIAL4"])
         text = self.app.press("end")
-        self.assertIn("Enter open slot 4", text.split("\n")[22])
+        self.assertIn("Enter open slot 4", text.split("\n")[25])
         text = self.app.press("enter")
         self.assertEqual(self.app.tab.title, "Drives")
-        self.assertIn("Drives › Slot 4", text.split("\n")[1])
-        self.assertIn("Drives", self.app.press("esc").split("\n")[1])   # back to the list
+        self.assertIn("└─ Slot 4 ", text.split("\n")[2])
+        self.assertNotIn("Slot", self.app.press("esc").split("\n")[2])   # back to the list
 
     def test_quiet_nas_is_ok(self):
         self.make_app()

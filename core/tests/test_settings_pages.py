@@ -1,5 +1,5 @@
 """Settings › better-unas and the tools' pages (docs/tui-style.md §6):
-updates, install / uninstall and remove, rendered headless at 80x24.
+updates, install / uninstall and remove, rendered headless at 80x28.
 
     python3 -m unittest discover -s core/tests
     UPDATE_SNAPSHOTS=1 python3 -m unittest discover -s core/tests   (after an intended change)
@@ -62,7 +62,7 @@ class SettingsPagesTests(SnapshotMixin, unittest.TestCase):
 
     def make_app(self, **kw):
         tools, broken = P.discover(self.home)
-        self.term = HeadlessTerminal(80, 24)
+        self.term = HeadlessTerminal(80, 28)
         self.frames = []
         real_end = self.term.end_frame
 
@@ -95,7 +95,7 @@ class SettingsPagesTests(SnapshotMixin, unittest.TestCase):
         self.assertIn("alpha                ✓ installed", text)
         self.assertIn("beta                 uninstalled", text)
         self.assertIn("gamma                not installed", text)
-        self.assertIn("Enter open better-unas", text.split("\n")[22])
+        self.assertIn("Enter open better-unas", text.split("\n")[25])
         self.assertNotIn("Tools │", text.split("\n")[0])
 
     def test_update_available(self):
@@ -104,14 +104,14 @@ class SettingsPagesTests(SnapshotMixin, unittest.TestCase):
         self.assertSnapshot("settings_core_update_available", text)
         self.assertIn("Version     v0.2.0  release", text)
         self.assertIn("Update      ▲ v0.3.0 available", text)
-        self.assertIn("u update", text.split("\n")[22])
+        self.assertIn("u update", text.split("\n")[25])
 
     def test_version_badge(self):
         app = self.make_app()
-        self.assertTrue(self.term.text().split("\n")[0].endswith("▲ v0.3.0"))
+        self.assertTrue(self.term.text().split("\n")[0].rstrip("─┐ ").endswith("▲ v0.3.0"))
         self.core_page(app)
         app.press("u", "y", "n")
-        self.assertTrue(self.term.text().split("\n")[0].endswith("v0.3.0"))
+        self.assertTrue(self.term.text().split("\n")[0].rstrip("─┐ ").endswith("v0.3.0"))
         self.assertNotIn("▲", self.term.text().split("\n")[0])
 
     def test_not_checked_and_up_to_date(self):
@@ -167,7 +167,7 @@ class SettingsPagesTests(SnapshotMixin, unittest.TestCase):
     def test_install_and_uninstall_a_tool(self):
         app = self.make_app()
         text = app.press(SETTINGS, "down", "down", "down", "enter")     # beta, uninstalled
-        self.assertIn("i install", text.split("\n")[22])
+        self.assertIn("i install", text.split("\n")[25])
         text = app.press("i", "y", "n")
         self.assertIn("Turns it back on with the config it had.", self.frame_with("Install beta?"))
         self.assertIn("beta installed", text)
@@ -176,7 +176,7 @@ class SettingsPagesTests(SnapshotMixin, unittest.TestCase):
         self.assertIn("beta                 ! installed, restart to load", text)
 
         text = app.press("up", "enter")       # alpha
-        self.assertIn("x uninstall", text.split("\n")[22])
+        self.assertIn("x uninstall", text.split("\n")[25])
         text = app.press("x", "y", "n")
         frame = self.frame_with("Uninstall alpha?")     # over the info page, which shows a temp path
         self.assertIn("Its config and state stay, and updates leave it off.", frame)
@@ -226,7 +226,7 @@ class SettingsPagesTests(SnapshotMixin, unittest.TestCase):
         text = app.press("1")
         self.assertIn("› ▲ Update available: v0.3.0", text)
         text = app.press("enter")
-        self.assertIn("Settings › better-unas", text.split("\n")[1])
+        self.assertIn("└─ better-unas ", text.split("\n")[2])
         self.assertIn("Update      ▲ v0.3.0 available", text)
 
 
@@ -249,7 +249,7 @@ class DevModeTests(SnapshotMixin, unittest.TestCase):
         text = app.press(SETTINGS, "enter")
         self.assertIn("Version     v0.2.0  developer mode", text)
         self.assertIn("Update      ▲ new commit 1111111", text)
-        self.assertTrue(text.split("\n")[0].endswith("▲ new commit 1111111"))
+        self.assertTrue(text.split("\n")[0].rstrip("─┐ ").endswith("▲ new commit 1111111"))
         text = app.press("u", "y", "n")
         frame = self.frame_with("main @ 1111111?")
         self.assertIn("unreleased code (developer mode)", frame)

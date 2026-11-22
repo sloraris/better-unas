@@ -1,4 +1,4 @@
-"""Regenerate the 80x24 screen captures in docs/screens/ from the repo root:
+"""Regenerate the 80x28 screen captures in docs/screens/ from the repo root:
 
     python3 docs/screens/make.py
 

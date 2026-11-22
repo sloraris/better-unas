@@ -1,5 +1,7 @@
- 1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings
- Calendar ───────────────────────────────────────────────────── smart-scheduler
+┌──────────────────────────────────────────────────────────────────────────────┐
+│    1 Home     │  2 Calendar   │   3 Drives    │   4 Alerts    │  5 Settings  │
+└──────────────────────────────────────────────────────────── smart-scheduler ─┘
+
  ‹ December 2026 ›                              planned through Sun 21 Feb 2027
   Mon        Tue        Wed        Thu        Fri        Sat        Sun
               1          2          3          4          5          6
@@ -20,5 +22,7 @@
 
 
 
- Enter day details  t today  r recalculate              ←→↑↓ day  PgUp/Dn month
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  Enter day details  t today  r recalculate          ←→↑↓ day  PgUp/Dn month  │
+└──────────────────────────────────────────────────────────────────────────────┘
  1-5/Tab tabs                                                    ? help  q quit

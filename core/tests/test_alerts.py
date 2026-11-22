@@ -83,7 +83,7 @@ class AlertsFixture(SnapshotMixin):
     def make_app(self, **kw):
         tools, broken = P.discover(self.home)
         self.assertEqual(broken, {})
-        self.term = HeadlessTerminal(80, 24)
+        self.term = HeadlessTerminal(80, 28)
         self.frames = []
         real_end = self.term.end_frame
 
@@ -149,9 +149,9 @@ class AlertsHeaderTests(AlertsFixture, unittest.TestCase):
         with open(os.path.join(self.home, "better-unas.conf"), "w") as f:
             f.write("WEBHOOK_URL=https://ntfy.sh/secret-topic\n")
         text = app.press("r")
-        self.assertIn("Sent to: ntfy.sh", text.split("\n")[2])
+        self.assertIn("Sent to: ntfy.sh", text.split("\n")[4])
         self.assertNotIn("secret-topic", text)
-        self.assertNotIn(" n ", text.split("\n")[22])          # the old setup key is gone
+        self.assertNotIn(" n ", text.split("\n")[25])          # the old setup key is gone
 
 
 class NotifyTests(AlertsFixture, unittest.TestCase):
@@ -169,7 +169,7 @@ class NotifyTests(AlertsFixture, unittest.TestCase):
         app.press(str([t.title for t in app.tabs].index("Settings") + 1))
         self.assertTrue(app.screen.open("Notifications"))
         text = app.press()
-        self.assertIn("Settings › Notifications", text)
+        self.assertIn("└─ Notifications ", text)
         return app
 
     def goto(self, app, key):
@@ -193,9 +193,9 @@ class NotifyTests(AlertsFixture, unittest.TestCase):
         keys = [f.key_name for f in app.screen.form.fields]
         self.assertEqual(keys, ["WEBHOOK_URL", "WEBHOOK_FORMAT", "NOTIFY_SUCCESS",
                                 "ALERT_REPEAT_HOURS", "HEARTBEAT_URL", "HEARTBEAT_FAIL_URL"])
-        self.assertIn("t send test", self.term.text().split("\n")[22])
+        self.assertIn("t send test", self.term.text().split("\n")[25])
         self.goto(app, "WEBHOOK_FORMAT")
-        self.assertNotIn("send test", app.press().split("\n")[22])   # only on URL settings
+        self.assertNotIn("send test", app.press().split("\n")[25])   # only on URL settings
 
     def test_send_test_success_uses_the_format_on_screen(self):
         app = self.open_notify()
@@ -300,13 +300,13 @@ class ToolUrlTestTests(AlertsFixture, unittest.TestCase):
     def test_send_test_through_the_plugin(self):
         self.make_tool(PLUGIN + "\ndef send_test(ctx, key, values):\n    return 'pushed ' + values[key][-5:]\n")
         app = self.open_form()
-        self.assertIn("t send test", app.press().split("\n")[22])
+        self.assertIn("t send test", app.press().split("\n")[25])
         self.assertIn("Push URL: pushed /push.", app.press("t", "y"))
 
     def test_no_send_test_no_key(self):
         self.make_tool(PLUGIN)
         app = self.open_form()
-        self.assertNotIn("send test", app.press().split("\n")[22])
+        self.assertNotIn("send test", app.press().split("\n")[25])
 
 
 class ContractTests(unittest.TestCase):

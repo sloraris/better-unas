@@ -1,5 +1,7 @@
- 1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings
- Drives ─────────────────────────────────────────────────────── smart-scheduler
+┌──────────────────────────────────────────────────────────────────────────────┐
+│    1 Home     │  2 Calendar   │   3 Drives    │   4 Alerts    │  5 Settings  │
+└──────────────────────────────────────────────────────────── smart-scheduler ─┘
+
    Slot Model                   Temp Last test         Next test         Every
       1 ST4000VN006-3CW104      41°C never             ○ Thu 26 Nov        90d
  ›    2 ST4000VN006-3CW104      42°C never             ○ Fri 27 Nov        90d
@@ -20,5 +22,7 @@
  ┌─ Slot 2 · ST4000VN006-3CW104 · SERIAL2 ────────────────────────────────────┐
  │ ○ Next test Fri 27 Nov 00:00 · baseline · every 90 days                    │
  └────────────────────────────────────────────────────────────────────────────┘
- y yes  n no  Enter pick  Esc no                                      ←→ choose
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  y yes  n no  Enter pick  Esc no                                  ←→ choose  │
+└──────────────────────────────────────────────────────────────────────────────┘
 

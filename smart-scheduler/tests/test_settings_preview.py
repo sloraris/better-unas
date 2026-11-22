@@ -3,7 +3,7 @@ smart-scheduler folder:
 
     python3 -m unittest discover -s tests
 
-The whole TUI runs headless at 80x24 against a private copy of the tool, with
+The whole TUI runs headless at 80x28 against a private copy of the tool, with
 the Drive API faked as in test_calendar. Saving writes only the copy's config.
 """
 
@@ -40,12 +40,12 @@ class SettingsScreenTests(CalendarFixture, unittest.TestCase):
     def tonight(self):
         return [e["serial"] for e in self.app.screen.data["days"][dt.date(2026, 11, 22)]["planned"]]
 
-    def test_form_at_80x24(self):
+    def test_form_at_80x28(self):
         self.write_config(EXAMPLE)
         text = self.open_settings()
         self.assertSnapshot("settings_form", text)
         self.assertIn("smart-scheduler/config", text)
-        self.assertIn("p preview", text.split("\n")[22])
+        self.assertIn("p preview", text.split("\n")[25])
 
     def test_preview_then_save_keeps_comments(self):
         self.write_config(EXAMPLE)

@@ -1198,7 +1198,10 @@ class Form:
 
     def render(self, canvas):
         more = canvas.symbols["more"]
-        help_h = 4 if canvas.height >= 12 else (3 if canvas.height >= 10 else 0)
+        # The selected field's help, in a box at the bottom (docs/tui-style.md §2):
+        # up to three lines (§8), fewer on a short canvas.
+        help_h = 0 if getattr(self, "help_outside", False) else (
+            5 if canvas.height >= 14 else (4 if canvas.height >= 10 else 0))
         area = canvas.sub(0, 0, canvas.height - help_h, canvas.width)
         lines = []           # (kind, payload)
         sel_line = anchor = 0
@@ -1255,10 +1258,10 @@ class Form:
                     sel_y = y
         _indicators(area, self.top, rows, len(lines))
         if help_h:
-            # docs/tui-style.md §8: help is at most three lines; the form shows them all.
-            canvas.text(canvas.height - help_h, 0, canvas.symbols["h"] * canvas.width, "dim")
-            for i, line in enumerate(wrap(self.current.help, canvas.width - 2)[:help_h - 1]):
-                canvas.text(canvas.height - help_h + 1 + i, 0, line, "dim")
+            top = canvas.height - help_h
+            canvas.box(top, 0, help_h, canvas.width, tone="dim")
+            for i, line in enumerate(wrap(self.current.help, canvas.width - 4)[:help_h - 2]):
+                canvas.text(top + 1 + i, 2, line, "dim")
         size = self.current.popup_size() if self.current.editing else None
         if size and sel_y is not None:
             h, w = min(size[0], area.height), min(size[1], area.width - self.LABEL_W)
