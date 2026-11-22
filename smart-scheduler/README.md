@@ -122,18 +122,23 @@ screens read the NAS live and plan with the same code as the hourly run.
 Every action takes the run lock, and with `--dry-run` nothing changes.
 
 - **Home:** a card with tests running, the next planned test, the last
-  result, the next scrub, and snoozed drives. Enter on a line opens the
-  Calendar or Drives tab.
+  result, the next scrub, and snoozed drives. Enter on the card opens the
+  Calendar; the running test and the last result open that drive.
 - **Calendar:** a month grid. Each night shows the drive(s) tested or
   planned (`S6` planned or passed, `S6!` failed, `S6*` running), `sc` marks a
   scrub and `bk` a UniFi backup. Arrows move days, PgUp/PgDn months, `t`
   goes to today, `r` recalculates, and Enter explains a day: each test, why
   it's planned, and why a night was skipped. The plan runs forward until
   every drive has one test. ([capture](../docs/screens/calendar.txt))
-- **Drives:** every drive's slot, temperature, last and next test, interval
-  and status. Enter opens one drive: its schedule and why, snooze and
-  exclusion, temperature, power-on hours and attributes 5/187/197/198/199
-  (a rise since the last test is marked), and UniFi's test history.
+- **Drives:** every drive's slot, model, temperature, last and next test
+  (✓ passed, ✗ failed, ▶ running, ○ planned, ! due now) and interval, with
+  the selected drive's serial and where it stands in a panel below. Enter
+  opens one drive: a Schedule panel (last and next test, why: `baseline`,
+  `due`, `retry`, `warning signs`, `snoozed`, `excluded`; the interval and
+  its source: `default`, `old drive`, `warning signs`, `per drive`; snooze
+  and exclusion), a Health panel (temperature, power-on hours, attributes
+  5/187/197/198/199 with a rise since the last test marked `↑N`), and
+  UniFi's test history with how long each test took.
   ([list](../docs/screens/drives.txt), [drive](../docs/screens/drive.txt))
   On the list or a drive:
   - `t` runs a test now (`e` extended, `k` quick). It shows what's in the

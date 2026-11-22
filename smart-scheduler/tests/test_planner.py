@@ -68,6 +68,20 @@ class PlannerTests(unittest.TestCase):
         self.assertEqual(p[1]["delayed_by"], ["waiting its turn (1 start(s) per night, most urgent first)"])
         self.assertEqual(p.skipped, [])
 
+    def test_short_words_for_screens(self):
+        """`cause` and `source`: docs/tui-style.md §8's smart-scheduler vocabulary."""
+        by = {d["serial"]: d for d in self.drives()}
+        self.assertEqual((by["SERIAL1"]["cause"], by["SERIAL1"]["source"]), ("baseline", "default"))
+        self.assertEqual(by["SERIAL4"]["source"], "old drive")
+        self.assertEqual(by["SERIAL6"]["source"], "warning signs")
+        t = (NIGHT - dt.timedelta(days=3)).isoformat()
+        self.fake.history["4"] = [ext(1, "failed", "failed", t)]
+        self.fake.history["3"] = [ext(2, "successful", "optimal", t)]
+        self.cfg = config(INTERVAL_OVERRIDES="SERIAL3:14")
+        by = {d["serial"]: d for d in self.drives()}
+        self.assertEqual(by["SERIAL4"]["cause"], "retry")
+        self.assertEqual((by["SERIAL3"]["cause"], by["SERIAL3"]["source"]), ("per-drive interval", "per drive"))
+
     def test_hourly_run_starts_what_the_plan_puts_first(self):
         drives = self.drives()
         decision = planner.decide(self.cfg, self.fake.storage, drives, self.state, NIGHT)

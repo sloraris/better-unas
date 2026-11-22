@@ -366,6 +366,23 @@ class WidgetTests(SnapshotMixin, unittest.TestCase):
         self.assertEqual(s.tone_at(3, 18), "warn")
         self.assertEqual(t.current[1], "ZL2")
 
+    def test_table_status_cells(self):
+        rows = [["1", ("status", "failed", "Thu 12 Nov", "read failure")],
+                ["2", ("status", "planned", "Tue 24 Nov")],
+                ["3", ("status", None, "Sun 21 Feb")]]
+        t = W.Table([("N", 3, "right"), ("Last", None)], rows)
+        t.key("down")
+        s = self.render(t, 40, 5)
+        self.assertEqual(s.row(1).rstrip(), "    1 ✗ Thu 12 Nov  read failure")
+        self.assertEqual(s.tone_at(1, 6), "bad")             # the glyph and text in the kind's tone
+        self.assertEqual(s.tone_at(1, 20), "dim")            # the aside dim
+        self.assertEqual(s.tone_at(2, 6), "selected")        # the selected row stays one bar
+        self.assertEqual(s.row(3).rstrip(), "    3 Sun 21 Feb")   # no kind: no glyph, plain
+        self.assertEqual(s.tone_at(3, 6), "normal")
+        c, a = headless(40, 5, ascii=True)
+        t.render(c)
+        self.assertIn("1 x Thu 12 Nov", a.row(1))
+
     def test_table_without_selection_scrolls(self):
         t = W.Table([("N", 3)], [[str(i)] for i in range(10)], selectable=False)
         s = self.render(t, 10, 4)
