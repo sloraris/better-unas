@@ -47,7 +47,7 @@
           "max": 3650,
           "default": "30",
           "essential": true,
-          "help": "Days between tests on a drive with warning signs: a warning attribute above zero, a UniFi risk reason, or a UniFi state other than optimal."
+          "help": "Days between tests on a drive with warning signs: a watched count that rose and has had no clean test since, a UniFi risk reason, or a UniFi state other than optimal."
         },
         {
           "key": "OLD_INTERVAL_DAYS",
@@ -86,7 +86,7 @@
           "min": 1,
           "max": 255,
           "default": "5,187,197,198",
-          "help": "SMART attribute IDs that count as warning signs. If one rises since the last test, that drive is tested on the next eligible night. 5 reallocated, 187 reported uncorrectable, 197 pending, 198 offline uncorrectable."
+          "help": "SMART attributes to watch. A rise since the last test makes that drive due at once; a count that stays the same is ignored. 5 reallocated, 187 reported uncorrectable, 197 pending, 198 offline uncorrectable."
         },
         {
           "key": "INTERVAL_OVERRIDES",

@@ -222,7 +222,7 @@ class Writer(unittest.TestCase):
         heading = "# --- How often each drive gets an extended test ------------------------------\n"
         # "# Healthy drive." now runs straight into the next setting's comment, so the
         # block can't be split; the key goes above it, just under the heading.
-        self.assertIn(heading + "INTERVAL_DAYS=45\n# Healthy drive.\n# Drive showing", new)
+        self.assertIn(heading + "INTERVAL_DAYS=45\n# Healthy drive.\n# Drive with warning signs", new)
 
     def test_new_key_under_its_heading(self):
         text = "ENABLED=yes\n\n# --- UniFi backups and replication ---\n# (nothing set yet)\n\n# --- Other ---\nX=1\n"

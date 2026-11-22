@@ -25,7 +25,7 @@ import sys
 import tempfile
 import unittest
 
-from test_scheduling import NIGHT, TZ, Fake, ext, ss
+from test_scheduling import NIGHT, TZ, Fake, ext, rose6, ss
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 TOOL = os.path.normpath(os.path.join(HERE, ".."))
@@ -60,7 +60,7 @@ class CalendarFixture:
         self.fake = Fake()
         self.fake.install()
         self.fake.attrs["SERIAL6"] = {"198": 14}
-        self.state = {}
+        self.state = rose6()
         self.backups = {"tasks": [], "runs": [], "problems": []}
         patch(self, "now", lambda: NIGHT)
         patch(self, "load_state", lambda: json.loads(json.dumps(self.state)))

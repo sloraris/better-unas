@@ -738,7 +738,13 @@ def evaluate_drives(cfg, storage, user_id, state, alerts, report=True):
             elif cfg.yes("NOTIFY_SUCCESS"):
                 alerts.info(f"Extended SMART test on slot {slot} ({serial}) passed.")
 
-        info.update(planner.assess(cfg, d, history, attrs, baseline, t))
+        rose = planner.rise_state(history, attrs, baseline, ds.get("rose"), t)
+        if report:
+            if rose:
+                ds["rose"] = rose
+            else:
+                ds.pop("rose", None)
+        info.update(planner.assess(cfg, d, history, attrs, baseline, t, rose=rose))
         drive_left = drive_progress_left(d.get("smartTest"))
         if info.get("running") and drive_left is not None:
             info["remaining_percent"] = drive_left
