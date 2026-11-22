@@ -1,6 +1,6 @@
 # better-unas TUI: style and layout
 
-Status: steps 1 to 3 of the build order (§12) are built: roles, glyphs, chips, the action and nav bars, margins, the version in the tab bar, `heading`, `panel` and `KeyValue`; the Tools tab is gone, with updates and remove in Settings › better-unas and install / uninstall on each tool's page; the webhook and heartbeat are in Settings › Notifications (`better-unas.conf`) with `t` send test, and Alerts shows where alerts are sent. The rest is spec. It applies to every screen in the core and in every tool. The building blocks it describes live in `core/tui/widgets.py`, so a screen that follows this spec has little to decide for itself. What the app does is in [tui-design.md](tui-design.md); this file covers how it looks and reads.
+Status: steps 1 to 4 of the build order (§12) are built: roles, glyphs, chips, the action and nav bars, margins, the version in the tab bar, `heading`, `panel` and `KeyValue`; the Tools tab is gone, with updates and remove in Settings › better-unas and install / uninstall on each tool's page; the webhook and heartbeat are in Settings › Notifications (`better-unas.conf`) with `t` send test, and Alerts shows where alerts are sent; an editing text field opens a full-width box, and `on_change: install` makes saving do the follow-up step (smart-scheduler's Enabled). The rest is spec. It applies to every screen in the core and in every tool. The building blocks it describes live in `core/tui/widgets.py`, so a screen that follows this spec has little to decide for itself. What the app does is in [tui-design.md](tui-design.md); this file covers how it looks and reads.
 
 Where this came from: the first hardware run showed screens that worked but read as a wall of same-looking text. The problems are covered in the rules below. Each rule says which problem it fixes, so it doesn't get "simplified" away later.
 
@@ -203,7 +203,7 @@ A setting's help answers three things, in this order, in at most three short lin
 | Drive › Interval | `60 days: 59,052 power-on hours` | `60 days  old drive` |
 | Drive › Why (retry) | `retrying: last test ended failed/failed` | `retry` |
 | Calendar day | `No test: a SMART test is already running` | `! No test tonight: one is already running` |
-| Enabled help | `Set to no to stop: the next run removes the timer and cron line. To turn it back on, set yes and reinstall.` | `Runs smart-scheduler's hourly check, which starts tests when they're due. Off: no new tests start, and saving removes the hourly timer; running tests finish. On: saving puts the timer back.` |
+| Enabled help | `Set to no to stop: the next run removes the timer and cron line. To turn it back on, set yes and reinstall.` | `The hourly check that starts tests when they're due. Off: saving removes its timer; running tests finish. On: saving puts the timer back.` |
 
 ### smart-scheduler vocabulary
 
@@ -227,7 +227,7 @@ A setting's help answers three things, in this order, in at most three short lin
 These go into [plugin-contract.md](plugin-contract.md) when they're built:
 
 1. **Summary items:** an item's `tab` (or a new `target`, which can name a tab plus a screen argument such as a slot) is set only when it differs from the card's default. The core makes only those items stops.
-2. **Schema `on_change`:** `"install"` makes the core run the tool's installer after a save that changed this field. The confirm says so.
+2. **Schema `on_change` (built):** `"install"` makes the core run the tool's installer after a save that changed this field. The confirm says so.
 3. **Notifications move to the core (built, plugin-contract.md "Shared settings"):** `WEBHOOK_URL`, `WEBHOOK_FORMAT`, `NOTIFY_SUCCESS`, `ALERT_REPEAT_HOURS`, `HEARTBEAT_URL` and `HEARTBEAT_FAIL_URL` go in `better-unas.conf`. Tools still don't import the core: they read those keys from `<home>/better-unas.conf`, a plain key=value file, with their own config as a fallback. The update moves smart-scheduler's existing values across, once.
 4. **Roles, not tones:** widgets take a role (section 3) where they now take a tone. Plugins keep passing tones for status, and the core maps those to status roles.
 
@@ -358,9 +358,8 @@ The mockups below show layout only. Tones and chips are described under each one
    Old drive                   60 days
    Old-drive age               43,800 power-on hours  ≈ 5 years
  ──────────────────────────────────────────────────────────────────────────────
- Runs smart-scheduler's hourly check, which starts tests when they're due.
- Off: no new tests start, and saving removes the hourly timer; running tests
- finish. On: saving puts the timer back.
+ The hourly check that starts tests when they're due. Off: saving removes its
+ timer; running tests finish. On: saving puts the timer back.
  [s] save  [p] preview  [x] uninstall                    Space toggle  ↑↓ move
 ```
 

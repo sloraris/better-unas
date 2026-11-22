@@ -504,6 +504,25 @@ class LineEdit:
             return False
         return True
 
+    def wrapped(self, width, rows):
+        """(lines, cursor row, cursor column, first line shown): the text cut
+        into lines of width, with the window of rows that holds the cursor."""
+        width = max(1, width)
+        lines = [self.text[i:i + width] for i in range(0, len(self.text), width)] or [""]
+        row, col = divmod(self.cur, width)
+        if row == len(lines):
+            lines.append("")
+        first = max(0, min(row - rows + 1, len(lines) - rows)) if row >= rows else 0
+        return lines, row, col, first
+
+    def render_wrapped(self, canvas, y, x, width, rows, tone="normal"):
+        """The whole text wrapped over up to rows lines, cursor shown."""
+        lines, row, col, first = self.wrapped(width, rows)
+        for i, line in enumerate(lines[first:first + rows]):
+            canvas.text(y + i, x, line.ljust(width), tone)
+        under = self.text[self.cur] if self.cur < len(self.text) else " "
+        canvas.text(y + row - first, x + col, under, "selected")
+
     def render(self, canvas, y=0, x=0, width=None, tone="normal"):
         width = (canvas.width - x) if width is None else width
         if width <= 0:
@@ -593,7 +612,15 @@ class Field:
 class TextField(Field):
     """text, url, int, float and int_list: a text field. Numbers take only
     digit-like characters; `unit` is shown after the value; `secret` masks the
-    value except while editing."""
+    value except while editing.
+
+    While editing, text, url and int_list values open in a full-width box
+    under the label (docs/tui-style.md §7), wrapped over up to BOX_LINES
+    lines, so a pasted URL is visible end to end. Numbers stay inline."""
+
+    BOXED = ("text", "url", "int_list")
+    BOX_LINES = 4
+    in_form = False          # a Form sets it: only there is there room for the box
 
     ALLOWED = {
         "int": lambda ch: ch.isdigit() or ch == "-",
@@ -633,10 +660,31 @@ class TextField(Field):
             self.text = self.edit.text
         return True   # an editing field swallows every key
 
+    @property
+    def boxed(self):
+        return self.editing and self.in_form and self.spec["type"] in self.BOXED
+
+    def box_height(self, width):
+        """Rows the editing box takes at this width (borders included)."""
+        inner = max(1, width - 4)
+        return min(self.BOX_LINES, len(self.edit.text) // inner + 1) + 2
+
+    def render_box_part(self, canvas, skip=0):
+        """The editing box (a border, the text wrapped inside it), drawn from
+        its row `skip` down, so a box scrolled half out of view still draws."""
+        w = canvas.width
+        h = self.box_height(w)
+        canvas.box(-skip, 0, h, w, tone="accent")
+        self.edit.render_wrapped(canvas, 1 - skip, 2, max(1, w - 4), h - 2)
+
     def render(self, canvas):
         if not self.editing:
             return super().render(canvas)
         unit = self.spec.get("unit")
+        if self.boxed:          # the value is in the box under the label
+            if unit:
+                canvas.text(0, 0, unit, "dim")
+            return
         width = canvas.width - (len(unit) + 1 if unit else 0)
         self.edit.render(canvas, 0, 0, max(1, min(width, 40)))
         if unit:
@@ -1074,6 +1122,7 @@ class Form:
             self.rows.append(("group", g))
             for spec in g["fields"]:
                 f = make_field(spec, raw.get(spec["key"]), suggestions, pickers)
+                f.in_form = True
                 self.rows.append(("field", f))
                 self.fields.append(f)
         self.scroll = Scroller(len(self.fields))
@@ -1145,10 +1194,15 @@ class Form:
                 # the first field of a group brings its heading into view
                 anchor = heading if lines[-1][0] in ("group", "ghelp") else sel_line
             lines.append(("field", item))
+            if getattr(item, "boxed", False):
+                box_w = area.width - 4
+                lines += [("box", (item, i, box_w)) for i in range(item.box_height(box_w))]
             if item.error:
                 lines.append(("error", item))
         rows = area.height
         last = sel_line + (1 if self.current.error else 0)
+        if getattr(self.current, "boxed", False):
+            last += self.current.box_height(area.width - 4)
         if anchor < self.top:
             self.top = anchor
         if last >= self.top + rows:
@@ -1160,6 +1214,11 @@ class Form:
                 area.text(y, 0, item["title"], "accent", bold=True)
             elif kind == "ghelp":
                 area.text(y, 2, fit(item["help"], area.width - 3, more), "dim")
+            elif kind == "box":
+                field, i, box_w = item
+                if i == 0 or y == 0:        # draw the whole box once, from its first visible row
+                    h = field.box_height(box_w) - i
+                    field.render_box_part(area.sub(y, 2, min(h, rows - y), box_w), i)
             elif kind == "error":
                 area.text(y, self.LABEL_W, fit(f"! {item.error}", area.width - self.LABEL_W - 1, more), "bad")
             elif kind == "field":

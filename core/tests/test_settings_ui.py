@@ -9,6 +9,7 @@ snapshots in core/tests/snapshots/.
 
 import fcntl
 import importlib.util
+import json
 import os
 import stat
 import sys
@@ -23,6 +24,7 @@ if HERE not in sys.path:
 
 from core import configfile                                # noqa: E402
 from core import plugins as P                              # noqa: E402
+from core import updates as U                              # noqa: E402
 from core.tui import settings as S                         # noqa: E402
 from core.tui import widgets as W                          # noqa: E402
 from test_tui import AppFixture, SS_SCHEMA                 # noqa: E402
@@ -375,6 +377,104 @@ class SettingsFormTests(unittest.TestCase):
 
         S.SettingsForm(ctx, self.schema, {}, lambda e: None, validate=boom)
         self.assertIn("validate: KeyError", ctx.messages[0][0])
+
+
+class InstallOnSaveTests(Fixture, unittest.TestCase):
+    """A field with "on_change": "install" makes the save run install.sh
+    (docs/tui-style.md §7 rule 4)."""
+
+    def setUp(self):
+        super().setUp()
+        schema_path = os.path.join(self.tool_dir, "settings.json")
+        with open(schema_path) as f:
+            schema = json.load(f)
+        schema["groups"][0]["fields"][0]["on_change"] = "install"     # ENABLED
+        with open(schema_path, "w") as f:
+            json.dump(schema, f)
+        self.write_config()
+        self.runs = []
+        self.answer = (True, "Installed.\nTurned off: removed the hourly timer.\n")
+
+    def make_app(self, **kw):
+        app = super().make_app(**kw)
+
+        def run(folder, script):
+            self.runs.append((os.path.basename(folder), script, self.read_config()))
+            return self.answer
+        app.updater = U.Updater(self.home, run=run)
+        return app
+
+    def toggle_enabled(self, *answer, **kw):
+        self.open_form(**kw)
+        self.app.press("home", " ")
+        return self.app.press("s", *answer)
+
+    def test_save_asks_then_runs_the_installer_after_writing(self):
+        text = self.toggle_enabled("y")
+        asked = next(f for f in self.frames if "Save and apply Enabled?" in f)
+        self.assertIn("Saving also runs space-watch's installer", asked)
+        self.assertIn("Saved and applied. Turned off: removed the hourly timer.", text)
+        (name, script, config), = self.runs
+        self.assertEqual((name, script), ("space-watch", "install.sh"))
+        self.assertIn("ENABLED=no", config)                    # written before the installer ran
+
+    def test_no_keeps_the_edits_and_writes_nothing(self):
+        text = self.toggle_enabled("n")
+        self.assertIn("Not saved. Your edits are still here.", text)
+        self.assertEqual((self.read_config(), self.runs), (CONFIG, []))
+        self.assertEqual(self.app.screen.sform.changed(), {"ENABLED": "no"})
+
+    def test_other_fields_save_without_the_installer(self):
+        self.open_form()
+        self.set_warn("80")
+        self.assertIn("Saved 1 setting(s)", self.app.press("s"))
+        self.assertEqual(self.runs, [])
+
+    def test_a_failed_installer_says_so(self):
+        self.answer = (False, "systemctl: not found\n")
+        text = self.toggle_enabled("y")
+        self.assertIn("space-watch installer", text.splitlines()[1])
+        self.assertIn("Saved, but the installer failed", text)
+        self.assertIn("ENABLED=no", self.read_config())
+
+    def test_dry_run_runs_nothing(self):
+        text = self.toggle_enabled(dry_run=True)
+        self.assertIn("Dry run: nothing was written and space-watch's installer wasn't run.", text)
+        self.assertEqual((self.read_config(), self.runs), (CONFIG, []))
+
+    def test_schema_check(self):
+        bad = {"contract": 1, "groups": [{"id": "g", "title": "G", "fields": [
+            {"key": "A", "type": "bool", "label": "A", "default": "yes", "on_change": "restart"}]}]}
+        with self.assertRaises(P.ContractError) as e:
+            P.check_schema(bad)
+        self.assertIn('schema: A: "on_change" must be one of install', e.exception.problems)
+
+
+class EditBoxTests(Fixture, unittest.TestCase):
+    """An editing text field opens a full-width box under its label, so a long
+    value is visible end to end (docs/tui-style.md §7 rule 1)."""
+
+    URL = "https://ntfy.sh/nas-alerts-7f2c9d1e4b?auth=tk_8sd7f6g5h4j3k2l1_abcdefghijklmnopqrstuvwxyz"
+
+    def test_a_long_url_shows_whole_while_editing(self):
+        app = self.make_app()
+        app.home = self.home
+        app.press("5")
+        self.assertTrue(app.screen.open("Notifications"))
+        text = app.press("enter", *self.URL)
+        self.assertSnapshot("settings_edit_box", text)
+        joined = "".join(ln.strip(" │") for ln in text.splitlines()[5:9])
+        self.assertIn(self.URL, joined)
+        self.assertIn("Enter done", text.split("\n")[22])
+        text = app.press("enter")
+        self.assertNotIn("┌", text)                            # the box goes when editing ends
+        self.assertIn("* Webhook URL", text)
+
+    def test_numbers_stay_inline(self):
+        self.write_config()
+        self.open_form()
+        text = self.app.press("home", "down", "down", "enter")   # Warn above: an int
+        self.assertNotIn("┌", text)
 
 
 class WriterTests(unittest.TestCase):

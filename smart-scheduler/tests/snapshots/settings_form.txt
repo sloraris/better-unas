@@ -18,7 +18,7 @@
  When tests may start
    Start window                00:00 to 05:00                                 ↓
  ──────────────────────────────────────────────────────────────────────────────
- Set to no to stop: the next run removes the timer and cron line. To turn it
- back on, set yes and reinstall.
+ The hourly check that starts tests when they're due. Off: saving removes its
+ timer; running tests finish. On: saving puts the timer back.
  s save  p preview  Space toggle  x uninstall  i reinstall              ↑↓ move
  Esc back  1-5/Tab tabs                                          ? help  q quit

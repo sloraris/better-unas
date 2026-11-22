@@ -1,0 +1,24 @@
+ 1 Home │ 2 Board │ 3 Space │ 4 Alerts │ 5 Settings
+ Settings › Notifications ────────────────────────────────────────────────────
+ better-unas/better-unas.conf        1 unsaved change(s); s saves, Esc discards
+ Notifications
+ * Webhook URL
+   ┌────────────────────────────────────────────────────────────────────────┐
+   │ https://ntfy.sh/nas-alerts-7f2c9d1e4b?auth=tk_8sd7f6g5h4j3k2l1_abcdefg │
+   │ hijklmnopqrstuvwxyz                                                    │
+   └────────────────────────────────────────────────────────────────────────┘
+   Webhook format              ‹ text ›
+   Notify on success           [ ] no
+   Repeat alerts every         72 hours
+   Heartbeat URL               (none)
+   Heartbeat URL on failure    (none)
+
+
+
+
+
+ ──────────────────────────────────────────────────────────────────────────────
+ Where every tool's alerts go, e.g. an ntfy topic or a Slack or Discord
+ webhook. Empty: alerts go only to the system log.
+ Enter done  Esc cancel
+

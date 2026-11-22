@@ -48,7 +48,8 @@ TRUE_WORDS = ("yes", "true", "on", "1")
 FALSE_WORDS = ("no", "false", "off", "0")
 
 # Per type: allowed extra attributes beyond the common ones.
-COMMON_ATTRS = {"key", "type", "label", "help", "default", "essential"}
+COMMON_ATTRS = {"key", "type", "label", "help", "default", "essential", "on_change"}
+ON_CHANGE = ("install",)      # what a save that changed the field also does
 TYPE_ATTRS = {
     "int": {"min", "max", "unit"},
     "float": {"min", "max", "unit"},
@@ -261,6 +262,8 @@ def _check_field(f, where, seen_keys):
     for k in ("essential", "required", "secret"):
         if k in f and not isinstance(f[k], bool):
             p.append(f"{where}: {k!r} must be true or false")
+    if "on_change" in f and f["on_change"] not in ON_CHANGE:
+        p.append(f"{where}: \"on_change\" must be one of {', '.join(ON_CHANGE)}")
     if "unit" in f and not isinstance(f["unit"], str):
         p.append(f"{where}: \"unit\" must be a string")
     num = _is_num if t == "float" else _is_int
@@ -310,6 +313,11 @@ def load_schema(path):
 def fields(schema):
     """Every field, in schema order."""
     return [f for g in schema["groups"] for f in g["fields"]]
+
+
+def install_fields(schema):
+    """Fields whose change makes a save also run the tool's install.sh."""
+    return [f for f in fields(schema) if f.get("on_change") == "install"]
 
 
 def essential_fields(schema):

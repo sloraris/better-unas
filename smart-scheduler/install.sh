@@ -24,8 +24,15 @@ fi
 chmod 600 config
 
 if grep -q '^ENABLED=no' config; then
-  echo "config has ENABLED=no; set it to yes first if you want it running."
-  exit 1
+  # Turned off: no timer, no cron line. Tests already running finish.
+  # Saving Enabled=yes in Settings runs this again and puts them back.
+  systemctl disable --now smart-scheduler.timer 2>/dev/null || true
+  rm -f /etc/systemd/system/smart-scheduler.service \
+        /etc/systemd/system/smart-scheduler.timer \
+        /etc/cron.d/smart-scheduler
+  systemctl daemon-reload
+  echo "Turned off (ENABLED=no): removed the hourly timer and cron line. Running tests finish."
+  exit 0
 fi
 chmod 755 smart_scheduler.py install.sh uninstall.sh
 

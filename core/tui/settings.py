@@ -482,7 +482,52 @@ class FormScreen:
         if not self.sform.editing and k == "t" and self.can_test:
             self.send_test()
             return True
+        if not self.sform.editing and k == "s":
+            self.save()
+            return True
         return self.sform.key(k)
+
+    # --- saving, and the follow-up a field asks for (schema "on_change")
+
+    def install_fields(self, edits):
+        """The edited fields whose change makes the save run install.sh."""
+        return [f for f in P.install_fields(self.ctx.tool.schema) if f["key"] in edits]
+
+    def save(self):
+        """`s`: save; when a changed field says "on_change": "install", ask
+        first, then run the tool's install.sh so the change takes effect."""
+        hooks = self.install_fields(self.sform.changed())
+        name = self.ctx.tool.name
+        if hooks and not self.sform.problems() and not self.ctx.dry_run:
+            labels = ", ".join(f["label"] for f in hooks)
+            if not self.ctx.confirm(f"Save and apply {labels}?",
+                                    [f"Saving also runs {name}'s installer, so the change takes",
+                                     "effect now. It keeps your config and state."]):
+                self.ctx.message("Not saved. Your edits are still here.", "dim")
+                return False
+        saved = self.sform.save()
+        if hooks and self.ctx.dry_run and not self.sform.problems():
+            self.ctx.message(f"Dry run: nothing was written and {name}'s installer wasn't run.", "warn")
+        elif saved and hooks:
+            self.run_installer()
+        return saved
+
+    def run_installer(self):
+        from .screens import DetailScreen
+        from .suite import output_lines, updater_of
+        tool = self.ctx.tool
+        run = updater_of(self.ctx.app).run
+        ok, out = self.ctx.run_slow(lambda: run(tool.path, "install.sh"), f"Running {tool.name}'s installer")
+        self.ctx.log(f"ran {tool.name}/install.sh after a save: {'ok' if ok else 'failed'}")
+        last = next((ln.strip() for ln in reversed((out or "").splitlines()) if ln.strip()), "")
+        if ok:
+            self.ctx.message(f"Saved and applied. {last}".strip(), "good")
+            return True
+        self.ctx.push(DetailScreen(f"{tool.name} installer", [
+            ("Saved, but the installer failed, so the change may not have taken effect.", "bad"), ""]
+            + output_lines(out, "bad")))
+        self.ctx.message(f"Saved, but {tool.name}'s installer failed: {last or 'no output'}", "bad")
+        return False
 
     def status_line(self):
         n = len(self.sform.changed())
