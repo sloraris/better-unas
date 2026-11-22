@@ -400,7 +400,7 @@ class DrivesScreen:
     def __init__(self, ctx): ...
 
     def keys(self):                        # footer hints, besides the core's own
-        return [("Enter", "details"), ("t", "run test"), ("z", "snooze")]
+        return [("Enter", "open"), ("t", "run test"), ("z", "snooze")]
 
     def show(self): ...                    # each time the screen becomes visible
 

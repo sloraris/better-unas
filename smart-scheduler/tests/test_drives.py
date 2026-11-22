@@ -147,7 +147,7 @@ class DrivesScreenTests(DrivesFixture, unittest.TestCase):
         self.assertIn("48°C", rows["4"])
         self.assertIn("┌─ Slot 1 · ST4000VN006-3CW104 · SERIAL1 ", text)
         self.assertIn("▶ Extended test running, started Sun 00:10. Next: Sun 21 Feb 2027.", text)
-        self.assertIn("Enter slot 1", text)
+        self.assertIn("Enter open ", text)
 
     def test_list_follows_the_selection(self):
         rich(self)
@@ -155,7 +155,6 @@ class DrivesScreenTests(DrivesFixture, unittest.TestCase):
         text = self.to_slot(5)
         self.assertIn("┌─ Slot 5 · WDC WD4002FYYZ-01B7CB0 · SERIAL5 ", text)
         self.assertIn("○ Next test Mon 23 Nov 00:00 · warning signs · every 30 days", text)
-        self.assertIn("Enter slot 5", text)
         text = self.to_slot(2)                                 # 5 + 1 = slot 6, snoozed
         self.assertIn("Snoozed to Wed 25 Nov (waiting for a spare). Next test Wed 25 Nov.", text)
         self.assertIn(("u", "unsnooze"), self.app.screen.keys())   # only offered on a snoozed drive

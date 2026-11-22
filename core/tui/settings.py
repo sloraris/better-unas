@@ -280,7 +280,7 @@ class SettingsScreen:
 
     def keys(self):
         name = self.current_name()
-        return ([("Enter", f"open {name}")] if name else []) + [("↑↓", "move")]
+        return ([("Enter", "open")] if name else []) + [("↑↓", "move")]
 
     def line(self, entry):
         """(lead text, status kind or None, detail text, tone) for a list

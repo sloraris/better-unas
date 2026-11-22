@@ -815,8 +815,8 @@ class AppTests(AppFixture, unittest.TestCase):
         class Seven:
             title = "Seven"
 
-            def keys(self):   # 79 columns of keys, like smart-scheduler's Drives screen
-                return [("Enter", "details"), ("t", "test"), ("z", "snooze"), ("x", "exclude"),
+            def keys(self):   # smart-scheduler's Drives screen, with a drive snoozed
+                return [("Enter", "open"), ("t", "test"), ("z", "snooze"), ("x", "exclude"),
                         ("i", "interval"), ("u", "unsnooze"), ("r", "refresh")]
 
             def render(self, c):
@@ -827,9 +827,10 @@ class AppTests(AppFixture, unittest.TestCase):
 
         app = self.make_app(80, 28, extra_tabs=[("Seven", lambda ctx: Seven())])
         lines = app.press("2").split("\n")
-        # Inside the action box six of them fit; the seventh gives way to ? more.
+        # All seven fit inside the action box.
+        self.assertNotIn("more", lines[25])
         self.assertTrue(lines[25].strip("│ ").startswith(
-            "Enter details  t test  z snooze  x exclude  i interval  u unsnooze  ? more"), lines[25])
+            "Enter open  t test  z snooze  x exclude  i interval  u unsnooze  r refresh"), lines[25])
         self.assertIn("/Tab tabs", lines[27])
         self.assertTrue(lines[27].endswith("? help  q quit"), lines[27])
 

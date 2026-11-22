@@ -381,7 +381,7 @@ class CalendarScreen:
         self.sel = None
 
     def keys(self):
-        return [("Enter", "day details"), ("t", "today"), ("r", "recalculate"),
+        return [("Enter", "open"), ("t", "today"), ("r", "recalculate"),
                 ("←→↑↓", "day"), ("PgUp/Dn", "month")]
 
     def show(self):

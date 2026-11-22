@@ -94,7 +94,7 @@ This fixes: SMART and schedule details bunched at the top with half the screen e
 ## 5. Navigation and selection
 
 1. **One stop per destination.** If several rows would all open the same place, they form one stop, and the whole group is highlighted as a unit. A row becomes its own stop only when Enter on it goes somewhere different from its group.
-2. **Every stop says where it goes.** The action bar shows `[Enter] <destination>` for the selected stop (`[Enter] open Drives`, `[Enter] slot 4`), not a generic `open`.
+2. **Every stop shows where it goes.** The stop itself carries the destination (a dim `› Drives` hint, a selected row, a panel naming the drive), so the action bar just says `[Enter] open`.
 3. **Non-stops aren't drawn as selectable.** They get no `›` and no hover. Arrow keys skip them.
 4. **Esc goes back one level, always.** It never discards anything without asking.
 
@@ -288,7 +288,7 @@ The mockups below show layout only. Tones and chips are described under each one
  ┌ Slot 1 · ST4000VN006-3CW104 · SERIAL1 ──────────────────────────────────────┐
  │ ▶ Extended test running, 80%, started Sun 00:10. Next after it: Sun 21 Feb. │
  └─────────────────────────────────────────────────────────────────────────────┘
- [Enter] slot 1  [t] test  [z] snooze  [x] exclude  [i] interval        ↑↓ move
+ [Enter] open  [t] test  [z] snooze  [x] exclude  [i] interval        ↑↓ move
 ```
 
 - The Status column is gone: its meaning now sits as glyphs in Last test and Next test. The serial moves to the selection panel.
@@ -344,7 +344,7 @@ The mockups below show layout only. Tones and chips are described under each one
  Sunday 22 November  today
    ▶ Slot 1  extended test running, 80%, started 00:10
    ! No new test tonight: one is already running
- [Enter] day details  [t] today  [r] recalculate        ←→↑↓ day  PgUp/Dn month
+ [Enter] open  [t] today  [r] recalculate        ←→↑↓ day  PgUp/Dn month
 ```
 
 - Each cell's first line has the day number, then scrub/backup glyphs in accent. The second line holds drive chips: a glyph plus the slot number, in the status tone. Up to three fit, then `+2`.
@@ -384,7 +384,7 @@ The mockups below show layout only. Tones and chips are described under each one
    Level        Since          Tool             Message
  › ✗ failed     12 Nov 03:15   smart-scheduler  Extended SMART test failed on…
 
- [Enter] details  [r] refresh                                        ↑↓ move
+ [Enter] open  [r] refresh                                           ↑↓ move
 ```
 
 ## 11. Checks that keep it this way

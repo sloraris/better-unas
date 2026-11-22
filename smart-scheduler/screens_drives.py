@@ -625,7 +625,7 @@ class DrivesScreen:
         if self.actions.busy:
             return self.actions.keys()
         d = self.current
-        lead = [("Enter", f"slot {d['slot']}")] if d else []
+        lead = [("Enter", "open")] if d else []
         return lead + self.actions.keys(d) + [("r", "refresh"), ("↑↓", "move")]
 
     def show(self):

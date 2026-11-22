@@ -100,6 +100,8 @@ real NAS.
   setup forms the selected field's help sits in a full-width box above that.
   The minimum size is now 80x28; at start the app asks a smaller terminal to
   grow where the terminal allows it, and puts it back on quit.
+- Enter's label in the action bar is just `open` on every screen; the
+  selected row, panel or `›` hint already says where it goes.
 
 ### smart-scheduler
 

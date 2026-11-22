@@ -46,7 +46,7 @@ class AlertsScreen:
                               ("Message", None)], empty="No alerts.")
 
     def keys(self):
-        return [("Enter", "details"), ("r", "refresh")] + self.table.keys()
+        return [("Enter", "open"), ("r", "refresh")] + self.table.keys()
 
     def sent_to(self):
         """Where alerts go: the webhook's host, from better-unas.conf."""

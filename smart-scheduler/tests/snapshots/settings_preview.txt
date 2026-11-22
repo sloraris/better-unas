@@ -23,6 +23,6 @@
 
 
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│  Enter day details  t today  r recalculate          ←→↑↓ day  PgUp/Dn month  │
+│  Enter open  t today  r recalculate                 ←→↑↓ day  PgUp/Dn month  │
 └──────────────────────────────────────────────────────────────────────────────┘
  Esc back  1-5/Tab tabs                                          ? help  q quit

@@ -381,7 +381,7 @@ class PluginTests(CalendarFixture, unittest.TestCase):
         home = self.app.screen
         self.assertEqual([st.target for st in home.stops][-2:], ["Drives:SERIAL1", "Drives:SERIAL4"])
         text = self.app.press("end")
-        self.assertIn("Enter open slot 4", text.split("\n")[25])
+        self.assertIn("Enter open ", text.split("\n")[25])
         text = self.app.press("enter")
         self.assertEqual(self.app.tab.title, "Drives")
         self.assertIn("└─ Slot 4 ", text.split("\n")[2])

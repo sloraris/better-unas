@@ -23,6 +23,6 @@
  │ ▶ Extended test running, started Sun 00:10. Next: Sun 21 Feb 2027.         │
  └────────────────────────────────────────────────────────────────────────────┘
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│  Enter slot 1  t test  z snooze  x exclude  i interval  r refresh   ↑↓ move  │
+│  Enter open  t test  z snooze  x exclude  i interval  r refresh     ↑↓ move  │
 └──────────────────────────────────────────────────────────────────────────────┘
  1-5/Tab tabs                                                    ? help  q quit

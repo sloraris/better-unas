@@ -175,7 +175,7 @@ class HomeSnapshotTests(HomeFixture, unittest.TestCase):
         self.assertIn("› ▲ Update available: v0.3.0", line)
         self.assertTrue(line.rstrip().endswith("Settings › better-unas"))
         self.assertEqual(self.updates.calls, [self.home])
-        self.assertIn("Enter open Settings › better-unas", self.term.text().split("\n")[25])
+        self.assertIn("Enter open ", self.term.text().split("\n")[25])
         self.check("update", app)
 
     def test_active_alert(self):
@@ -221,7 +221,7 @@ class HomeBehaviourTests(HomeFixture, unittest.TestCase):
         app.press("1", "down", "enter")
         self.assertEqual(app.tab.title, "Calendar")
         text = app.press("1", "down", "down")
-        self.assertIn("Enter open Drives", text.split("\n")[25])
+        self.assertIn("Enter open ", text.split("\n")[25])
         self.assertIn("› Drives", text)                       # where it goes, at the right
         app.press("enter")
         self.assertEqual(app.tab.title, "Drives")

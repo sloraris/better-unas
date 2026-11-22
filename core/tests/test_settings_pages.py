@@ -95,7 +95,7 @@ class SettingsPagesTests(SnapshotMixin, unittest.TestCase):
         self.assertIn("alpha                ✓ installed", text)
         self.assertIn("beta                 uninstalled", text)
         self.assertIn("gamma                not installed", text)
-        self.assertIn("Enter open better-unas", text.split("\n")[25])
+        self.assertIn("Enter open ", text.split("\n")[25])
         self.assertNotIn("Tools │", text.split("\n")[0])
 
     def test_update_available(self):
