@@ -26,6 +26,10 @@ real NAS.
   settings, review, install), with `--dry-run`, `--ref` and `--force`. Finds
   an install made by the old `install.sh` and moves it over, keeping config
   and state. The root `install.sh` is gone (#15).
+- Developer mode (Settings → better-unas): follow the newest commit on a
+  GitHub branch instead of releases, pick the branch with `b` on Tools, and
+  `better-unas update` installs that commit. `update --ref` takes a branch,
+  tag or commit for a one-off.
 - Plain commands: `better-unas status`, `list`, `update`, `install`,
   `uninstall`, `<tool> <command>`, with exit codes for scripts (#16).
 

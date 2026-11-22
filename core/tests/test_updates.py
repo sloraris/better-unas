@@ -51,7 +51,8 @@ class Base(unittest.TestCase):
         self.link = os.path.join(self.bin, "better-unas")
         self.gh = FakeGitHub(os.path.join(self.tmp, "github"))
         self.up = U.Updater(self.home, api_url=self.gh.api_url, tarball_url=self.gh.tarball_url,
-                            link=self.link)
+                            link=self.link, commit_url=self.gh.commit_url,
+                            branches_url=self.gh.branches_url)
 
     def installed_at(self, version, tools=("alpha", "beta")):
         """A home installed from release `version` with these tools."""
@@ -112,7 +113,8 @@ class CheckTests(Base):
     def test_update_available_is_cached(self):
         s = U.check(self.home, now=T0, fetch=self.fetch())
         self.assertEqual(s, {"current": "v0.2.0", "latest": "v0.3.0", "available": True,
-                             "checked_at": "2026-11-22T01:00:00-07:00", "error": None})
+                             "checked_at": "2026-11-22T01:00:00-07:00", "error": None,
+                             "branch": None, "latest_ref": "v0.3.0", "latest_date": None})
         self.assertEqual(U.cached_status(self.home), s)
         # Fresh for CHECK_HOURS: no second request.
         U.check(self.home, now=T0 + dt.timedelta(hours=U.CHECK_HOURS - 1), fetch=self.fetch())
@@ -392,3 +394,74 @@ class RemoveTests(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DevModeTests(Base):
+    """Developer mode: follow the newest commit on a branch instead of releases."""
+    SHA1, SHA2 = "1111111111111111111111111111111111111111", "a2b3c4d5e6a2b3c4d5e6a2b3c4d5e6a2b3c4d5e6"
+
+    def dev(self, on=True, branch="main"):
+        with open(os.path.join(self.home, U.CORE_CONFIG), "w") as f:
+            f.write(f"DEV_MODE={'yes' if on else 'no'}\nDEV_BRANCH={branch}\n")
+
+    def test_off_by_default(self):
+        self.installed_at("v0.2.0")
+        self.assertEqual(U.core_settings(self.home), {"DEV_MODE": False, "DEV_BRANCH": "main"})
+        self.assertIsNone(U.dev_branch(self.home))
+
+    def test_follows_the_branch_head_and_installs_the_commit(self):
+        self.installed_at("v0.2.0")
+        self.dev()
+        self.gh.push("main", self.SHA1)
+        s = self.up.check(force=True, now=T0)
+        self.assertEqual((s["branch"], s["latest_ref"], s["available"]), ("main", self.SHA1, True))
+        self.assertEqual(s["latest"], "main @ 1111111")
+        report = self.up.update_to(s)
+        self.assertEqual(report["to"], "main @ 1111111")
+        self.assertEqual(report["from"], "v0.2.0")
+        self.assertEqual((U.installed_ref(self.home), U.installed_commit(self.home)), ("main", self.SHA1))
+        self.assertEqual(self.up.installed_label(), "main @ 1111111")
+        self.assertFalse(self.up.cached_status()["available"])
+        self.assertEqual(self.up.cached_status()["current"], "main @ 1111111")
+        # A new commit lands.
+        self.gh.push("main", self.SHA2)
+        s = self.up.check(force=True, now=T0)
+        self.assertTrue(s["available"])
+        self.assertEqual(s["latest"], "main @ a2b3c4d")
+
+    def test_switching_mode_or_branch_makes_the_cache_stale(self):
+        self.installed_at("v0.2.0")
+        self.up.check(force=True, now=T0, )      # release mode: no release published here
+        self.assertIsNotNone(self.up.cached_status())
+        self.dev()
+        self.assertIsNone(self.up.cached_status())
+        self.gh.push("main", self.SHA1)
+        self.gh.push("feature/x", self.SHA2)
+        self.assertEqual(self.up.check(now=T0)["latest_ref"], self.SHA1)
+        self.dev(branch="feature/x")
+        self.assertIsNone(self.up.cached_status())
+        self.assertEqual(self.up.check(now=T0)["latest_ref"], self.SHA2)
+
+    def test_missing_branch_is_an_error_not_a_crash(self):
+        self.installed_at("v0.2.0")
+        self.dev(branch="gone")
+        s = self.up.check(force=True, now=T0)
+        self.assertFalse(s["available"])
+        self.assertTrue(s["error"])
+
+    def test_release_update_forgets_the_branch(self):
+        self.installed_at("v0.2.0")
+        self.dev()
+        self.gh.push("main", self.SHA1)
+        self.up.update_to(self.up.check(force=True, now=T0))
+        self.dev(on=False)
+        self.gh.publish("v0.3.0")
+        self.up.update_to(self.up.check(force=True, now=T0))
+        self.assertIsNone(U.installed_ref(self.home))
+        self.assertIsNone(U.installed_commit(self.home))
+        self.assertEqual(self.up.installed_label(), "v0.3.0")
+
+    def test_branch_list(self):
+        self.gh.push("feature/x", self.SHA2)
+        self.gh.push("main", self.SHA1)
+        self.assertEqual(self.up.fetch_branches(), ["main", "feature/x"])

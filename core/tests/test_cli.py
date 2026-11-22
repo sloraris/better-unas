@@ -60,7 +60,8 @@ class Base(unittest.TestCase):
         self.link = os.path.join(self.bin, "better-unas")
         self.gh = FakeGitHub(os.path.join(self.tmp, "github"))
         self.up = U.Updater(self.home, api_url=self.gh.api_url, tarball_url=self.gh.tarball_url,
-                            link=self.link)
+                            link=self.link, commit_url=self.gh.commit_url,
+                            branches_url=self.gh.branches_url)
         for k in ("NO_COLOR", "BETTER_UNAS_HOME"):
             os.environ.pop(k, None)
 
@@ -397,6 +398,33 @@ class TerminalPromptTests(unittest.TestCase):
         os.close(fd)
         self.assertIn(b"Install main? [y/N] ", out)
         self.assertIn(b"GOT 'y\\n'", out, out)
+
+
+class DevModeCliTests(Base):
+    SHA = "1111111111111111111111111111111111111111"
+
+    def test_update_follows_the_branch_in_developer_mode(self):
+        self.installed_at("v0.2.0")
+        with open(os.path.join(self.home, U.CORE_CONFIG), "w") as f:
+            f.write("DEV_MODE=yes\nDEV_BRANCH=main\n")
+        self.gh.push("main", self.SHA, tools=tools())
+        code, out, _ = self.run_cli("update", "--check")
+        self.assertEqual(code, C.UPDATE_AVAILABLE)
+        self.assertIn("main @ 1111111", out)
+        code, out, err = self.run_cli("update", "--yes")
+        self.assertEqual(code, 0, out + err)
+        self.assertIn("Updated v0.2.0 -> main @ 1111111.", out)
+        self.assertIn("v0.2.0 (from main @ 1111111, not a release; developer mode, following main)",
+                      self.run_cli("--version")[1])
+        self.assertIn("Everything is up to date (main @ 1111111).", self.run_cli("update")[1])
+
+    def test_ref_on_a_branch_records_its_commit(self):
+        self.installed_at("v0.2.0")
+        self.gh.push("main", self.SHA, tools=tools())
+        code, out, err = self.run_cli("update", "--ref", "main", "--yes")
+        self.assertEqual(code, 0, out + err)
+        self.assertIn("Updated v0.2.0 -> main @ 1111111.", out)
+        self.assertEqual(U.installed_commit(self.home), self.SHA)
 
 
 class InstallUninstallTests(Base):

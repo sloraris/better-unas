@@ -45,7 +45,8 @@ class ToolsScreenTests(SnapshotMixin, unittest.TestCase):
         self.link = os.path.join(self.bin, "better-unas")
         self.gh = FakeGitHub(os.path.join(self.tmp, "github"))
         self.up = U.Updater(self.home, api_url=self.gh.api_url, tarball_url=self.gh.tarball_url,
-                            link=self.link)
+                            link=self.link, commit_url=self.gh.commit_url,
+                            branches_url=self.gh.branches_url)
         # Installed at v0.2.0 with alpha and beta, then beta uninstalled; gamma never.
         self.gh.publish("v0.2.0")
         work = self.up.fetch_release("v0.2.0")
@@ -174,6 +175,54 @@ class ToolsScreenTests(SnapshotMixin, unittest.TestCase):
         self.assertIn("Dry run: would remove better-unas.", text)
         self.assertEqual(U.suite_version(self.home), "v0.2.0")
         self.assertEqual(I.installed_tools(self.home), ["alpha"])
+
+
+
+class DevModeToolsTests(SnapshotMixin, unittest.TestCase):
+    """The Tools tab in developer mode, on the same installed home."""
+    SHA1, SHA2 = "1" * 40, "a2b3c4d5e6" * 4
+    make_app = ToolsScreenTests.make_app
+    frame_with = ToolsScreenTests.frame_with
+
+    def setUp(self):
+        ToolsScreenTests.setUp(self)
+        with open(os.path.join(self.home, U.CORE_CONFIG), "w") as f:
+            f.write("DEV_MODE=yes\nDEV_BRANCH=main\n")
+        self.gh.push("main", self.SHA1)
+        self.gh.push("feature/x", self.SHA2)
+        self.up.check(force=True, now=CLOCK)
+
+    def test_shows_the_branch_and_offers_the_new_commit(self):
+        app = self.make_app()
+        text = app.press(TOOLS_TAB)
+        self.assertIn("New commit: main @ 1111111. Press u to update.", text)
+        self.assertIn("developer mode: following main", text)
+        self.assertIn("b branch", text.split("\n")[22])
+        text = app.press("u", "y")
+        frame = self.frame_with("main @ 1111111?")
+        self.assertIn("unreleased code (developer mode)", frame)
+        self.assertIn("Updated from v0.2.0 to main @ 1111111.", text)
+        self.assertEqual(U.installed_commit(self.home), self.SHA1)
+
+    def test_pick_a_branch(self):
+        app = self.make_app()
+        app.press(TOOLS_TAB)
+        text = app.press("b")
+        self.assertIn("main  (following)", text)
+        self.assertIn("feature/x", text)
+        text = app.press("down", "enter")
+        with open(os.path.join(self.home, U.CORE_CONFIG)) as f:
+            self.assertIn("DEV_BRANCH=feature/x", f.read())
+        self.assertEqual(U.dev_branch(self.home), "feature/x")
+        self.assertIn("New commit: feature/x @ a2b3c4d", text)
+
+    def test_no_branch_key_without_developer_mode(self):
+        with open(os.path.join(self.home, U.CORE_CONFIG), "w") as f:
+            f.write("DEV_MODE=no\n")
+        app = self.make_app()
+        text = app.press(TOOLS_TAB)
+        self.assertNotIn("b branch", text)
+        self.assertNotIn("developer mode", text)
 
 
 if __name__ == "__main__":

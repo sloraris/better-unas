@@ -49,8 +49,9 @@ Commands:
                             own status
   list                      installed, uninstalled and available tools
   update                    update the suite and every installed tool to the
-                            latest release; config and state are kept, and
-                            an uninstalled tool stays off
+                            latest release (in developer mode: the newest
+                            commit on its branch); config and state are kept,
+                            and an uninstalled tool stays off
       --check               only check for an update, change nothing
       --yes, -y             don't ask before updating
       --ref <branch|tag>    install that branch or tag from GitHub instead,
@@ -183,7 +184,13 @@ class CLI:
     def version_text(self, missing):
         ref = U.installed_ref(self.home)
         ver = self.up.current() or missing
-        return f"{ver} (from {ref}, not a release)" if ref else ver
+        notes = []
+        if ref:
+            notes.append(f"from {U.commit_label(ref, U.installed_commit(self.home))}, not a release")
+        branch = U.dev_branch(self.home)
+        if branch:
+            notes.append(f"developer mode, following {branch}")
+        return f"{ver} ({'; '.join(notes)})" if notes else ver
 
     def cmd_version(self):
         self.say(f"{PROG} {self.version_text('unknown')}")
@@ -285,7 +292,7 @@ class CLI:
             return OK
         self.say(f"Downloading {st['latest']} ...")
         try:
-            report = self.up.update(st["latest"])
+            report = self.up.update_to(st)
         except (OSError, LookupError, I.InstallError) as e:
             raise Problem(f"update failed: {e}") from None
         return self.report(report)
@@ -310,7 +317,14 @@ class CLI:
             return OK
         self.say(f"Downloading {ref} ...")
         try:
-            report = self.up.update(ref, ref=True)
+            try:   # a branch: install its newest commit and remember which
+                sha, _ = self.up.fetch_head(ref)
+            except (LookupError, OSError):
+                sha = None   # a tag or a commit: GitHub's archive takes it as is
+            if sha:
+                report = self.up.update(sha, ref=True, label=ref, commit=sha)
+            else:
+                report = self.up.update(ref, ref=True)
         except (OSError, LookupError, I.InstallError) as e:
             raise Problem(f"update failed: {e}") from None
         return self.report(report)

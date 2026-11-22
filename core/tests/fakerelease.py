@@ -99,6 +99,8 @@ class FakeGitHub:
         os.makedirs(folder, exist_ok=True)
         self.api_url = "file://" + os.path.join(folder, "latest.json")
         self.tarball_url = "file://" + os.path.join(folder, "{tag}.tar.gz")
+        self.commit_url = "file://" + os.path.join(folder, "commits", "{ref}.json")
+        self.branches_url = "file://" + os.path.join(folder, "branches.json")
 
     def publish(self, version, tools=None, latest=True, extra_members=()):
         data = tarball(release_tree(version, tools), f"better-unas-{version.lstrip('v')}", extra_members)
@@ -107,3 +109,24 @@ class FakeGitHub:
         if latest:
             with open(os.path.join(self.folder, "latest.json"), "w") as f:
                 json.dump({"tag_name": version, "name": f"better-unas {version}"}, f)
+
+    def push(self, branch, sha, version="v0.2.0", tools=None, date="2026-11-22T08:00:00Z"):
+        """A commit at the head of branch: its archive under the sha, the
+        commits API answer for the branch, and the branch in the list."""
+        data = tarball(release_tree(version, tools), f"better-unas-{sha}")
+        with open(os.path.join(self.folder, f"{sha}.tar.gz"), "wb") as f:
+            f.write(data)
+        path = os.path.join(self.folder, "commits", f"{branch}.json")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w") as f:
+            json.dump({"sha": sha, "commit": {"committer": {"date": date}}}, f)
+        names = path_names = os.path.join(self.folder, "branches.json")
+        try:
+            with open(names) as f:
+                have = json.load(f)
+        except (OSError, ValueError):
+            have = []
+        if branch not in [b["name"] for b in have]:
+            have.append({"name": branch, "commit": {"sha": sha}})
+        with open(path_names, "w") as f:
+            json.dump(have, f)
