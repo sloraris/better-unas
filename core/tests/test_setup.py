@@ -362,7 +362,7 @@ class WizardTests(SnapshotMixin, Base):
         text = app.press("n")
         self.assertIn("Review", text.splitlines()[1])
         self.assertIn("INTERVAL_DAYS=60   (was 90)", text)
-        self.assertIn("Enter install", text.splitlines()[-1])
+        self.assertIn("Enter install", text.split("\n")[22])
         self.assertFalse(os.path.exists(self.home))
         app.press("enter", "n")                              # said no at the confirm
         self.assertIn("Install better-unas", self.frame_with("[ Yes ]"))
@@ -413,7 +413,7 @@ class WizardTests(SnapshotMixin, Base):
         text = app.press(" ", "enter", "n")
         self.assertIn("Dry run: this is what setup would do.", text)
         self.assertIn("DRY RUN", text.splitlines()[0])
-        self.assertNotIn("Enter install", text.splitlines()[-1])
+        self.assertNotIn("Enter install", text.split("\n")[22])
         text = app.press("enter")
         self.assertIn("Dry run: nothing was changed.", text)
         self.assertFalse(os.path.exists(self.home))

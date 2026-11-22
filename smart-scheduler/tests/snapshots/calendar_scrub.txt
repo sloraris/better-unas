@@ -20,5 +20,5 @@
    Pool 2 scrub 02:30
  Snoozed: S3 until Mon 30 Nov
  S6 planned   S6 passed   S6! failed   S6* running   sc scrub   bk backup
-────────────────────────────────────────────────────────────────────────────────
- Arrows day  PgUp/Dn month  Enter details  … ?    1-6/Tab tabs  ? help  q quit
+ Arrows day  PgUp/Dn month  Enter details  t today  r recalculate ──────────────
+ 1-6/Tab tabs  ? help  q quit

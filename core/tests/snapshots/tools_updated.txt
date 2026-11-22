@@ -21,4 +21,4 @@ Quit (q) and start better-unas again to load the change.
 
 
  Updated to v0.3.0. Quit (q) and start better-unas again to load the change.
- ↑↓ scroll                              Esc back  1-4/Tab tabs  ? help  q quit
+ Esc back  1-4/Tab tabs  ? help  q quit

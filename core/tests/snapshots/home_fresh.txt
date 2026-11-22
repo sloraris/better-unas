@@ -20,5 +20,5 @@
 
 
 
-────────────────────────────────────────────────────────────────────────────────
- ↑↓ select  Enter open  a alerts  t tools  … ?    1-6/Tab tabs  ? help  q quit
+ ↑↓ select  Enter open  a alerts  t tools  r refresh ───────────────────────────
+ 1-6/Tab tabs  ? help  q quit

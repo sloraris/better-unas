@@ -20,5 +20,5 @@
    S4 planned 02:00: never tested; first test sets a baseline
 
  S6 planned   S6 passed   S6! failed   S6* running   sc scrub   bk backup
-────────────────────────────────────────────────────────────────────────────────
- Arrows day  PgUp/Dn month  … ?         Esc back  1-6/Tab tabs  ? help  q quit
+ Arrows day  PgUp/Dn month  Enter details  t today  r recalculate ──────────────
+ Esc back  1-6/Tab tabs  ? help  q quit

@@ -412,7 +412,7 @@ class App:
             elif self.toast is not None:
                 self.toast.render(line, 0, 1)
             else:
-                line.text(0, 0, canvas.symbols["h"] * w, "dim")
+                self.draw_screen_keys(line)
             self.draw_footer(canvas.sub(h - 1, 0, 1, w))
         finally:
             self.term.end_frame()
@@ -444,28 +444,33 @@ class App:
         if owner:
             c.text(0, c.width - len(owner) - 1, owner, "dim")
 
+    def draw_screen_keys(self, c):
+        """The screen's own keys (or an editor's or a dialog's) on the line
+        above the footer, the rest of it a rule. If they don't fit, the last
+        ones give way to `… ?`."""
+        own, _ = self.footer_keys()
+        more = c.symbols["more"] + " ?"
+        room = c.width - 1
+        x = 1
+        for i, (k, lbl) in enumerate(own):
+            need = len(k) + len(lbl) + 1          # without the gap after it
+            last = i == len(own) - 1
+            if x + need + (0 if last else 2 + len(more)) > room:
+                c.text(0, x, more, "dim")
+                x += len(more)
+                break
+            c.text(0, x, k, "accent", bold=True)
+            c.text(0, x + len(k) + 1, lbl)
+            x += need + (0 if last else 2)
+        start = x + 1 if own else 0
+        if start < c.width:
+            c.text(0, start, c.symbols["h"] * (c.width - start), "dim")
+
     def draw_footer(self, c):
-        own, core_keys = self.footer_keys()
-
-        def width(ks):
-            return sum(len(k) + len(lbl) + 3 for k, lbl in ks)
-
-        right = width(core_keys)
-        x = c.width - right
+        """Navigation every screen shares: back, tabs, help, quit."""
+        _, core_keys = self.footer_keys()
+        x = 1
         for k, lbl in core_keys:
             c.text(0, x, k, "accent", bold=True)
             c.text(0, x + len(k) + 1, lbl)
             x += len(k) + len(lbl) + 3
-        room = c.width - right - 1
-        more = c.symbols["more"] + " ?"
-        x = 1
-        for i, (k, lbl) in enumerate(own):
-            need = len(k) + len(lbl) + 3
-            # Unless this is the last key, leave room for the marker after it.
-            if x + need + (0 if i == len(own) - 1 else len(more)) > room:
-                c.text(0, x, more, "dim")
-                break
-            c.text(0, x, k, "accent", bold=True)
-            c.text(0, x + len(k) + 1, lbl)
-            x += need
-

@@ -20,5 +20,5 @@
 
 
 
-────────────────────────────────────────────────────────────────────────────────
- Enter details  n setup  r refresh  ↑↓ move       1-6/Tab tabs  ? help  q quit
+ Enter details  n setup  r refresh  ↑↓ move ────────────────────────────────────
+ 1-6/Tab tabs  ? help  q quit

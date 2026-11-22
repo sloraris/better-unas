@@ -781,12 +781,34 @@ class AppTests(AppFixture, unittest.TestCase):
         self.assertEqual(len(app.stack()), 1)
 
     def test_footer_always_lists_keys(self):
+        # Navigation (tabs, help, quit, back) is the footer; the screen's own
+        # keys sit on the line above it.
         app = self.make_app()
         for k in ("2", "enter", "esc", "3", "4", "enter", "esc", "5", "6", "enter", "esc", "1"):
-            text = app.press(k)
-            last = text.splitlines()[-1]
-            self.assertIn("q quit", last, k)
-            self.assertIn("? help", last, k)
+            footer = app.press(k).split("\n")[23]
+            self.assertIn("q quit", footer, k)
+            self.assertIn("? help", footer, k)
+
+    def test_screen_keys_get_the_whole_footer(self):
+        class Seven:
+            title = "Seven"
+
+            def keys(self):   # 79 columns of keys, like smart-scheduler's Drives screen
+                return [("Enter", "details"), ("t", "test"), ("z", "snooze"), ("x", "exclude"),
+                        ("i", "interval"), ("u", "unsnooze"), ("r", "refresh")]
+
+            def render(self, c):
+                pass
+
+            def key(self, k):
+                return False
+
+        app = self.make_app(80, 24, extra_tabs=[("Seven", lambda ctx: Seven())])
+        lines = app.press("2").split("\n")
+        self.assertTrue(lines[22].startswith(
+            " Enter details  t test  z snooze  x exclude  i interval  u unsnooze  r refresh ─"), lines[22])
+        self.assertNotIn("…", lines[22])
+        self.assertTrue(lines[23].strip().endswith("/Tab tabs  ? help  q quit"), lines[23])
 
     def test_footer_cuts_long_key_lists_but_keeps_core_keys(self):
         class Busy:
@@ -802,12 +824,12 @@ class AppTests(AppFixture, unittest.TestCase):
                 return False
 
         app = self.make_app(extra_tabs=[("Busy", lambda ctx: Busy())])
-        last = app.press("2").splitlines()[-1]
-        self.assertIn("F0 does a thing", last)
-        self.assertIn("… ?", last)
-        self.assertTrue(last.endswith("q quit"))
+        lines = app.press("2").split("\n")
+        self.assertIn("F0 does a thing", lines[22])
+        self.assertIn("… ? ─", lines[22])
+        self.assertIn("q quit", lines[23])
 
-    def test_footer_overflow_marker_never_covers_core_keys(self):
+    def test_footer_overflow_marker_always_fits(self):
         class Crowded:
             title = "Crowded"
             fill = 0
@@ -824,17 +846,13 @@ class AppTests(AppFixture, unittest.TestCase):
         screen = Crowded()
         app = self.make_app(80, 24, extra_tabs=[("Crowded", lambda ctx: screen)])
         app.press("2")
-        core_text = "  ".join(f"{k} {lbl}" for k, lbl in app.core_keys())
-        # Every length of the first key, including the ones that end right
-        # where the marker used to run into the first core key.
-        for fill in range(30, 80 - len(core_text) - 4):
+        for fill in range(40, 70):
             screen.fill = fill
             app.draw()
-            last = self.term.text().splitlines()[-1]
-            self.assertTrue(last.rstrip().endswith(core_text), (fill, last))
-            self.assertIn("… ?", last, fill)
-            before = last[:last.index(core_text)]
-            self.assertTrue(before.endswith(" "), (fill, last))
+            keys = self.term.text().split("\n")[22].rstrip("─ ")
+            self.assertLessEqual(len(keys), 79, (fill, keys))
+            self.assertTrue(keys.endswith("c third") or keys.endswith("… ?"), (fill, keys))
+            self.assertIn("a " + "x" * fill, keys, fill)
 
     def test_alerts_and_tools(self):
         app = self.make_app()
@@ -902,7 +920,7 @@ class SizeTests(AppFixture, unittest.TestCase):
         self.assertIn("Board › Item", text)    # state survived
         text = app.press(("resize", 120, 40))
         self.assertSnapshot("app_120x40", text)
-        self.assertEqual(len(text.splitlines()), 40)
+        self.assertEqual(len(text.split("\n")), 40)
 
     def test_resize_during_a_dialog(self):
         app = self.make_app()
@@ -924,7 +942,7 @@ class SizeTests(AppFixture, unittest.TestCase):
         app.press("3", "x", ("resize", 100, 30), "n")
         self.assertIsNone(app.overlay)
         self.assertIn("Forget the peak reading?", self.frames[-2])
-        self.assertEqual(len(self.frames[-2].splitlines()), 30)
+        self.assertEqual(len(self.frames[-2].split("\n")), 30)
 
     def test_body_is_twenty_rows_at_minimum_size(self):
         seen = []

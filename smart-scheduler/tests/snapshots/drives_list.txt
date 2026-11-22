@@ -20,5 +20,5 @@
 
 
 
-────────────────────────────────────────────────────────────────────────────────
- Enter details  t test  z snooze  x exclude  … ?  1-6/Tab tabs  ? help  q quit
+ Enter details  t test  z snooze  x exclude  i interval  u unsnooze  r refresh ─
+ 1-6/Tab tabs  ? help  q quit

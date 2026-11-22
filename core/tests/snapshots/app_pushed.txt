@@ -21,4 +21,4 @@ Details of beta (failed)
 
 
 ────────────────────────────────────────────────────────────────────────────────
-                                        Esc back  1-6/Tab tabs  ? help  q quit
+ Esc back  1-6/Tab tabs  ? help  q quit

@@ -20,5 +20,5 @@
 
 
  yy ddddddd   gg dddddd   rrr dddddd   yyy ddddddd      ddddd      dddddd
-dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
- aaaaaa      aaaaaaa        aaaaa          ddd    aaaaaaa       a       a
+ aaaaaa      aaaaaaa        aaaaa          a        a             dddddddddddddd
+ aaaaaaa       a       a
