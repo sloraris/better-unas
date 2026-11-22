@@ -96,6 +96,7 @@ class PlannerTests(unittest.TestCase):
         # 1000 min x 1.5 = 25 h: from the 29th at 00:00 it would end inside the 2 h margin.
         self.fake.storage["disks"] = [d for d in self.fake.storage["disks"] if d["serial"] == "SERIAL3"]
         ss.smart_facts = lambda dev, ids: (1000, {})
+        ss.self_test_progress = lambda dev: None
         p = self.plan(at(2026, 11, 29, 0, 0))
         self.assertEqual(p[0]["night"], "2026-12-01")
         self.assertEqual([s["night"] for s in p.skipped], ["2026-11-29", "2026-11-30"])

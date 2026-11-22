@@ -128,6 +128,25 @@ def with_history(fake):
 
 
 class CalendarScreenTests(CalendarFixture, unittest.TestCase):
+    def test_test_running_in_drive_shows_with_progress(self):
+        disk = next(d for d in self.fake.storage["disks"] if str(d["slotId"]) == "4")
+        disk["smartTest"] = {"id": 4, "type": "extended", "status": "inProgress", "result": "",
+                             "createdAt": "2026-11-21T13:14:43-07:00", "finishedAt": None, "progress": 80}
+        self.calendar()
+        tests = self.screen.data["days"][dt.date(2026, 11, 21)]["tests"]
+        self.assertEqual([(x["slot"], x["outcome"], x["left"]) for x in tests], [("4", "running", 20)])
+
+    def test_test_started_outside_drive_shows_as_running_today(self):
+        # Nothing in Drive's history; the drive itself reports a test 10% done,
+        # so it runs past tonight's window and holds the night.
+        self.fake.progress["SERIAL4"] = 90
+        text = self.calendar()
+        today = self.screen.data["days"][dt.date(2026, 11, 22)]
+        self.assertEqual([(x["slot"], x["outcome"]) for x in today["tests"]], [("4", "running")])
+        self.assertIn("a SMART test is already running", today["skipped"])
+        self.assertIn("S4 test running, started outside UniFi Drive, 90% left", text)
+        self.assertNotIn("SERIAL4", {s for n, s in self.planned() if n == "2026-11-22"})
+
     def test_month_with_history_and_plan(self):
         with_history(self.fake)
         text = self.calendar()

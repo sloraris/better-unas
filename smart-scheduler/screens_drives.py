@@ -94,7 +94,7 @@ def details(env, ctx, drive):
         out["history_error"] = f"can't read it as {who}: {err or 'it no longer exists'}"
     else:
         try:
-            out["history"] = ss.get_history(drive["slot"], drive["serial"], user_id)
+            out["history"] = ss.get_history(drive["slot"], drive["serial"], user_id, drive.get("current_test"))
         except ss.ApiError as e:
             out["history_error"] = e.detail
     dev = ss.serial_to_device().get(drive["serial"])
@@ -144,7 +144,11 @@ def schedule_lines(ss, d, tz):
     if d.get("excluded"):
         out.append(("Next test", "none: excluded", "dim"))
     elif d.get("running"):
-        out.append(("Next test", "a test is running now", "warn"))
+        how = ""
+        if d.get("outside_drive"):
+            left = d.get("remaining_percent")
+            how = " (started outside UniFi Drive" + (f", {left}% left)" if left is not None else ")")
+        out.append(("Next test", "a test is running now" + how, "warn"))
     elif d.get("next"):
         out.append(("Next test", f"{d['next']['start']:%a %d %b %H:%M} (planned)", "warn"))
     else:

@@ -34,6 +34,7 @@ class Fake:
             self.storage = json.load(f)
         self.history = {}      # slot -> list of tests
         self.attrs = {}        # serial -> {attr id: raw}
+        self.progress = {}     # serial -> % left of a self-test the drive reports
         self.calls = []
 
     def api(self, method, path, user_id=None, body=None, timeout=15):
@@ -50,6 +51,7 @@ class Fake:
         ss.api = self.api
         ss.serial_to_device = lambda: {d["serial"]: "/dev/" + d["serial"] for d in self.storage["disks"]}
         ss.smart_facts = lambda dev, ids: (571, self.attrs.get(dev[5:], {}))
+        ss.self_test_progress = lambda dev: self.progress.get(dev[5:])
         ss.log = lambda *a, **k: None
 
 
@@ -119,6 +121,59 @@ class SchedulingTests(unittest.TestCase):
         drives = list(self.drives().values())
         self.assertEqual(ss.start_gate(self.cfg, self.fake.storage, drives, self.state, NIGHT),
                          "a SMART test is already running")
+
+    def ui_test(self, slot="4", progress=80):
+        disk = next(d for d in self.fake.storage["disks"] if str(d["slotId"]) == slot)
+        disk["smartTest"] = {"id": 4, "type": "extended", "status": "inProgress", "result": "",
+                             "createdAt": "2026-11-21T13:14:43-07:00", "finishedAt": None, "progress": progress}
+
+    def test_test_running_in_drive_comes_from_storage_not_history(self):
+        # Started in the UniFi UI: the history endpoint lists finished tests only,
+        # the running one is the disk's smartTest field in GET /storage.
+        self.ui_test()
+        self.fake.progress["SERIAL4"] = 20     # the drive agrees
+        d = self.drives()["SERIAL4"]
+        self.assertTrue(d["running"])
+        self.assertNotIn("outside_drive", d)
+        self.assertEqual(d["remaining_percent"], 20)
+        self.assertEqual(ss.start_gate(self.cfg, self.fake.storage, list(self.drives().values()), self.state, NIGHT),
+                         "a SMART test is already running")
+
+    def test_finished_current_test_is_not_counted_twice(self):
+        self.fake.history["4"] = [ext(4, "successful", "optimal", "2026-11-21T22:40:00-07:00")]
+        disk = next(d for d in self.fake.storage["disks"] if str(d["slotId"]) == "4")
+        disk["smartTest"] = dict(self.fake.history["4"][0], progress=100)
+        hist = ss.get_history("4", "SERIAL4", "uid", disk["smartTest"])
+        self.assertEqual(len(hist), 1)
+        self.assertFalse(self.drives()["SERIAL4"]["running"])
+
+    def test_test_started_outside_drive_counts_as_running(self):
+        # Drive's history is empty, but the drive itself says a test is 80% done.
+        self.fake.progress["SERIAL4"] = 20
+        d = self.drives()["SERIAL4"]
+        self.assertTrue(d["running"])
+        self.assertTrue(d["outside_drive"])
+        self.assertIn("outside UniFi Drive (20% left)", d["reason"])
+        self.assertEqual(ss.start_gate(self.cfg, self.fake.storage, list(self.drives().values()), self.state, NIGHT),
+                         "a SMART test is already running")
+
+    def test_outside_test_on_excluded_drive_still_counts(self):
+        self.fake.progress["SERIAL4"] = 50
+        with tempfile.NamedTemporaryFile("w", delete=False) as f:
+            f.write("EXCLUDE_SERIALS=SERIAL4\n")
+        try:
+            self.cfg = ss.Config(f.name)
+        finally:
+            os.unlink(f.name)
+        d = self.drives()["SERIAL4"]
+        self.assertTrue(d["excluded"] and d["running"])
+
+    def test_drive_test_listed_by_drive_is_not_marked_outside(self):
+        self.fake.history["4"] = [ext(9, "running", None, None, "2026-11-22T00:10:00-07:00")]
+        self.fake.progress["SERIAL4"] = 60
+        d = self.drives()["SERIAL4"]
+        self.assertTrue(d["running"])
+        self.assertNotIn("outside_drive", d)
 
     def test_unhealthy_pool_closes_gate(self):
         self.fake.storage["pools"][0]["status"] = "degraded"

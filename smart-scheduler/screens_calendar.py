@@ -100,7 +100,7 @@ def gather(ss, ctx):
             problems.append(f"Slot {d['slot']}: {d.get('reason', 'history unavailable')}")
             continue
         try:
-            history = ss.get_history(d["slot"], d["serial"], user_id)
+            history = ss.get_history(d["slot"], d["serial"], user_id, d.get("current_test"))
         except ss.ApiError as e:
             problems.append(f"Slot {d['slot']}: history unavailable ({e.detail})")
             continue
@@ -117,7 +117,16 @@ def gather(ss, ctx):
             day(_night(planner, cfg, start))["tests"].append({
                 "slot": d["slot"], "serial": d["serial"], "model": d.get("model", "?"),
                 "start": start, "end": end.astimezone(tz) if end else None, "outcome": outcome,
+                "left": ss.drive_progress_left(h) if outcome == "running" else None,
                 "status": h.get("status"), "result": h.get("result")})
+    # Tests the drive is running that Drive's history doesn't list (started with
+    # smartctl or another tool). Their start time is unknown, so they sit on today.
+    for d in drives:
+        if d.get("outside_drive"):
+            day(_night(planner, cfg, t))["tests"].append({
+                "slot": d["slot"], "serial": d["serial"], "model": d.get("model", "?"),
+                "start": t, "end": None, "outcome": "running", "outside": True,
+                "left": d.get("remaining_percent"), "status": "outside UniFi Drive", "result": None})
     for v in days.values():
         v["tests"].sort(key=lambda x: x["start"])
 
@@ -210,7 +219,12 @@ def marks(info):
 def outcome_text(x):
     word = {"passed": "passed", "failed": "failed", "running": "running"}[x["outcome"]]
     detail = f" ({x['status']}/{x['result']})" if x["outcome"] == "failed" else ""
+    if x.get("outside"):
+        left = f", {x['left']}% left" if x.get("left") is not None else ""
+        return word, f"started outside UniFi Drive{left}"
     span = f"{x['start']:%H:%M}" + (f"-{_hm(x['end'], x['start'].date())}" if x["end"] else "")
+    if x["outcome"] == "running" and x.get("left") is not None:
+        span += f", {x['left']}% left"
     return word + detail, span
 
 
