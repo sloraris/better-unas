@@ -1,6 +1,6 @@
 # better-unas TUI: style and layout
 
-Status: spec, not built yet. It applies to every screen in the core and in every tool. The building blocks it describes live in `core/tui/widgets.py`, so a screen that follows this spec has little to decide for itself. What the app does is in [tui-design.md](tui-design.md); this file covers how it looks and reads.
+Status: step 1 of the build order (§12) is built: roles, glyphs, chips, the action and nav bars, margins, the version in the tab bar, `heading`, `panel` and `KeyValue`. The rest is spec. It applies to every screen in the core and in every tool. The building blocks it describes live in `core/tui/widgets.py`, so a screen that follows this spec has little to decide for itself. What the app does is in [tui-design.md](tui-design.md); this file covers how it looks and reads.
 
 Where this came from: the first hardware run showed screens that worked but read as a wall of same-looking text. The problems are covered in the rules below. Each rule says which problem it fixes, so it doesn't get "simplified" away later.
 

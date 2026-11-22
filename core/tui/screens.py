@@ -54,20 +54,43 @@ class DetailScreen:
 
 
 class HelpScreen(DetailScreen):
+    """The keys of the screen underneath, the keys everywhere, and what each
+    status glyph and color means (docs/tui-style.md §3). The legend is built at
+    the first draw, when the canvas says whether glyphs are Unicode or ASCII."""
+
+    STATUSES = (("ok", "good, done, passed"), ("planned", "planned"),
+                ("warning", "warning, reason"), ("failed", "failed, alert"),
+                ("running", "running"), ("scrub", "scrub"), ("backup", "backup window"),
+                ("update", "update available"))
+
     def __init__(self, ctx, screen_keys, core_keys):
-        theme = ctx.theme
+        self.theme = ctx.theme
+        self.screen_keys, self.core_keys = screen_keys, core_keys
+        super().__init__("Help", self.lines(None))
+        self.built = False
+
+    def lines(self, symbols):
+        from .theme import STATUS
         lines = [("Keys on this screen", "accent")]
-        lines += [f"  {k:<12} {lbl}" for k, lbl in screen_keys] or [("  (none)", "dim")]
+        lines += [f"  {k:<12} {lbl}" for k, lbl in self.screen_keys] or [("  (none)", "dim")]
         lines += ["", ("Keys everywhere", "accent")]
-        lines += [f"  {k:<12} {lbl}" for k, lbl in core_keys]
+        lines += [f"  {k:<12} {lbl}" for k, lbl in self.core_keys]
         lines += ["  Enter        open the selected item", "  Esc          go back", ""]
-        lines += [("Colors", "accent")]
-        for tone, meaning in (("good", "good, done, passed"), ("warn", "planned, warning"),
-                              ("bad", "failed, alert"), ("dim", "past, disabled")):
-            lines.append((f"  {meaning:<24} ({theme.describe(tone)})", tone))
-        if not theme.color:
-            lines.append(("  Colors are off (NO_COLOR is set or the terminal has none).", "dim"))
-        super().__init__("Help", lines)
+        lines += [("Status marks", "accent")]
+        for kind, meaning in self.STATUSES:
+            glyph = symbols[kind] if symbols else " "
+            tone = STATUS[kind]
+            lines.append((f"  {glyph}  {meaning:<22} ({self.theme.describe(tone)})", tone))
+        if not self.theme.color:
+            lines.append(("  Colors are off (NO_COLOR is set or the terminal has none);", "dim"))
+            lines.append(("  the marks carry the meaning.", "dim"))
+        return lines
+
+    def render(self, canvas):
+        if not self.built:
+            self.text = W.ScrollText(self.lines(canvas.symbols))
+            self.built = True
+        super().render(canvas)
 
 
 class ErrorScreen:

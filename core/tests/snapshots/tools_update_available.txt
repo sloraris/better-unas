@@ -1,12 +1,12 @@
- 1 Home │ 2 Settings │ 3 Alerts │ 4 Tools
+ 1 Home │ 2 Settings │ 3 Alerts │ 4 Tools                              ▲ v0.3.0
  Tools ───────────────────────────────────────────────────────────────────────
  better-unas v0.2.0   Update available: v0.3.0. Press u to update.
  checked Sun 22 Nov 01:00
 
-  Tool               State          Summary
-› alpha              installed      Alpha tool for the update tests
-  beta               uninstalled    Beta tool for the update tests
-  gamma              not installed  Gamma tool, never installed
+   Tool               State          Summary
+ › alpha              installed      Alpha tool for the update tests
+   beta               uninstalled    Beta tool for the update tests
+   gamma              not installed  Gamma tool, never installed
 
 
 
@@ -20,5 +20,5 @@
 
 
 
- u update  x uninstall  c check  R remove  Enter info  i reinstall  ↑↓ move ────
- 1-4/Tab tabs  ? help  q quit
+ u update  x uninstall  c check  R remove  Enter info  i reinstall      ↑↓ move
+ 1-4/Tab tabs                                                    ? help  q quit

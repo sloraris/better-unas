@@ -394,7 +394,7 @@ class WidgetTests(SnapshotMixin, unittest.TestCase):
         self.assertEqual(frames, ["| Measuring...", "/ Measuring...", "- Measuring...",
                                   "\\ Measuring...", "| Measuring..."])
         s = self.render(W.Toast("Saved, a long message that will not fit", "good"), 20, 1)
-        self.assertEqual(s.row(0), "Saved, a long messa…")
+        self.assertEqual(s.row(0), "✓ Saved, a long mes…")
         self.assertEqual(s.tone_at(0, 0), "good")
 
     def test_confirm_defaults_to_no(self):
@@ -806,9 +806,10 @@ class AppTests(AppFixture, unittest.TestCase):
         app = self.make_app(80, 24, extra_tabs=[("Seven", lambda ctx: Seven())])
         lines = app.press("2").split("\n")
         self.assertTrue(lines[22].startswith(
-            " Enter details  t test  z snooze  x exclude  i interval  u unsnooze  r refresh ─"), lines[22])
-        self.assertNotIn("…", lines[22])
-        self.assertTrue(lines[23].strip().endswith("/Tab tabs  ? help  q quit"), lines[23])
+            " Enter details  t test  z snooze  x exclude  i interval  u unsnooze  r refresh"), lines[22])
+        self.assertNotIn("more", lines[22])
+        self.assertIn("/Tab tabs", lines[23])
+        self.assertTrue(lines[23].endswith("? help  q quit"), lines[23])
 
     def test_footer_cuts_long_key_lists_but_keeps_core_keys(self):
         class Busy:
@@ -826,7 +827,7 @@ class AppTests(AppFixture, unittest.TestCase):
         app = self.make_app(extra_tabs=[("Busy", lambda ctx: Busy())])
         lines = app.press("2").split("\n")
         self.assertIn("F0 does a thing", lines[22])
-        self.assertIn("… ? ─", lines[22])
+        self.assertTrue(lines[22].endswith("? more"), lines[22])
         self.assertIn("q quit", lines[23])
 
     def test_footer_overflow_marker_always_fits(self):
@@ -849,10 +850,10 @@ class AppTests(AppFixture, unittest.TestCase):
         for fill in range(40, 70):
             screen.fill = fill
             app.draw()
-            keys = self.term.text().split("\n")[22].rstrip("─ ")
+            keys = self.term.text().split("\n")[22].rstrip()
             self.assertLessEqual(len(keys), 79, (fill, keys))
-            self.assertTrue(keys.endswith("c third") or keys.endswith("… ?"), (fill, keys))
-            self.assertIn("a " + "x" * fill, keys, fill)
+            self.assertTrue(keys.endswith("c third") or keys.endswith("? more"), (fill, keys))
+            self.assertTrue(keys.startswith(" a xxxxxxxxxx"), (fill, keys))   # the first key always shows
 
     def test_alerts_and_tools(self):
         app = self.make_app()
@@ -961,7 +962,86 @@ class SizeTests(AppFixture, unittest.TestCase):
 
         app = self.make_app(extra_tabs=[("M", lambda ctx: Measure())])
         app.press("2")
-        self.assertEqual(seen[-1], (20, 80))
+        self.assertEqual(seen[-1], (20, 78))     # 1-column margins each side
+
+
+class StyleTests(unittest.TestCase):
+    """Text roles, status glyphs and layout blocks (docs/tui-style.md §3-4)."""
+
+    def test_roles_have_one_look_each(self):
+        c, s = headless(40, 6)
+        end = c.styled(0, 0, "Last test", "label")
+        self.assertEqual(end, 9)
+        self.assertEqual(s.tone_at(0, 0), "dim")
+        c.styled(1, 0, "Schedule", "heading")
+        self.assertEqual((s.tone_at(1, 0), s.bold[1][0]), ("accent", True))
+        c.styled(2, 0, "one is already running", "reason")
+        self.assertEqual(s.row(2), "! one is already running")
+        self.assertEqual(s.tone_at(2, 0), "warn")
+        c.styled(3, 0, "set after a failed test", "note")
+        self.assertEqual(s.row(3), "↳ set after a failed test")
+        c.styled(4, 0, "today", "tag")
+        self.assertEqual((s.row(4), s.tone_at(4, 0)), (" today", "selected"))
+        with self.assertRaises(ValueError):
+            c.styled(5, 0, "x", "shouty")
+
+    def test_status_pairs_glyph_and_tone(self):
+        c, s = headless(30, 3)
+        c.status(0, 0, "failed", "failed")
+        c.status(1, 0, "running", "slot 1")
+        c.status(2, 0, "planned")
+        self.assertEqual([s.row(i) for i in range(3)], ["✗ failed", "▶ slot 1", "○"])
+        self.assertEqual([s.tone_at(i, 0) for i in range(3)], ["bad", "accent", "warn"])
+
+    def test_ascii_fallbacks(self):
+        c, s = headless(30, 3, ascii=True)
+        c.status(0, 0, "ok", "passed")
+        c.styled(1, 0, "why", "note")
+        c.status(2, 0, "update", "v0.3.0")
+        self.assertEqual([s.row(i) for i in range(3)], ["+ passed", "- why", "^ v0.3.0"])
+
+    def test_key_value_block(self):
+        c, s = headless(50, 6)
+        end = W.KeyValue([("Last test", ("status", "failed", "Thu 12 Nov")),
+                          ("Interval", "7 days", "retry"),
+                          ("note", "set after a failed test"),
+                          ("Snoozed", None),
+                          ("Strong", ("120", "strong"))]).render(c, 0, 0)
+        self.assertEqual(end, 5)
+        self.assertEqual(s.row(0), "Last test   ✗ Thu 12 Nov")      # labels padded to 12
+        self.assertEqual(s.row(1), "Interval    7 days  retry")
+        self.assertEqual(s.tone_at(1, 20), "dim")                  # the aside
+        self.assertEqual(s.row(2), "            ↳ set after a failed test")
+        self.assertEqual((s.row(3), s.tone_at(3, 12)), ("Snoozed     none", "dim"))
+        self.assertTrue(s.bold[4][12])
+
+    def test_long_labels_widen_the_column(self):
+        c, s = headless(60, 2)
+        W.KeyValue([("Retry after a failure", "7 days"), ("Why", "retry")]).render(c)
+        self.assertEqual(s.row(1), "Why                     retry")
+
+    def test_panel_and_heading(self):
+        c, s = headless(30, 6)
+        inner = W.panel(c, 0, 0, 4, 20, "Schedule")
+        inner.text(0, 0, "inside")
+        self.assertEqual(s.row(0), "┌─ Schedule ───────┐")
+        self.assertEqual(s.tone_at(0, 3), "accent")
+        self.assertEqual(s.row(1), "│ inside           │")
+        self.assertEqual((inner.height, inner.width), (2, 16))
+        self.assertEqual(W.heading(c, 5, 0, "Sunday 22 November", "today"), 6)
+        self.assertEqual(s.row(5), "Sunday 22 November   today")
+
+
+class FooterStyleTests(AppFixture, unittest.TestCase):
+    def test_chips_and_dim_nav(self):
+        self.make_app()
+        lines = self.term.text().split("\n")
+        surface = self.term.surface
+        y, x = 22, lines[22].index("Enter")
+        self.assertEqual(surface.tone_at(y, x), "selected")       # the key is a chip
+        self.assertEqual(surface.tone_at(y, x + len("Enter ") + 1), "normal")   # its label
+        self.assertEqual(surface.tone_at(23, lines[23].index("q quit")), "dim")
+        self.assertNotIn("─", lines[22])
 
 
 class PluginLoadingTests(AppFixture, unittest.TestCase):

@@ -67,7 +67,7 @@ class SettingsScreenTests(CalendarFixture, unittest.TestCase):
         self.write_config(EXAMPLE)
         self.open_settings()
         text = self.set("WARN_INTERVAL_DAYS", "120")
-        self.assertIn("! should be at most the healthy interval (90 day", text)
+        self.assertIn("! should be at most the healthy interval (90 d", text)
         text = self.app.press("p")
         self.assertIn("Fix Drive with warning signs first: should be at most the healthy", text)
         self.assertNotIn("Calendar preview", text)

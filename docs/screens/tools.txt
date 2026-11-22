@@ -1,10 +1,10 @@
- 1 Home │ 2 Calendar │ 3 Drives │ 4 Settings │ 5 Alerts │ 6 Tools
+ 1 Home │ 2 Calendar │ 3 Drives │ 4 Settings │ 5 Alerts │ 6 Tools        v0.2.0
  Tools ───────────────────────────────────────────────────────────────────────
  better-unas v0.2.0   Up to date.
  checked Sun 22 Nov 00:30
 
-  Tool               State          Summary
-› smart-scheduler    warn           Scheduled extended SMART tests, run by Uni…
+   Tool               State          Summary
+ › smart-scheduler    warn           Scheduled extended SMART tests, run by U…
 
 
 
@@ -20,5 +20,5 @@
 
 
 
- x uninstall  c check  R remove  Enter info  i reinstall  ↑↓ move ──────────────
- 1-6/Tab tabs  ? help  q quit
+ x uninstall  c check  R remove  Enter info  i reinstall                ↑↓ move
+ 1-6/Tab tabs                                                    ? help  q quit

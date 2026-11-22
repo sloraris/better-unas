@@ -304,6 +304,80 @@ class ScrollText:
         _indicators(canvas, self.top, canvas.height, self.total)
 
 
+# ------------------------------------------------------------------ layout blocks
+# docs/tui-style.md §3-4: a block is a heading plus rows indented under it;
+# key-value rows share one label width; side-by-side blocks sit in panels.
+
+def heading(canvas, y, x, text, tag=None):
+    """A heading (accent, bold), optionally followed by a tag such as `today`.
+    Returns the row below it."""
+    end = canvas.styled(y, x, text, "heading")
+    if tag:
+        canvas.styled(y, end + 2, tag, "tag")
+    return y + 1
+
+
+def panel(canvas, y, x, h, w, title=""):
+    """A box with its heading in the top border; returns the canvas inside it
+    (one column of padding each side)."""
+    canvas.box(y, x, h, w)
+    if title and w > 6:
+        canvas.styled(y, x + 2, f" {fit(title, w - 6)} "[: w - 4], "heading")
+    return canvas.sub(y + 1, x + 2, max(0, h - 2), max(0, w - 4))
+
+
+class KeyValue:
+    """Key-value rows with one label width (the longest label plus 3, at
+    least 12). Each row is (label, value) or (label, value, aside):
+
+    - value: a string, a (text, role) pair, or ("status", kind, text) for a
+      status with its glyph (canvas.status kinds: ok, failed, running, ...).
+      None or "" shows `none`.
+    - aside: shown dim after the value: a reason, a unit, a source.
+
+    ("note", text) is a `↳` note under the row before it, at the value column.
+    """
+
+    MIN_LABEL = 12
+
+    def __init__(self, rows):
+        self.rows = list(rows)
+
+    def label_width(self):
+        labels = [r[0] for r in self.rows if r and r[0] != "note"]
+        return max([self.MIN_LABEL] + [len(lbl) + 3 for lbl in labels])
+
+    def height(self):
+        return len(self.rows)
+
+    def render(self, canvas, y=0, x=0):
+        """Draw from (y, x); returns the row below the last one drawn."""
+        lw = self.label_width()
+        vx = x + lw
+        for row in self.rows:
+            if y >= canvas.height:
+                break
+            if row[0] == "note":
+                canvas.styled(y, vx, fit(row[1], max(0, canvas.width - vx - 2)), "note")
+                y += 1
+                continue
+            label, value = row[0], row[1]
+            aside = row[2] if len(row) > 2 else None
+            canvas.styled(y, x, fit(label, lw - 1), "label")
+            room = max(0, canvas.width - vx)
+            if isinstance(value, tuple) and value and value[0] == "status":
+                end = canvas.status(y, vx, value[1], fit(value[2], max(0, room - 2)))
+            elif isinstance(value, tuple):
+                end = canvas.styled(y, vx, fit(value[0], room), value[1])
+            else:
+                end = canvas.styled(y, vx, fit(str(value) if value not in (None, "") else "none", room),
+                                    "value" if value not in (None, "") else "label")
+            if aside and end + 2 < canvas.width:
+                canvas.styled(y, end + 2, fit(str(aside), canvas.width - end - 2), "label")
+            y += 1
+        return y
+
+
 class Spinner:
     """Shown while a slow read runs (ctx.run_slow). ASCII frames on purpose."""
 
@@ -325,8 +399,14 @@ class Toast:
     def __init__(self, text, tone="normal"):
         self.text, self.tone = str(text), tone
 
+    GLYPHS = {"good": "ok", "bad": "failed", "warn": "warning"}
+
     def render(self, canvas, y=0, x=0):
-        canvas.text(y, x, fit(self.text, canvas.width - x, canvas.symbols["more"]), self.tone,
+        text = self.text
+        glyph = self.GLYPHS.get(self.tone)
+        if glyph:
+            text = f"{canvas.symbols[glyph]} {text}"
+        canvas.text(y, x, fit(text, canvas.width - x, canvas.symbols["more"]), self.tone,
                     bold=self.tone in ("bad", "warn"))
 
 
@@ -1087,7 +1167,7 @@ class Form:
                 if item.changed:
                     area.text(y, 0, "*", "warn", bold=True)
                 label = pad(item.label, self.LABEL_W - 3, more=more)
-                area.text(y, 2, label + " ", "selected" if sel else "normal")
+                area.text(y, 2, label + " ", "selected" if sel else "dim")
                 item.render(area.sub(y, self.LABEL_W, 1, area.width - self.LABEL_W - 1))
                 if sel:
                     sel_y = y

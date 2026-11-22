@@ -1,11 +1,9 @@
  1 Setup
  Setup ───────────────────────────────────────────────────────────────────────
-Welcome to better-unas vX.Y.Z.
-Pick the tools to install. Nothing changes until you confirm the review.
+ Welcome to better-unas vX.Y.Z.
+ Pick the tools to install. Nothing changes until you confirm the review.
 
-› [ ] smart-scheduler      0.1.1    Scheduled extended SMART tests, run by Uni…
-
-
+ › [ ] smart-scheduler      0.1.1    Scheduled extended SMART tests, run by U…
 
 
 
@@ -19,6 +17,8 @@ Pick the tools to install. Nothing changes until you confirm the review.
 
 
 
-Adds an hourly timer that runs SMART tests at night.
- Space tick  Enter next  ↑↓ move ───────────────────────────────────────────────
- ? help  q quit
+
+
+ Adds an hourly timer that runs SMART tests at night.
+ Space tick  Enter next                                                 ↑↓ move
+                                                                 ? help  q quit

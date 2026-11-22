@@ -1,6 +1,6 @@
  1 Home │ 2 Board │ 3 Space │ 4 Settings │ 5 Alerts │ 6 Tools
  Board › Item ───────────────────────────────────────────────────────── fixture
-Details of beta (failed)
+ Details of beta (failed)
 
 
 
@@ -20,5 +20,5 @@ Details of beta (failed)
 
 
 
-────────────────────────────────────────────────────────────────────────────────
- Esc back  1-6/Tab tabs  ? help  q quit
+
+ Esc back  1-6/Tab tabs                                          ? help  q quit

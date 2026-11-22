@@ -240,7 +240,7 @@ class HomeBehaviourTests(HomeFixture, unittest.TestCase):
         self.assertEqual(screen.index, len(screen.rows) - 1)
         app.press("pgup", "pgup")
         self.assertEqual(screen.index, 0)
-        self.assertIn("›better-unas", self.term.text())
+        self.assertIn("› better-unas", self.term.text())
 
     def test_a_and_t_jump(self):
         self.tool(FRESH)
@@ -332,7 +332,7 @@ class HomeBehaviourTests(HomeFixture, unittest.TestCase):
         self.assertIn("…", self.term.text().splitlines()[21])
         app.press("end")
         lines = self.term.text().splitlines()
-        self.assertTrue(any(line.startswith("›") and "Next backup" in line for line in lines))
+        self.assertTrue(any(line.lstrip().startswith("›") and "Next backup" in line for line in lines))
         self.assertNotIn("better-unas", lines[2])
 
     def test_home_is_resolved_from_the_tools_folder(self):

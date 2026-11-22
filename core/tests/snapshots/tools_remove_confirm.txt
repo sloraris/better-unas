@@ -1,12 +1,12 @@
- 1 Home │ 2 Settings │ 3 Alerts │ 4 Tools
+ 1 Home │ 2 Settings │ 3 Alerts │ 4 Tools                              ▲ v0.3.0
  Tools ───────────────────────────────────────────────────────────────────────
  better-unas v0.2.0   Update available: v0.3.0. Press u to update.
  checked Sun 22 Nov 01:00
 
-  Tool               State          Summary
-› alpha              installed      Alpha tool for the update tests
-  beta             ┌─ Confirm ──────────────────────────────┐tests
-  gamma            │                                        │ed
+   Tool               State          Summary
+ › alpha              installed      Alpha tool for the update tests
+   beta            ┌─ Confirm ──────────────────────────────┐ tests
+   gamma           │                                        │led
                    │ Remove better-unas?                    │
                    │                                        │
                    │ Uninstalls every tool (alpha)          │
@@ -20,5 +20,5 @@
 
 
 
- y yes  n no  ←→ choose  Enter pick  Esc no ────────────────────────────────────
+ y yes  n no  Enter pick  Esc no                                      ←→ choose
 

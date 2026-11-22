@@ -357,24 +357,24 @@ class CalendarScreen:
             return
         sym = c.symbols
         month = dt.date(self.sel.year, self.sel.month, 1)
-        c.text(0, 1, f"{sym['left']} {month:%B %Y} {sym['right']}", bold=True)
+        c.text(0, 0, f"{sym['left']} {month:%B %Y} {sym['right']}", bold=True)
         if self.error:
-            c.text(2, 1, _fit(self.error, c.width - 2), "bad", bold=True)
-            c.text(3, 1, "Press r to try again.", "dim")
+            c.text(2, 0, _fit(self.error, c.width - 1), "bad", bold=True)
+            c.text(3, 0, "Press r to try again.", "dim")
             return
         data = self.data
         right = (f"plan until {data['plan_until']:%a %d %b}" if data["plan_until"]
                  else "nothing planned")
-        c.text(0, c.width - len(right) - 1, right, "dim")
+        c.text(0, c.width - len(right), right, "dim")
 
-        cw = max(10, (c.width - 2) // 7)
+        cw = max(10, c.width // 7)
         for i, name in enumerate(calendar.day_abbr):
-            c.text(1, 1 + i * cw, f" {name}", "dim")
+            c.text(1, i * cw, f" {name}", "dim")
         weeks = calendar.Calendar().monthdatescalendar(month.year, month.month)
         for w, week in enumerate(weeks):
             for i, d in enumerate(week):
                 if d.month == month.month:
-                    self.cell(c.sub(GRID_TOP + w * WEEK_ROWS, 1 + i * cw, WEEK_ROWS, cw - 1), d)
+                    self.cell(c.sub(GRID_TOP + w * WEEK_ROWS, i * cw, WEEK_ROWS, cw - 1), d)
 
         top = GRID_TOP + len(weeks) * WEEK_ROWS + 1
         legend_y = c.height - 1
@@ -384,16 +384,16 @@ class CalendarScreen:
         room = legend_y - top - 1            # rows for the selected day, below its heading
         extra = extra[: max(0, room - 1)]
         head = f"{self.sel:%a %d %b %Y}" + ("  today" if self.sel == data["today"] else "")
-        c.text(top, 1, head, bold=True)
+        c.text(top, 0, head, bold=True)
         lines = summary_lines(data, self.sel)
         room -= len(extra)
         if len(lines) > room:
             lines = lines[: room - 1] + [(f"{sym['more']} {len(lines) - room + 1} more: Enter for details", "dim")]
         for i, (text, tone) in enumerate(lines):
-            c.text(top + 1 + i, 3, _fit(text, c.width - 4), tone)
+            c.text(top + 1 + i, 2, _fit(text, c.width - 3), tone)
         for i, (text, tone) in enumerate(extra):
-            c.text(legend_y - len(extra) + i, 1, _fit(text, c.width - 2), tone)
-        x = 1
+            c.text(legend_y - len(extra) + i, 0, _fit(text, c.width - 1), tone)
+        x = 0
         for sample, tone, label in LEGEND:
             c.text(legend_y, x, sample, tone, bold=tone in ("warn", "bad"))
             c.text(legend_y, x + len(sample) + 1, label, "dim")

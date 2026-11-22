@@ -11,8 +11,8 @@
  Excluded   no
 
  UniFi test history
-  Type      Started          Finished         Result
-  No tests on record.
+   Type      Started          Finished         Result
+   No tests on record.
 
 
 
@@ -20,5 +20,5 @@
 
 
 
- t test  z snooze  x exclude  i interval  u unsnooze  ↑↓ history  r refresh ────
- Esc back  1-6/Tab tabs  ? help  q quit
+ t test  z snooze  x exclude  i interval  u unsnooze  r refresh      ↑↓ history
+ Esc back  1-6/Tab tabs                                          ? help  q quit

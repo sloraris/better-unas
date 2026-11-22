@@ -1,16 +1,14 @@
 SSSSSSSSd            d          d            d          d
       dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
-aaaaaaaaaaaadddddddddddddddddddddddddd
+ SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
 
- aaaaaaggggggggggggggggggg
+   aaaaaaggggggggggggggggggg
 
-                dddddddgggggggggggggggggggggggggggggggggggggggggg
- dddddddddddddddddddyyyyyyyyyyyyyyyyyyyyyyyy
- ddddddddddddddddddddddddddd
- ddddddddddddddddddd
- ddddddddddddddddddd
-
-
+                  dddddddgggggggggggggggggggggggggggggggggggggggggg
+   dddddddddddddddddddyyyyyyyyyyyyyyyyyyyyyyyy
+   ddddddddddddddddddddddddddd
+   ddddddddddddddddddd
+   ddddddddddddddddddd
 
 
 
@@ -20,5 +18,7 @@ aaaaaaaaaaaadddddddddddddddddddddddddd
 
 
 
- aa         aaaaa       a         a        a         ddddddddddddddddddddddddddd
- aaaaaaa       a       a
+
+
+SSSSSSS     SSS       SSS      SSS                                    ddddddddd
+ dddddddddddd                                                    dddddddddddddd
