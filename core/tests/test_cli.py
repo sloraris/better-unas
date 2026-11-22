@@ -288,6 +288,72 @@ class UpdateTests(Base):
 
 # ------------------------------------------------------------------ install / uninstall
 
+class UpdateRefTests(Base):
+    """`update --ref` installs a branch or tag, released or not."""
+
+    def branch(self, name, version="v0.2.0"):
+        from fakerelease import release_tree, tarball
+        data = tarball(release_tree(version, tools()), "better-unas-" + name.replace("/", "-"))
+        path = os.path.join(self.gh.folder, name + ".tar.gz")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "wb") as f:
+            f.write(data)
+
+    def test_installs_a_branch_and_remembers_it(self):
+        self.installed_at("v0.2.0")
+        self.branch("main")
+        code, out, err = self.run_cli("update", "--ref", "main", "--yes")
+        self.assertEqual(code, 0, out + err)
+        self.assertIn("unreleased development code", out)
+        self.assertIn("Updated v0.2.0 -> main (v0.2.0).", out)
+        self.assertIn("OK      alpha", out)
+        self.assertEqual(U.installed_ref(self.home), "main")
+        self.assertIn("v0.2.0 (from main, not a release)", self.run_cli("--version")[1])
+        self.assertIn("(from main, not a release)", self.run_cli("status")[1])
+
+    def test_branch_with_a_slash_and_equals_form(self):
+        self.installed_at("v0.2.0")
+        self.branch("claude/footer-keys")
+        code, out, err = self.run_cli("update", "--ref=claude/footer-keys", "-y")
+        self.assertEqual(code, 0, out + err)
+        self.assertEqual(U.installed_ref(self.home), "claude/footer-keys")
+
+    def test_plain_update_goes_back_to_releases(self):
+        self.installed_at("v0.2.0")
+        self.branch("main")
+        self.run_cli("update", "--ref", "main", "--yes")
+        self.gh.publish("v0.3.0", tools())
+        code, out, err = self.run_cli("update", "--yes")
+        self.assertEqual(code, 0, out + err)
+        self.assertIsNone(U.installed_ref(self.home))
+        self.assertEqual(U.suite_version(self.home), "v0.3.0")
+
+    def test_asks_first_and_needs_a_terminal_or_yes(self):
+        self.installed_at("v0.2.0")
+        self.branch("main")
+        code, out, _ = self.run_cli("update", "--ref", "main")
+        self.assertEqual(code, C.UPDATE_AVAILABLE)
+        self.assertIn("update --ref main --yes", out)
+        self.assertIsNone(U.installed_ref(self.home))
+        code, out, _ = self.run_cli("update", "--ref", "main", answers=["n\n"])
+        self.assertEqual(code, 0)
+        self.assertEqual(self.asked, ["Install main? [y/N] "])
+        self.assertIsNone(U.installed_ref(self.home))
+
+    def test_bad_usage(self):
+        self.installed_at("v0.2.0")
+        for argv in (("update", "--ref"), ("update", "--ref", "--yes"), ("update", "--ref", "main", "--check"),
+                     ("update", "--ref", "../etc"), ("update", "--ref=")):
+            self.assertEqual(self.run_cli(*argv)[0], C.USAGE_ERROR, argv)
+
+    def test_missing_ref_is_a_problem_not_a_crash(self):
+        self.installed_at("v0.2.0")
+        code, out, err = self.run_cli("update", "--ref", "nope", "--yes")
+        self.assertEqual(code, C.PROBLEM)
+        self.assertIn("update failed", err)
+        self.assertIsNone(U.installed_ref(self.home))
+
+
 class InstallUninstallTests(Base):
     def test_uninstall_needs_yes_without_a_terminal(self):
         self.installed_at("v0.2.0")

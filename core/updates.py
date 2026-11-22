@@ -122,9 +122,28 @@ def _safe_members(tar, dest):
     return out
 
 
+REF_FILE = ".ref"   # in the home: the branch/tag installed with `update --ref`, if any
+
+
+def valid_ref(ref):
+    return isinstance(ref, str) and bool(TAG_RE.match(ref)) and ".." not in ref \
+        and not ref.startswith(("-", "/")) and not ref.endswith("/")
+
+
+def installed_ref(home):
+    """The branch or tag installed with `update --ref`, or None (a release)."""
+    try:
+        with open(os.path.join(home, REF_FILE)) as f:
+            ref = f.read().strip()
+    except OSError:
+        return None
+    return ref if valid_ref(ref) else None
+
+
 def download(tag, dest, tarball_url=TARBALL_URL, timeout=60):
-    """Download and unpack release `tag` into the empty folder dest."""
-    if not TAG_RE.match(tag or "") or ".." in tag:
+    """Download and unpack release `tag` (or any branch or tag name GitHub's
+    archive URL accepts) into the empty folder dest."""
+    if not valid_ref(tag or ""):
         raise OSError(f"invalid release tag {tag!r}")
     with tempfile.TemporaryFile() as tmp:
         try:
@@ -283,16 +302,28 @@ class Updater:
         work = self.fetch_release(tag)
         return work, work
 
-    def update(self, tag=None):
-        """Install release tag (default: the latest). Returns a report dict:
-        {"from", "to", "tools": [(name, ok, output)], "skipped": [names not in
-        the release], "link": bool}."""
+    def update(self, tag=None, ref=False):
+        """Install release tag (default: the latest), or with ref=True any
+        branch or tag. Returns a report dict: {"from", "to", "tools":
+        [(name, ok, output)], "skipped": [names not in the release], "link": bool}.
+        The home remembers a ref install (REF_FILE); a release install clears it."""
         tag = tag or self.fetch_latest()
         work = self.fetch_release(tag)
         try:
-            return self.update_from(work, tag)
+            report = self.update_from(work, tag)
         finally:
             shutil.rmtree(work, ignore_errors=True)
+        path = os.path.join(self.home, REF_FILE)
+        if ref:
+            with open(path, "w") as f:
+                f.write(tag + "\n")
+            report["to"] = f"{tag} ({self.current() or '?'})"
+        else:
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+        return report
 
     def update_from(self, src, tag=None):
         old = self.current()
