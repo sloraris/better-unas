@@ -49,6 +49,13 @@ real NAS.
   it, so turning it off removes the hourly timer when you save and turning it
   on puts the timer back, with no reinstall by hand; `install.sh` now handles
   `ENABLED=no` by removing the timer instead of failing.
+- Home cards (docs/tui-style.md, step 5): each tool card is a bordered panel
+  with the tool's name and state in the top border, and one stop instead of a
+  stop per line. Only items that lead somewhere other than the tool's first
+  tab are stops, with a dim `›` hint; smart-scheduler's running test and last
+  result open that drive's page. Alerts are one stop. The action bar says
+  where Enter goes. Summary items gain `target` (`"Tab:arg"`), `target_label`
+  and `status`, and a screen may take `open(arg)`.
 - Screen style (docs/tui-style.md, step 1): keys on the action bar are
   reversed chips and the nav bar is dim, so the two no longer blend; the tab
   bar shows the installed version, or `▲ v…` when an update is out; screens

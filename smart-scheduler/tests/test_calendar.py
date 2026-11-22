@@ -332,15 +332,33 @@ class PluginTests(CalendarFixture, unittest.TestCase):
         self.assertEqual({i["label"]: i["value"] for i in sm["items"]}, {
             "Running": "slot 1 (SERIAL1)",
             "Next test": "Mon 23 Nov, slot 4 (SERIAL4)",
-            "Last result": "Failed, slot 4, Thu 12 Nov",
+            "Last result": "failed, slot 4, Thu 12 Nov",
             "Next scrub": "Mon 30 Nov, pool 2 scrub 02:30",
             "Snoozed": "slot 6 until Wed 25 Nov",
         })
+        by = {i["label"]: i for i in sm["items"]}
+        self.assertEqual((by["Last result"]["target"], by["Last result"]["target_label"], by["Last result"]["status"]),
+                         ("Drives:SERIAL4", "slot 4", "failed"))
+        self.assertEqual(by["Running"]["target"], "Drives:SERIAL1")
+        self.assertNotIn("target", by["Next test"])          # the card itself opens the Calendar
         al = self.plugin.alerts(ctx)
         self.assertEqual(P.check_alerts(al), [])
         self.assertEqual([(a["id"], a["level"]) for a in al], [("backups:read", "warn"), ("test:SERIAL4:41", "error")])
         self.assertEqual(al[0]["since"], "2026-11-21T01:00:00-07:00")
         self.assertEqual(P.check_screens(self.plugin.screens(ctx)), [])
+
+    def test_home_last_result_opens_that_drive(self):
+        with_history(self.fake)
+        self.app = self.make_app()
+        self.app.press("1")
+        home = self.app.screen
+        self.assertEqual([st.target for st in home.stops][-2:], ["Drives:SERIAL1", "Drives:SERIAL4"])
+        text = self.app.press("end")
+        self.assertIn("Enter open slot 4", text.split("\n")[22])
+        text = self.app.press("enter")
+        self.assertEqual(self.app.tab.title, "Drives")
+        self.assertIn("Drives › Slot 4", text.split("\n")[1])
+        self.assertIn("Drives", self.app.press("esc").split("\n")[1])   # back to the list
 
     def test_quiet_nas_is_ok(self):
         self.make_app()

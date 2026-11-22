@@ -530,6 +530,19 @@ class DrivesScreen:
             return None
         return self.data["drives"][self.table.index]
 
+    def open(self, serial):
+        """Select a drive by serial and open its page: a Home card item's
+        target "Drives:<serial>" lands here. False if there's no such drive."""
+        if self.data is None:
+            self.load()
+        for i, d in enumerate((self.data or {}).get("drives", [])):
+            if d["serial"] == serial:
+                self.table.scroll.index = i
+                self.ctx.push(DriveScreen(self.ctx, self.env, serial))
+                return True
+        self.ctx.message(f"No drive {serial} here any more.", "dim")
+        return False
+
     def key(self, k):
         if self.actions.busy:
             return self.actions.key(k, self.current)

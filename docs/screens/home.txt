@@ -1,17 +1,15 @@
  1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings
  Home ────────────────────────────────────────────────────────────────────────
- › Alerts  1 active
-     warn  smart-scheduler: Extended SMART test failed on slot 4 (SERIAL4)
+ › ! 1 active alert
+     ! smart-scheduler: Extended SMART test failed on slot 4 (S…  12 Nov 03:15
 
-   smart-scheduler  0.1.1  warn  7 drives scheduled, 4 due now
-     Running          slot 1 (SERIAL1)
-     Next test        Mon 23 Nov, slot 6 (SERIAL6)
-     Last result      Failed, slot 4, Thu 12 Nov
-     Next scrub       Mon 30 Nov, pool 2 scrub 02:30
-
-
-
-
+  ┌─ smart-scheduler 0.1.1 ────────────────────────────────────── ! warning ──┐
+  │ 7 drives scheduled, 4 due now                                             │
+  │ Running       ▶ slot 1 (SERIAL1)                                 › slot 1 │
+  │ Next test     ○ Mon 23 Nov, slot 6 (SERIAL6)                              │
+  │ Last result   ✗ failed, slot 4, Thu 12 Nov                       › slot 4 │
+  │ Next scrub    ↻ Mon 30 Nov, pool 2 scrub 02:30                            │
+  └───────────────────────────────────────────────────────────────────────────┘
 
 
 
@@ -20,5 +18,7 @@
 
 
 
- Enter open  a alerts  r refresh                                      ↑↓ select
+
+
+ Enter open Alerts  a alerts  r refresh                                 ↑↓ move
  1-5/Tab tabs                                                    ? help  q quit

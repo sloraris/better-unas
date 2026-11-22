@@ -224,7 +224,7 @@ class SettingsPagesTests(SnapshotMixin, unittest.TestCase):
     def test_home_update_notice_opens_the_page(self):
         app = self.make_app()
         text = app.press("1")
-        self.assertIn("▲ Update available: v0.3.0   Settings › better-unas", text)
+        self.assertIn("› ▲ Update available: v0.3.0", text)
         text = app.press("enter")
         self.assertIn("Settings › better-unas", text.split("\n")[1])
         self.assertIn("Update      ▲ v0.3.0 available", text)

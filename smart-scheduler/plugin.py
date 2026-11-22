@@ -88,25 +88,29 @@ def summary(ctx):
     items = []
     running = [x for v in data["days"].values() for x in v["tests"] if x["outcome"] == "running"]
     if running:
-        items.append({"label": "Running", "value": f"slot {running[0]['slot']} ({running[0]['serial']})",
-                      "tone": "warn"})
+        r = running[0]
+        items.append({"label": "Running", "value": f"slot {r['slot']} ({r['serial']})", "tone": "normal",
+                      "status": "running", "target": f"Drives:{r['serial']}", "target_label": f"slot {r['slot']}"})
     planned = sorted((e for v in data["days"].values() for e in v["planned"]), key=lambda e: e["start"])
     if planned:
         e = planned[0]
         items.append({"label": "Next test", "value": f"{e['start']:%a %d %b}, slot {e['slot']} ({e['serial']})",
-                      "tone": "warn"})
+                      "tone": "normal", "status": "planned"})
     done = sorted((x for v in data["days"].values() for x in v["tests"] if x["outcome"] != "running"),
                   key=lambda x: x["end"] or x["start"])
     if done:
         x = done[-1]
+        passed = x["outcome"] == "passed"
         items.append({"label": "Last result",
-                      "value": f"{x['outcome'].capitalize()}, slot {x['slot']}, {(x['end'] or x['start']):%a %d %b}",
-                      "tone": "good" if x["outcome"] == "passed" else "bad"})
+                      "value": f"{x['outcome']}, slot {x['slot']}, {(x['end'] or x['start']):%a %d %b}",
+                      "tone": "good" if passed else "bad", "status": "ok" if passed else "failed",
+                      "target": f"Drives:{x['serial']}", "target_label": f"slot {x['slot']}"})
     scrubs = sorted((d, b) for d, v in data["days"].items() for b in v["blocks"]
                     if b["kind"] == "scrub" and not b["past"] and d >= t.date())
     if scrubs:
         d, b = scrubs[0]
-        items.append({"label": "Next scrub", "value": f"{d:%a %d %b}, {b['short']}", "tone": "normal"})
+        items.append({"label": "Next scrub", "value": f"{d:%a %d %b}, {b['short']}", "tone": "normal",
+                      "status": "scrub"})
     if data["snoozes"]:
         z = data["snoozes"][0]
         more = f" (+{len(data['snoozes']) - 1})" if len(data["snoozes"]) > 1 else ""

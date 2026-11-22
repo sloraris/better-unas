@@ -1,18 +1,16 @@
  1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings
  Home ────────────────────────────────────────────────────────────────────────
- › Alerts  2 active
-     warn  smart-scheduler: Slot 5 reached 52 C during its test.
-     error smart-scheduler: Extended test on slot 2 failed: read failure.
+ › ✗ 2 active alerts
+     ! smart-scheduler: Slot 5 reached 52 C during its test.      21 Nov 14:00
+     ✗ smart-scheduler: Extended test on slot 2 failed: read fa…  20 Nov 01:04
 
-   smart-scheduler  1.2.3  error  7 drives scheduled, 1 failed
-     Next test        Mon 23 Nov 01:00, slot 4
-     Last result      Failed, slot 2, Fri 20 Nov
-     Next scrub       Sun 6 Dec 02:30
-     Next backup      Mon 23 Nov 03:00, cloud backup (~1 h)
-
-
-
-
+  ┌─ smart-scheduler 1.2.3 ──────────────────────────────────────── ✗ error ──┐
+  │ 7 drives scheduled, 1 failed                                              │
+  │ Next test     Mon 23 Nov 01:00, slot 4                                    │
+  │ Last result   Failed, slot 2, Fri 20 Nov                         › Drives │
+  │ Next scrub    Sun 6 Dec 02:30                                             │
+  │ Next backup   Mon 23 Nov 03:00, cloud backup (~1 h)                       │
+  └───────────────────────────────────────────────────────────────────────────┘
 
 
 
@@ -20,5 +18,7 @@
 
 
 
- Enter open  a alerts  r refresh                                      ↑↓ select
+
+
+ Enter open Alerts  a alerts  r refresh                                 ↑↓ move
  1-5/Tab tabs                                                    ? help  q quit

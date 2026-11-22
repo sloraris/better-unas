@@ -74,6 +74,8 @@ SHARED_KEYS = ("WEBHOOK_URL", "WEBHOOK_FORMAT", "NOTIFY_SUCCESS", "ALERT_REPEAT_
                "HEARTBEAT_URL", "HEARTBEAT_FAIL_URL")
 STATES = ("ok", "warn", "error", "off", "unknown")
 TONES = ("normal", "good", "warn", "bad", "dim")
+# Status kinds an item may show as a glyph before its value (core/tui/theme.py STATUS).
+STATUS_KINDS = ("ok", "failed", "warning", "running", "planned", "scrub", "backup", "update")
 LEVELS = ("error", "warn", "info")
 
 
@@ -561,6 +563,12 @@ def check_summary(s):
         if not (isinstance(it, dict) and isinstance(it.get("label"), str)
                 and isinstance(it.get("value"), str) and it.get("tone", "normal") in TONES):
             p.append(f"summary: item {i + 1} needs label and value strings and a valid tone")
+            continue
+        for k in ("target", "tab", "target_label"):
+            if k in it and not (isinstance(it[k], str) and it[k]):
+                p.append(f"summary: item {i + 1}: {k} must be a non-empty string")
+        if "status" in it and it["status"] not in STATUS_KINDS:
+            p.append(f"summary: item {i + 1}: status must be one of {', '.join(STATUS_KINDS)}")
     return p
 
 
