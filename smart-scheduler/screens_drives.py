@@ -94,7 +94,7 @@ def details(env, ctx, drive):
         out["history_error"] = f"can't read it as {who}: {err or 'it no longer exists'}"
     else:
         try:
-            out["history"] = ss.get_history(drive["slot"], drive["serial"], user_id)
+            out["history"] = ss.get_history(drive["slot"], drive["serial"], user_id, drive.get("current_test"))
         except ss.ApiError as e:
             out["history_error"] = e.detail
     dev = ss.serial_to_device().get(drive["serial"])

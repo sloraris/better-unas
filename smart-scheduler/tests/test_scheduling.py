@@ -122,6 +122,31 @@ class SchedulingTests(unittest.TestCase):
         self.assertEqual(ss.start_gate(self.cfg, self.fake.storage, drives, self.state, NIGHT),
                          "a SMART test is already running")
 
+    def ui_test(self, slot="4", progress=80):
+        disk = next(d for d in self.fake.storage["disks"] if str(d["slotId"]) == slot)
+        disk["smartTest"] = {"id": 4, "type": "extended", "status": "inProgress", "result": "",
+                             "createdAt": "2026-11-21T13:14:43-07:00", "finishedAt": None, "progress": progress}
+
+    def test_test_running_in_drive_comes_from_storage_not_history(self):
+        # Started in the UniFi UI: the history endpoint lists finished tests only,
+        # the running one is the disk's smartTest field in GET /storage.
+        self.ui_test()
+        self.fake.progress["SERIAL4"] = 20     # the drive agrees
+        d = self.drives()["SERIAL4"]
+        self.assertTrue(d["running"])
+        self.assertNotIn("outside_drive", d)
+        self.assertEqual(d["remaining_percent"], 20)
+        self.assertEqual(ss.start_gate(self.cfg, self.fake.storage, list(self.drives().values()), self.state, NIGHT),
+                         "a SMART test is already running")
+
+    def test_finished_current_test_is_not_counted_twice(self):
+        self.fake.history["4"] = [ext(4, "successful", "optimal", "2026-11-21T22:40:00-07:00")]
+        disk = next(d for d in self.fake.storage["disks"] if str(d["slotId"]) == "4")
+        disk["smartTest"] = dict(self.fake.history["4"][0], progress=100)
+        hist = ss.get_history("4", "SERIAL4", "uid", disk["smartTest"])
+        self.assertEqual(len(hist), 1)
+        self.assertFalse(self.drives()["SERIAL4"]["running"])
+
     def test_test_started_outside_drive_counts_as_running(self):
         # Drive's history is empty, but the drive itself says a test is 80% done.
         self.fake.progress["SERIAL4"] = 20

@@ -154,7 +154,7 @@ def _gather(slot, kind, cfg, t, state):
             if not d.get("serial") or not d.get("smartTestSupported"):
                 continue
             try:
-                history = ss.get_history(d["slotId"], d["serial"], user_id)
+                history = ss.get_history(d["slotId"], d["serial"], user_id, d.get("smartTest"))
             except ss.ApiError as e:
                 checks.append(_block("history", f"couldn't read SMART history for slot {d['slotId']} "
                                                 f"to check nothing is running: {e.detail}"))

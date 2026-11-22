@@ -121,6 +121,15 @@ class CheckTests(Base):
         self.fake.history["3"] = [ext(9, "running", None, None, "2026-11-22T00:10:00-07:00")]
         self.assertEqual(self.codes(), [("running", False)])
 
+    def test_test_running_in_drive_blocks(self):
+        disk = next(d for d in self.fake.storage["disks"] if str(d["slotId"]) == "3")
+        disk["smartTest"] = {"id": 7, "type": "extended", "status": "inProgress", "result": "",
+                             "createdAt": "2026-11-21T13:14:43-07:00", "finishedAt": None, "progress": 80}
+        self.fake.progress["SERIAL3"] = 20
+        checks = actions.check_run_now("6", "quick", cfg=self.cfg)
+        self.assertEqual([(c.code, c.overridable) for c in checks], [("running", False)])
+        self.assertNotIn("outside", checks[0].reason)
+
     def test_test_started_outside_drive_blocks(self):
         self.fake.progress["SERIAL3"] = 20
         checks = actions.check_run_now("6", "quick", cfg=self.cfg)
