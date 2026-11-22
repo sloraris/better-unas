@@ -16,9 +16,9 @@
 
 
 
-
  ──────────────────────────────────────────────────────────────────────────────
  Warn when the volume is fuller than this.
+
 
  ✓ Saved 1 setting(s) to space-watch/config.
  Esc back  1-5/Tab tabs                                          ? help  q quit

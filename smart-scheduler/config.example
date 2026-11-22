@@ -21,7 +21,8 @@ WARN_INTERVAL_DAYS=30
 # Drive older than OLD_DRIVE_HOURS of power-on time (43800 h is about 5 years).
 OLD_INTERVAL_DAYS=60
 OLD_DRIVE_HOURS=43800
-# After a test fails or is aborted, try again this many days later (and alert).
+# After a test fails or is aborted, smart-scheduler alerts and tests that drive
+# again this many days later.
 RETRY_FAILED_DAYS=7
 # SMART attributes that count as warning signs. If one rises since the last
 # test, that drive is tested on the next eligible night.
@@ -37,15 +38,15 @@ EXCLUDE_SERIALS=
 # Local time (the NAS's timezone). May cross midnight, e.g. 22:00-04:00.
 START_WINDOW=00:00-05:00
 # Never run more than this many tests at once, or start more per night.
-# MAX_STARTS_PER_NIGHT=0 pauses new tests (everything else keeps running).
+# MAX_STARTS_PER_NIGHT=0: the hourly check starts no tests; running tests finish.
 MAX_CONCURRENT=1
 MAX_STARTS_PER_NIGHT=1
 # Don't start a test that could still be running this many hours before a
 # scheduled scrub. A test's length is the drive's own estimate x DURATION_FACTOR.
 SCRUB_MARGIN_HOURS=2
 DURATION_FACTOR=1.5
-# Skip a drive that is busier than this (read + write, KB/s) when the test
-# would start. 0 turns the check off.
+# The hourly check skips a drive busier than this (read + write, KB/s) when a
+# test would start. 0: drives are never skipped for being busy.
 BUSY_KBPS=20000
 
 # --- UniFi backups and replication ---------------------------------------------

@@ -1,5 +1,4 @@
-When tests may start                                                           ↑
-  Start window                00:00 to 05:00
+  Start window                00:00 to 05:00                                   ↑
   Tests at once               1
   Starts per night            1
   Scrub margin                2 hours
@@ -17,4 +16,5 @@ Notifications                 │  discord         │
 * Webhook format              ‹ json ›                                         ↓
 ────────────────────────────────────────────────────────────────────────────────
 How alerts are sent. text is a plain body, which ntfy and most receivers take.
+
 

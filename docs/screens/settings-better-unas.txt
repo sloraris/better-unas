@@ -16,9 +16,9 @@
 
 
 
-
  ──────────────────────────────────────────────────────────────────────────────
  Follow the latest commit on a GitHub branch instead of releases. Settings ›
  better-unas then offers each new commit as an update. For testing unreleased
+ changes; turn it off to go back to releases on the next update.
  c check  s save  R remove better-unas  Space toggle                    ↑↓ move
  Esc back  1-5/Tab tabs                                          ? help  q quit

@@ -13,8 +13,8 @@ How often each drive gets an extended test
   Never test                  ZL1
 
 When tests may start
-  Start window                00:00 to 05:00
-  Tests at once               1                                                ↓
+  Start window                00:00 to 05:00                                   ↓
 ────────────────────────────────────────────────────────────────────────────────
 Drives to never test, by serial number.
+
 

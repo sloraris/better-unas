@@ -13,8 +13,8 @@ How often each drive gets an extended test
   Never test                  ┌─ Per-drive intervals ────────────────────────┐
                               │  ZL1                  30 days                │
 When tests may start          │  ZL9                  120  days              │
-  Start window                └──────────────────────────────────────────────┘
-  Tests at once               1                                                ↓
+  Start window                └──────────────────────────────────────────────┘ ↓
 ────────────────────────────────────────────────────────────────────────────────
 Intervals for single drives, by serial number.
+
 

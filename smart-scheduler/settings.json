@@ -47,7 +47,7 @@
           "max": 3650,
           "default": "30",
           "essential": true,
-          "help": "Any warning attribute above zero, a UniFi risk reason, or a UniFi state other than optimal."
+          "help": "Days between tests on a drive with warning signs: a warning attribute above zero, a UniFi risk reason, or a UniFi state other than optimal."
         },
         {
           "key": "OLD_INTERVAL_DAYS",
@@ -58,7 +58,7 @@
           "max": 3650,
           "default": "60",
           "essential": true,
-          "help": "Drive older than the old-drive age below."
+          "help": "Days between tests on a drive older than the old-drive age below."
         },
         {
           "key": "OLD_DRIVE_HOURS",
@@ -67,7 +67,7 @@
           "unit": "power-on hours",
           "min": 0,
           "default": "43800",
-          "help": "43800 h is about 5 years."
+          "help": "Power-on hours after which a drive counts as old and gets the old-drive interval. 43800 h is about 5 years."
         },
         {
           "key": "RETRY_FAILED_DAYS",
@@ -77,7 +77,7 @@
           "min": 1,
           "max": 365,
           "default": "7",
-          "help": "After a test fails or is aborted, try again this many days later (and alert)."
+          "help": "After a test fails or is aborted, smart-scheduler alerts and tests that drive again this many days later."
         },
         {
           "key": "WARN_ATTRIBUTES",
@@ -135,7 +135,7 @@
           "min": 0,
           "max": 64,
           "default": "1",
-          "help": "0 pauses new tests (everything else keeps running)."
+          "help": "How many tests the hourly check may start in one night. 0: none start, and running tests finish; set it above 0 to start them again."
         },
         {
           "key": "SCRUB_MARGIN_HOURS",
@@ -163,7 +163,7 @@
           "unit": "KB/s",
           "min": 0,
           "default": "20000",
-          "help": "Skip a drive busier than this (read + write) when the test would start. 0 turns the check off."
+          "help": "The hourly check skips a drive busier than this (read + write) when a test would start. 0: drives are never skipped for being busy."
         }
       ]
     },

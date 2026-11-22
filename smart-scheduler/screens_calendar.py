@@ -235,7 +235,7 @@ def short_reason(r):
         return "overlaps " + r[len("would overlap "):]
     return {"a SMART test is already running": "one is already running",
             "outside start window": "outside the start window",
-            "paused (MAX_STARTS_PER_NIGHT=0 in config)": "paused (MAX_STARTS_PER_NIGHT is 0)"}.get(r, r)
+            "paused (MAX_STARTS_PER_NIGHT=0 in config)": "no starts allowed (MAX_STARTS_PER_NIGHT is 0)"}.get(r, r)
 
 
 def _pct_done(left):
