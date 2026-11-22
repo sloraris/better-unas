@@ -1,4 +1,4 @@
- 1 Home │ 2 Board │ 3 Space │ 4 Settings │ 5 Alerts │ 6 Tools
+ 1 Home │ 2 Board │ 3 Space │ 4 Alerts │ 5 Settings
  Space ──────────────────────────────────────────────────────────── space-watch
  Volume holding /
 
@@ -21,4 +21,4 @@
 
 
  r refresh  x forget peak
- 1-6/Tab tabs                                                    ? help  q quit
+ 1-5/Tab tabs                                                    ? help  q quit

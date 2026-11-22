@@ -1,6 +1,6 @@
 # better-unas TUI: style and layout
 
-Status: step 1 of the build order (§12) is built: roles, glyphs, chips, the action and nav bars, margins, the version in the tab bar, `heading`, `panel` and `KeyValue`. The rest is spec. It applies to every screen in the core and in every tool. The building blocks it describes live in `core/tui/widgets.py`, so a screen that follows this spec has little to decide for itself. What the app does is in [tui-design.md](tui-design.md); this file covers how it looks and reads.
+Status: steps 1 and 2 of the build order (§12) are built: roles, glyphs, chips, the action and nav bars, margins, the version in the tab bar, `heading`, `panel` and `KeyValue`; the Tools tab is gone, with updates and remove in Settings › better-unas and install / uninstall on each tool's page. Notifications are still on the Alerts tab until step 3. The rest is spec. It applies to every screen in the core and in every tool. The building blocks it describes live in `core/tui/widgets.py`, so a screen that follows this spec has little to decide for itself. What the app does is in [tui-design.md](tui-design.md); this file covers how it looks and reads.
 
 Where this came from: the first hardware run showed screens that worked but read as a wall of same-looking text. The problems are covered in the rules below. Each rule says which problem it fixes, so it doesn't get "simplified" away later.
 

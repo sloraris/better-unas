@@ -1,7 +1,8 @@
 """The core's own screens.
 
 Home lives in home.py (#9), Settings in settings.py (#12), Alerts in
-alerts.py (#13) and Tools in tools.py (#14). The small helpers (detail, help,
+alerts.py (#13), and the suite actions (update, install, remove) in
+suite.py, used by Settings. The small helpers (detail, help,
 chooser, error, too-small) stay.
 """
 
@@ -105,7 +106,7 @@ class ErrorScreen:
         canvas.text(0, 0, "This screen could not be opened.", "bad", bold=True)
         for i, line in enumerate(W.wrap(self.msg, canvas.width - 2)):
             canvas.text(2 + i, 0, line)
-        canvas.text(canvas.height - 1, 0, "The rest of better-unas keeps working; see the Tools tab.", "dim")
+        canvas.text(canvas.height - 1, 0, "The rest of better-unas keeps working; see its page in Settings.", "dim")
 
     def key(self, k):
         return False

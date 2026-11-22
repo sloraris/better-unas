@@ -204,7 +204,7 @@ class DoneScreen(DetailScreen):
         lines = []
         if failed:
             lines.append((f"Installed, but {', '.join(failed)} failed. See the output below; "
-                          "the Tools tab can retry.", "bad"))
+                          "its page in Settings can retry (i).", "bad"))
         else:
             lines.append((f"better-unas {setup.version} is installed.", "good"))
         if report.get("link"):

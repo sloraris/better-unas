@@ -94,7 +94,7 @@ def main(argv=None, out=sys.stdout, execv=os.execv):
 
         def build(term):
             app = App(term, tools, broken, extra_tabs=extra, dry_run=args.dry_run, log_path=log_path)
-            app.home = home     # read by the Tools screen (#14)
+            app.home = home     # read by Settings › better-unas and the tab bar
             return app
 
         if args.headless:
@@ -110,7 +110,7 @@ def main(argv=None, out=sys.stdout, execv=os.execv):
         else:
             if not args.demo:
                 # Cached for a few hours, so this rarely touches the network;
-                # Home and Tools read the answer with updates.cached_status().
+                # the tab bar, Home and Settings read it with updates.cached_status().
                 updates.check_in_background(home)
             app = run_curses(build)
             if app is not None and app.restart:
@@ -131,7 +131,7 @@ def first_run(args, out):
     if args.source and not args.setup and not S.needs_setup(home):
         # The bootstrap one-liner on a box that is set up already.
         print(f"better-unas is already set up in {home}; opening it. "
-              "(Updates are on the Tools tab.)", file=sys.stderr)
+              "(Updates are in Settings › better-unas.)", file=sys.stderr)
         return None
     source = args.source or S.default_source(home, ROOT)
     if not source:

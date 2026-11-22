@@ -1,4 +1,4 @@
- 1 Home │ 2 Board │ 3 Space │ 4 Settings │ 5 Alerts │ 6 Tools
+ 1 Home │ 2 Board │ 3 Space │ 4 Alerts │ 5 Settings
  Board › Item ───────────────────────────────────────────────────────────────────────────────────────────────── fixture
  Details of alpha
 
@@ -37,4 +37,4 @@
 
 
 
- Esc back  1-6/Tab tabs                                                                                  ? help  q quit
+ Esc back  1-5/Tab tabs                                                                                  ? help  q quit

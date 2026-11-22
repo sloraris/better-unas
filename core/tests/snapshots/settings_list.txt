@@ -1,14 +1,12 @@
- 1 Home │ 2 Board │ 3 Space │ 4 Settings │ 5 Alerts │ 6 Tools
+ 1 Home │ 2 Board │ 3 Space │ 4 Alerts │ 5 Settings
  Settings ────────────────────────────────────────────────────────────────────
- Settings by tool. The config files stay the source of truth.
 
- › space-watch          5 settings, 1 problem(s) in the config file
-   better-unas          2 settings
+ better-unas
+ › better-unas            Not checked yet. Press c to check.
 
-
-
-
-
+ Tools
+   fixture              ! installed
+   space-watch          ! installed  5 settings, 1 config problem
 
 
 
@@ -20,5 +18,7 @@
 
 
 
- Enter open                                                             ↑↓ move
- 1-6/Tab tabs                                                    ? help  q quit
+
+
+ Enter open better-unas                                                 ↑↓ move
+ 1-5/Tab tabs                                                    ? help  q quit

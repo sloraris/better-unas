@@ -1,8 +1,6 @@
- 1 Home │ 2 Calendar │ 3 Drives │ 4 Settings │ 5 Alerts │ 6 Tools
+ 1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings
  Home ────────────────────────────────────────────────────────────────────────
- › better-unas v0.2.0  Up to date  checked Sat 21 Nov 18:00
-
-   Alerts  No active alerts.
+ › Alerts  No active alerts.
 
    smart-scheduler  1.2.3  ok  Extended test running on slot 3 (41%)
      Running          Slot 3, started 01:00, ~6 h left
@@ -20,5 +18,7 @@
 
 
 
- Enter open  a alerts  t tools  r refresh                             ↑↓ select
- 1-6/Tab tabs                                                    ? help  q quit
+
+
+ Enter open  a alerts  r refresh                                      ↑↓ select
+ 1-5/Tab tabs                                                    ? help  q quit

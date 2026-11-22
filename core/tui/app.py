@@ -23,7 +23,6 @@ from . import screens as core
 from .alerts import AlertsScreen
 from .home import HomeScreen
 from .settings import SettingsScreen
-from . import tools as tools_screen
 from . import widgets
 from .widgets import fit as W_fit
 from .keys import RESIZE
@@ -156,9 +155,8 @@ class App:
             grouped.setdefault(title, []).append((label, ctx, make))
         self.tabs = [Tab("Home", [("Home", self.core_ctx, HomeScreen)])]
         self.tabs += [Tab(title, entries) for title, entries in grouped.items()]
-        self.tabs += [Tab("Settings", [("Settings", self.core_ctx, SettingsScreen)]),
-                      Tab("Alerts", [("Alerts", self.core_ctx, AlertsScreen)]),
-                      Tab("Tools", [("Tools", self.core_ctx, tools_screen.ToolsScreen)])]
+        self.tabs += [Tab("Alerts", [("Alerts", self.core_ctx, AlertsScreen)]),
+                      Tab("Settings", [("Settings", self.core_ctx, SettingsScreen)])]
         self.current = 0
 
     # ------------------------------------------------------------ screens
@@ -465,7 +463,7 @@ class App:
             return cached[1]
         badge = None
         try:
-            from .tools import updater_of
+            from .suite import updater_of
             up = updater_of(self)
             status = up.cached_status()
             if status and status.get("available") and status.get("latest"):

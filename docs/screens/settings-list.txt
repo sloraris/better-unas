@@ -1,0 +1,24 @@
+ 1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings                  v0.2.0
+ Settings ────────────────────────────────────────────────────────────────────
+
+ better-unas
+ › better-unas          v0.2.0  Up to date.
+
+ Tools
+   smart-scheduler      ! installed  26 settings
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ Enter open better-unas                                                 ↑↓ move
+ 1-5/Tab tabs                                                    ? help  q quit

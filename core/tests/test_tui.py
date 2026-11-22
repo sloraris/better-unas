@@ -642,28 +642,28 @@ class AppTests(AppFixture, unittest.TestCase):
         self.assertSnapshot("app_home", self.term.text())
         self.assertSnapshot("app_home_tones", self.term.tones())
         self.assertEqual([t.title for t in app.tabs],
-                         ["Home", "Board", "Space", "Settings", "Alerts", "Tools"])
+                         ["Home", "Board", "Space", "Alerts", "Settings"])
 
     def test_placeholder_tabs_go_first_and_match_the_design(self):
         from core.tui import demo
         app = self.make_app(extra_tabs=demo.TABS)
         self.assertEqual([t.title for t in app.tabs],
-                         ["Home", "Calendar", "Drives", "Board", "Space", "Settings", "Alerts", "Tools"])
+                         ["Home", "Calendar", "Drives", "Board", "Space", "Alerts", "Settings"])
 
     def test_number_keys_and_tab_switch_tabs(self):
         app = self.make_app()
         app.press("3")
         self.assertEqual(app.tab.title, "Space")
         app.press("tab")
-        self.assertEqual(app.tab.title, "Settings")
+        self.assertEqual(app.tab.title, "Alerts")
         app.press("backtab", "backtab")
         self.assertEqual(app.tab.title, "Board")
         app.press("9")                        # no tab 9: nothing happens
         self.assertEqual(app.tab.title, "Board")
-        app.press("6", "tab")                 # wraps around
+        app.press("5", "tab")                 # wraps around
         self.assertEqual(app.tab.title, "Home")
         app.press("backtab")
-        self.assertEqual(app.tab.title, "Tools")
+        self.assertEqual(app.tab.title, "Settings")
 
     def test_space_watch_is_a_working_screen(self):
         app = self.make_app()
@@ -756,7 +756,7 @@ class AppTests(AppFixture, unittest.TestCase):
 
     def test_typing_into_a_field_never_quits_or_switches(self):
         app = self.make_app()
-        app.press("4", "enter")               # Settings > space-watch
+        app.press("5", "down", "down", "enter")   # Settings > space-watch
         self.assertIn("Settings › space-watch", self.term.text())
         app.press("down", "enter")            # edit "Folder to watch"
         self.assertIsNotNone(W.active_editor())
@@ -771,7 +771,7 @@ class AppTests(AppFixture, unittest.TestCase):
 
     def test_leaving_a_changed_form_asks(self):
         app = self.make_app()
-        app.press("4", "enter", " ")          # toggle Enabled
+        app.press("5", "down", "down", "enter", " ")   # toggle Enabled
         app.press("esc", "n")                 # discard? no
         self.assertIn("Settings › space-watch", self.term.text())
         app.press("2", "n")                   # switching tabs asks too
@@ -855,14 +855,14 @@ class AppTests(AppFixture, unittest.TestCase):
             self.assertTrue(keys.endswith("c third") or keys.endswith("? more"), (fill, keys))
             self.assertTrue(keys.startswith(" a xxxxxxxxxx"), (fill, keys))   # the first key always shows
 
-    def test_alerts_and_tools(self):
+    def test_alerts_and_settings(self):
         app = self.make_app()
-        text = app.press("5")
+        text = app.press("4")
         self.assertSnapshot("app_alerts", text)
-        text = app.press("6")
-        self.assertSnapshot("app_tools", text)
-        text = app.press("enter")
-        self.assertIn("Timer is missing.", text)
+        text = app.press("5")
+        self.assertSnapshot("app_settings", text)
+        self.assertIn("space-watch", text)
+        self.assertNotIn("Tools │", text.split("\n")[0])
 
     def test_dry_run_marker(self):
         app = self.make_app(dry_run=True)
@@ -1181,7 +1181,7 @@ class EntryPointTests(unittest.TestCase):
         out = io.StringIO()
         self.assertEqual(entry.main(["--demo", "--headless", "80x24", "--keys", "3 down enter"], out=out), 0)
         text = out.getvalue()
-        self.assertIn("1 Home │ 2 Calendar │ 3 Drives │ 4 Space │ 5 Settings │ 6 Alerts │ 7 Tools", text)
+        self.assertIn("1 Home │ 2 Calendar │ 3 Drives │ 4 Space │ 5 Alerts │ 6 Settings", text)
         self.assertIn("Drives › Slot 2", text)
 
     def test_demo_second_confirm_headless(self):

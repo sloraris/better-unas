@@ -1,4 +1,4 @@
- 1 Home │ 2 Calendar │ 3 Drives │ 4 Settings │ 5 Alerts │ 6 Tools        v0.2.0
+ 1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings                  v0.2.0
  Drives › Slot 4: WDC WD4002FYYZ-01B7CB0 (SERIAL4) ──────────── smart-scheduler
  Schedule                                       SMART
  Last test  none passed yet                     Temperature          48 C
@@ -21,4 +21,4 @@
 
 
  t test  z snooze  x exclude  i interval  u unsnooze  r refresh      ↑↓ history
- Esc back  1-6/Tab tabs                                          ? help  q quit
+ Esc back  1-5/Tab tabs                                          ? help  q quit

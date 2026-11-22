@@ -13,7 +13,7 @@ A tool is a folder with up to four contract pieces:
 |---|---|---|
 | Manifest | `tool.conf` | Always. Name, summary, CLI, and where the other pieces are. |
 | Settings schema | `settings.json` (any name, set by `SCHEMA`) | A Settings section and first-run setup. |
-| Plugin module | `plugin.py` (any name, set by `PLUGIN`) | Home card, Alerts, Tools status, and the tool's own screens. |
+| Plugin module | `plugin.py` (any name, set by `PLUGIN`) | Home card, Alerts, its state in Settings, and the tool's own screens. |
 | CLI | the tool's script (set by `CLI`) | `better-unas <tool> <command>` and the scheduled run. |
 
 A minimal working example lives in [examples/space-watch/](examples/space-watch/),
@@ -264,7 +264,8 @@ characters so the card lines up.
 An item may also name a `tab` (optional, e.g. `"tab": "Calendar"` on "Next
 test", `"tab": "Drives"` on "Last result"): Enter on that row of the Home
 dashboard switches to that tab. Without it, or if no tab has that title, the
-row leads to the tool's first own tab (or Tools, for a tool without screens).
+row leads to the tool's first own tab (or its page in Settings, for a tool
+without screens).
 The dashboard shows the card under the suite's update line and the active
 alerts, so items are where a tool puts its next planned test, last results,
 next scrub and next backup window.
@@ -341,11 +342,11 @@ def screens(ctx):
 ```
 
 - `id`: lowercase, unique within the tool.
-- `tab`: the tab title. The core's own tabs are Home, Settings, Alerts and
-  Tools; a tool can't use those. Tool tabs go between Home and Settings, in
-  the order tools are listed, then the order returned here. So with
-  smart-scheduler installed the bar reads Home, Calendar, Drives, Settings,
-  Alerts, Tools, as in the design. If two tools return the same tab title, that
+- `tab`: the tab title. The core's own tabs are Home, Alerts and Settings; a
+  tool can't use those. Tool tabs go between Home and Alerts, in the order
+  tools are listed, then the order returned here. So with smart-scheduler
+  installed the bar reads Home, Calendar, Drives, Alerts, Settings, as in
+  [tui-style.md](tui-style.md) §6. If two tools return the same tab title, that
   tab opens a short chooser listing both.
 - `make(ctx)`: called once per TUI session to build the screen object.
 

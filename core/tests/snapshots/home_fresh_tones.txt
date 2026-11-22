@@ -1,8 +1,6 @@
-SSSSSSSSd            d          d            d          d
+SSSSSSSSd            d          d          d
       dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
  SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
-
-   aaaaaaggggggggggggggggggg
 
                   dddddddgggggggggggggggggggggggggggggggggggggggggg
    dddddddddddddddddddyyyyyyyyyyyyyyyyyyyyyyyy
@@ -20,5 +18,7 @@ SSSSSSSSd            d          d            d          d
 
 
 
-SSSSSSS     SSS       SSS      SSS                                    ddddddddd
+
+
+SSSSSSS     SSS       SSS                                             ddddddddd
  dddddddddddd                                                    dddddddddddddd

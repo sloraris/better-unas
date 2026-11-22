@@ -22,7 +22,9 @@ class SettingsScreenTests(CalendarFixture, unittest.TestCase):
     def open_settings(self):
         self.app = self.make_app()
         n = [t.title for t in self.app.tabs].index("Settings") + 1
-        return self.app.press(str(n), "enter")
+        self.app.press(str(n))
+        self.assertTrue(self.app.screen.open("smart-scheduler"))
+        return self.app.press()
 
     def set(self, key, text):
         """Select the field for key and type text into it."""

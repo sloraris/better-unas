@@ -104,7 +104,7 @@ No UniFi setup is needed. It runs as the console owner (see
 [Which account it uses](#which-account-it-uses)).
 
 Install it with [better-unas](../README.md#install): pick smart-scheduler in
-the setup wizard, or later on the Tools tab or with
+the setup wizard, or later on its page in Settings or with
 `better-unas install smart-scheduler`. That copies this folder to
 `/persistent/better-unas/smart-scheduler/` and runs its `install.sh`, which
 creates `config` from `config.example` if there's none, writes the manifest,
@@ -179,7 +179,7 @@ firmware: Python 3 (a dependency of UniFi's own base packages), `smartctl`,
   `/persistent`. If only one gets wiped, the other brings it back.
 - **It repairs only what it owns.** It verifies its own files against
   `manifest.sha256` first. If they don't match, it doesn't self-heal; it alerts
-  you until you re-run `install.sh` (or reinstall it from the Tools tab).
+  you until you re-run `install.sh` (or reinstall it with `i` on its page in Settings).
 - **It reports what it doesn't own and never repairs it.** If `smartctl`,
   `psql`, the Drive API or the account it uses stops working, it alerts you and
   starts no tests.
@@ -188,7 +188,7 @@ firmware: Python 3 (a dependency of UniFi's own base packages), `smartctl`,
 - **It respects deliberate shutdowns:**
   - If you set `DRIVE_USER` and later delete that account, that counts as "turned off on purpose": one notice, no tests, nothing recreated.
   - `ENABLED=no` in `config` removes the triggers on the next run.
-  - Uninstalling (Tools tab `x`, or `better-unas uninstall smart-scheduler`) removes the triggers, and updates leave it off.
+  - Uninstalling (`x` on its page in Settings, or `better-unas uninstall smart-scheduler`) removes the triggers, and updates leave it off.
 
 ### What it can't heal
 
@@ -199,7 +199,7 @@ the repair. **Set `HEARTBEAT_URL`** to a dead-man's switch
 ([healthchecks.io](https://healthchecks.io), or an Uptime Kuma push monitor)
 with a grace period of a few hours. If the pings stop for any reason, it alerts
 you from outside. Recovery is then one command: `/persistent/better-unas/smart-scheduler/install.sh`
-(or reinstall it from the Tools tab).
+(or reinstall it with `i` on its page in Settings).
 
 ## Alerts
 

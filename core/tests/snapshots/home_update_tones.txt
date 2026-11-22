@@ -1,4 +1,4 @@
-SSSSSSSSd            d          d            d          d
+SSSSSSSSd            d          d          d
       dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
  SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS
 
@@ -20,5 +20,5 @@ SSSSSSSSd            d          d            d          d
 
 
 
-SSSSSSS     SSS       SSS      SSS                                    ddddddddd
+SSSSSSS     SSS       SSS                                             ddddddddd
  dddddddddddd                                                    dddddddddddddd

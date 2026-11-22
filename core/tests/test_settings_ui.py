@@ -72,7 +72,7 @@ class Fixture(AppFixture):
     def open_form(self, **kw):
         """Settings tab (4), Enter on space-watch."""
         self.app = self.make_app(**kw)
-        self.app.press("4", "enter")
+        self.app.press("5", "down", "down", "enter")
         return self.app.screen
 
     def set_warn(self, text):
@@ -95,8 +95,8 @@ class SettingsScreenTests(Fixture, unittest.TestCase):
     def test_list_and_form_frames(self):
         self.write_config()
         app = self.make_app()
-        self.assertSnapshot("settings_list", app.press("4"))
-        text = app.press("enter")
+        self.assertSnapshot("settings_list", app.press("5"))
+        text = app.press("down", "down", "enter")
         self.assertSnapshot("settings_form", text)
         self.assertIn("space-watch/config", text)
         self.assertIn("kept as is: LEGACY_THING", text)
@@ -106,8 +106,8 @@ class SettingsScreenTests(Fixture, unittest.TestCase):
 
     def test_list_flags_a_broken_config(self):
         self.write_config("WARN_PERCENT=7\n")
-        text = self.make_app().press("4")
-        self.assertIn("1 problem(s) in the config file", text)
+        text = self.make_app().press("5")
+        self.assertIn("5 settings, 1 config problem", text)
 
     def test_edit_validate_save_keeps_comments(self):
         self.write_config()
@@ -180,7 +180,7 @@ class SettingsScreenTests(Fixture, unittest.TestCase):
         app = self.make_app()
         app.plugins["space-watch"].validate = lambda values: (
             {"WARN_PERCENT": "must leave room for quiet hours"} if values["WARN_PERCENT"] > 95 else {})
-        app.press("4", "enter")
+        app.press("5", "down", "down", "enter")
         self.app = app
         text = self.set_warn("97")
         self.assertIn("! must leave room for quiet hours", text)
@@ -273,7 +273,7 @@ class SettingsScreenTests(Fixture, unittest.TestCase):
 
         app.plugins["space-watch"].preview = preview
         self.app = app
-        app.press("4", "enter")
+        app.press("5", "down", "down", "enter")
         self.assertIn("p preview", self.term.text().split("\n")[22])
         self.set_warn("80")
         text = app.press("p")

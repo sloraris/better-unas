@@ -1,0 +1,24 @@
+ 1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings                  v0.2.0
+ Settings › better-unas ──────────────────────────────────────────────────────
+ Version     v0.2.0  release
+ Update      Up to date.
+             ↳ checked Sun 22 Nov 00:30
+
+ better-unas/better-unas.conf                                no unsaved changes
+ Updates
+   Developer mode              [ ] no
+   Branch                      main
+
+
+
+
+
+
+
+
+
+ ──────────────────────────────────────────────────────────────────────────────
+ Follow the latest commit on a GitHub branch instead of releases. Settings ›
+ better-unas then offers each new commit as an update. For testing unreleased
+ c check  s save  R remove better-unas  Space toggle                    ↑↓ move
+ Esc back  1-5/Tab tabs                                          ? help  q quit
