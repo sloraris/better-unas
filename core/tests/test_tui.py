@@ -1112,6 +1112,43 @@ class EntryPointTests(unittest.TestCase):
         entry.main(["--demo", "--headless", "80x24", "--keys", "3 t y enter"], out=out)
         self.assertIn("Not started.", out.getvalue())
 
+    def run_with_restart(self, restart):
+        calls = []
+
+        def fake_curses(build):
+            app = build(HeadlessTerminal(80, 24))
+            app.restart = restart
+            return app
+
+        out = io.StringIO()
+        with mock.patch.object(entry, "run_curses", fake_curses):
+            code = entry.main(["--demo"], out=out, execv=lambda path, args: calls.append(args))
+        return code, calls, out.getvalue()
+
+    def test_restart_execs_better_unas_again(self):
+        code, calls, out = self.run_with_restart(True)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][0], sys.executable)
+        self.assertEqual(calls[0][-1], "--demo")
+        self.assertIn("Restarting better-unas", out)
+
+    def test_no_restart_no_exec(self):
+        code, calls, out = self.run_with_restart(False)
+        self.assertEqual((code, calls, out), (0, [], ""))
+
+    def test_restart_uses_the_homes_launcher(self):
+        home = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, home)
+        launcher = os.path.join(home, "better-unas")
+        open(launcher, "w").close()
+        self.assertEqual(entry.restart_command(home, ["--home", home]), [sys.executable, launcher])
+
+    def test_request_restart_stops_the_loop(self):
+        app = App(HeadlessTerminal(80, 24), theme=Theme(True))
+        app.request_restart()
+        self.assertTrue(app.restart)
+        self.assertFalse(app.running)
+
     def test_key_parsing(self):
         self.assertEqual(entry.parse_keys("2 space resize:100x30 q"), ["2", " ", ("resize", 100, 30), "q"])
 

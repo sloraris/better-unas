@@ -51,7 +51,17 @@ def parse_keys(text):
     return out
 
 
-def main(argv=None, out=sys.stdout):
+def restart_command(home, argv):
+    """argv for starting better-unas again after an update: the launcher in
+    the home (the code the update just put there) when it exists, otherwise
+    this same command."""
+    launcher = os.path.join(os.path.abspath(home), "better-unas")
+    if os.path.isfile(launcher):
+        return [sys.executable, launcher]
+    return [sys.executable, os.path.abspath(sys.argv[0])] + list(argv or [])
+
+
+def main(argv=None, out=sys.stdout, execv=os.execv):
     ap = argparse.ArgumentParser(prog="better-unas", description="better-unas terminal app")
     ap.add_argument("--home", default=ROOT, help="folder holding the tools (default: next to core/)")
     ap.add_argument("--demo", action="store_true",
@@ -102,7 +112,12 @@ def main(argv=None, out=sys.stdout):
                 # Cached for a few hours, so this rarely touches the network;
                 # Home and Tools read the answer with updates.cached_status().
                 updates.check_in_background(home)
-            run_curses(build)
+            app = run_curses(build)
+            if app is not None and app.restart:
+                # curses has put the terminal back; replace this process.
+                cmd = restart_command(home, argv if argv is not None else sys.argv[1:])
+                print("Restarting better-unas...", file=out, flush=True)
+                execv(cmd[0], cmd)
         return 0
     finally:
         if tmp:
