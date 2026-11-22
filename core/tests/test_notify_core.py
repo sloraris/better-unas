@@ -70,6 +70,28 @@ class SendTestTests(unittest.TestCase):
         self.assertEqual([(r["method"], r["path"]) for r in self.ep.requests],
                          [("GET", "/ping"), ("GET", "/ping/fail")])
 
+    def test_requests_name_themselves(self):
+        # Discord and other hosts behind Cloudflare answer urllib's default
+        # User-Agent with "403 error code: 1010".
+        N.send_test(self.values("discord"), "WEBHOOK_URL")
+        N.send_test(self.values(), "HEARTBEAT_URL")
+        self.assertEqual([r["headers"].get("User-Agent") for r in self.ep.requests],
+                         ["better-unas", "better-unas"])
+        self.assertIsNone(ss.open_url(self.ep.url("/ping")))
+        self.assertEqual(self.ep.requests[-1]["headers"].get("User-Agent"), "smart-scheduler (better-unas)")
+        m = {"level": "info", "msg": "x", "at": "X"}
+        self.assertIsNone(ss.send_webhook(self.ep.url(), "slack", m, "nas"))
+        self.assertEqual(self.ep.requests[-1]["headers"].get("User-Agent"), "smart-scheduler (better-unas)")
+
+    def test_a_refusal_says_why(self):
+        self.ep.status, self.ep.body = 403, b"error code: 1010\n"
+        with self.assertRaises(N.SendError) as e:
+            N.send_test(self.values(), "WEBHOOK_URL")
+        self.assertEqual(str(e.exception), "HTTP 403 Forbidden (error code: 1010)")
+        self.assertEqual(ss.open_url(self.ep.url()), "HTTP 403 Forbidden (error code: 1010)")
+        self.ep.body = b"<html>long page</html>"                 # markup isn't a reason
+        self.assertEqual(ss.open_url(self.ep.url()), "HTTP 403 Forbidden")
+
     def test_errors(self):
         self.ep.status = 404
         with self.assertRaises(N.SendError) as e:

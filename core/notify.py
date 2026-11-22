@@ -32,6 +32,33 @@ SOURCE = "better-unas"
 TEST_MESSAGE = "Test message from better-unas. If you can read this, alerts will arrive here."
 
 
+# Some hosts (Discord, others behind Cloudflare) refuse urllib's default
+# "Python-urllib/3.x" with HTTP 403, so every request names itself.
+USER_AGENT = "better-unas"
+
+
+def _with_agent(req):
+    if isinstance(req, str):
+        req = urllib.request.Request(req)
+    if not req.has_header("User-agent"):
+        req.add_header("User-Agent", USER_AGENT)
+    return req
+
+
+def _why(e):
+    """'HTTP 403 Forbidden', plus the answer's first line when it's short text
+    (Cloudflare's "error code: 1010" says why a host refused)."""
+    out = f"HTTP {e.code} {e.reason}".strip()
+    try:
+        body = e.read(200).decode("utf-8", "replace").strip().splitlines()
+    except Exception:
+        body = []
+    first = body[0].strip() if body else ""
+    if first and len(first) <= 60 and not first.startswith(("<", "{", "[")):
+        out += f" ({first})"
+    return out
+
+
 class SendError(Exception):
     """A test send failed; the message is shown as is (e.g. "HTTP 404 Not Found")."""
 
@@ -57,13 +84,13 @@ def webhook_request(url, fmt, level, msg, at, host):
 def open_url(req, timeout=10):
     """None on a 2xx answer, else a short reason."""
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
+        with urllib.request.urlopen(_with_agent(req), timeout=timeout) as r:
             r.read()
             if 200 <= r.status < 300:
                 return None
             return f"HTTP {r.status} {r.reason}".strip()
     except urllib.error.HTTPError as e:
-        return f"HTTP {e.code} {e.reason}".strip()
+        return _why(e)
     except (urllib.error.URLError, OSError, ValueError) as e:
         e = getattr(e, "reason", e)
         if isinstance(e, socket.timeout) or "timed out" in str(e):

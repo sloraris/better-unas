@@ -71,6 +71,11 @@ real NAS.
   the date as a heading, status rows and `! No test tonight: …` reasons in
   short words (`one is already running`, `scrub on pool 2 at 02:30`). Day
   details are headed sections with notes, and long rows wrap.
+- Webhooks and heartbeat pings name themselves (`User-Agent: better-unas`).
+  Discord and other hosts behind Cloudflare refused urllib's default with
+  `HTTP 403`, so the test send and real alerts failed against a working
+  webhook. A refused request now shows the host's short reason, e.g.
+  `HTTP 403 Forbidden (error code: 1010)`.
 - smart-scheduler: only a rise in a watched SMART count shortens the
   interval. A count above zero that stays put (14 offline-uncorrectable
   sectors on a drive that passes its tests) no longer keeps the drive on the

@@ -389,14 +389,32 @@ def http_error(e):
     return str(e) or type(e).__name__
 
 
+# Some hosts (Discord, others behind Cloudflare) refuse urllib's default
+# "Python-urllib/3.x" with HTTP 403, so webhooks and pings name themselves.
+USER_AGENT = f"{NAME} (better-unas)"
+
+
 def open_url(req, timeout=10):
     """Fetch req (a URL or Request). Returns None on a 2xx answer, else a short error."""
+    if isinstance(req, str):
+        req = urllib.request.Request(req)
+    if not req.has_header("User-agent"):
+        req.add_header("User-Agent", USER_AGENT)
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             r.read()
             if 200 <= r.status < 300:
                 return None
             return f"HTTP {r.status} {r.reason}".strip()
+    except urllib.error.HTTPError as e:
+        # The answer's first line, when it's short text, says why a host refused
+        # (Cloudflare's "error code: 1010").
+        try:
+            first = (e.read(200).decode("utf-8", "replace").strip().splitlines() or [""])[0].strip()
+        except Exception:
+            first = ""
+        why = http_error(e)
+        return why + (f" ({first})" if first and len(first) <= 60 and not first.startswith(("<", "{", "[")) else "")
     except (urllib.error.URLError, OSError, ValueError) as e:
         return http_error(e)
 
