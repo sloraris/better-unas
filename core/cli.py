@@ -476,11 +476,13 @@ def _split(args):
 
 def _tty_ask(question):
     """Ask on the terminal; UsageError when there isn't one."""
+    # Separate read and write handles: a terminal can't be opened "r+" in
+    # text mode (Python wants it seekable and raises UnsupportedOperation).
     try:
-        with open("/dev/tty", "r+") as tty:
-            tty.write(question)
-            tty.flush()
-            return tty.readline()
+        with open("/dev/tty", "w") as out, open("/dev/tty") as inp:
+            out.write(question)
+            out.flush()
+            return inp.readline()
     except OSError:
         raise UsageError(f"no terminal to ask on: {question.strip()} (pass --yes)") from None
 

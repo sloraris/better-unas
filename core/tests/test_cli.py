@@ -354,6 +354,51 @@ class UpdateRefTests(Base):
         self.assertIsNone(U.installed_ref(self.home))
 
 
+class TerminalPromptTests(unittest.TestCase):
+    """The real prompt, in a real pseudo-terminal (the fakes elsewhere can't
+    catch how /dev/tty behaves)."""
+
+    @unittest.skipUnless(hasattr(os, "fork") and sys.platform != "win32", "needs a pty")
+    def test_asks_on_the_terminal_and_reads_the_answer(self):
+        import pty
+        import select
+        import time
+        pid, fd = pty.fork()
+        if pid == 0:   # child: ask, print what came back
+            try:
+                answer = C._tty_ask("Install main? [y/N] ")
+                os.write(1, ("GOT " + repr(answer) + "\n").encode())
+            except BaseException as e:
+                os.write(1, ("ERR " + repr(e) + "\n").encode())
+            os._exit(0)
+        os.set_blocking(fd, False)
+        out, deadline, sent = b"", time.time() + 5, False
+        while time.time() < deadline and b"GOT" not in out and b"ERR" not in out:
+            r, _, _ = select.select([fd], [], [], 0.1)
+            if r:
+                try:
+                    chunk = os.read(fd, 4096)
+                except BlockingIOError:
+                    continue
+                except OSError:
+                    break
+                if not chunk:
+                    break
+                out += chunk
+            if not sent and b"Install main?" in out:
+                os.write(fd, b"y\n")
+                sent = True
+        # Never hang the suite on a stuck child: kill it and stop waiting after 2 s.
+        if os.waitpid(pid, os.WNOHANG) == (0, 0):
+            os.kill(pid, 9)
+            end = time.time() + 2
+            while time.time() < end and os.waitpid(pid, os.WNOHANG) == (0, 0):
+                time.sleep(0.05)
+        os.close(fd)
+        self.assertIn(b"Install main? [y/N] ", out)
+        self.assertIn(b"GOT 'y\\n'", out, out)
+
+
 class InstallUninstallTests(Base):
     def test_uninstall_needs_yes_without_a_terminal(self):
         self.installed_at("v0.2.0")
