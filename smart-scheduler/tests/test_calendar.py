@@ -144,7 +144,8 @@ class CalendarScreenTests(CalendarFixture, unittest.TestCase):
         today = self.screen.data["days"][dt.date(2026, 11, 22)]
         self.assertEqual([(x["slot"], x["outcome"]) for x in today["tests"]], [("4", "running")])
         self.assertIn("a SMART test is already running", today["skipped"])
-        self.assertIn("S4 test running, started outside UniFi Drive, 90% left", text)
+        self.assertIn("▶ Slot 4  test running outside UniFi Drive, 10% done", text)
+        self.assertIn("! No test tonight: one is already running", text)
         self.assertNotIn("SERIAL4", {s for n, s in self.planned() if n == "2026-11-22"})
 
     def test_month_with_history_and_plan(self):
@@ -164,9 +165,20 @@ class CalendarScreenTests(CalendarFixture, unittest.TestCase):
         self.assertEqual({s for _, s in self.planned()}, {f"SERIAL{i}" for i in range(1, 8)})
         self.assertEqual(self.screen.data["plan_until"], dt.date(2027, 2, 21))
         self.assertEqual(self.planned()[-1], ("2027-02-21", "SERIAL1"))
-        self.assertIn("S3", self.term.text())
-        self.assertIn("S4!", self.term.text())
-        self.assertIn("S1*", self.term.text())
+        lines = text.splitlines()
+        self.assertIn("✓3", lines[7])                          # chips: a glyph and the slot
+        self.assertIn("✗4", lines[9])
+        self.assertIn("[22] today", lines[10])                 # selected: brackets; today: tagged
+        self.assertIn("▶1", lines[11])
+        self.assertIn("○6         ○4         ○7         ○2", lines[13])
+        self.assertIn("planned through Sun 21 Feb 2027", lines[2])   # the year: not this one
+        self.assertRegex(lines[16], r"^ ── ○ planned  ✓ passed  ✗ failed  ▶ running  ↻ scrub  ⇡ backup ─+$")
+        self.assertIn("Sunday 22 November", lines[17])
+        self.assertIn("▶ Slot 1  extended test running, started 00:10", text)
+        self.assertNotIn("S1", text)
+        x = lines[10].index("[22]")
+        self.assertEqual(self.term.surface.tone_at(10, x + 1), "selected")   # today's number is reversed
+        self.assertEqual(self.term.surface.tone_at(16, 4), "dim")            # the legend is dim
 
     def test_scrub_day_blocks_the_night(self):
         # Slot 3 is snoozed until the scrub day, so the scrub is what holds it next.
@@ -181,7 +193,8 @@ class CalendarScreenTests(CalendarFixture, unittest.TestCase):
         self.assertIn(("2026-12-01", "SERIAL3"), self.planned())
         text = self.app.press("enter")
         self.assertSnapshot("calendar_scrub_details", text)
-        self.assertIn("Why no test starts this night", text)
+        self.assertIn("No test this night\n ! scrub on pool 2 at 02:30", text)
+        self.assertIn("   margin), and no test starts again that night.", text)   # long rows wrap
         self.assertIn("Pool 2 data scrub starts 02:30", text)
         self.assertIn("Esc back", text)
         self.app.press("esc")
@@ -193,7 +206,9 @@ class CalendarScreenTests(CalendarFixture, unittest.TestCase):
         monday = self.screen.data["days"][dt.date(2026, 11, 23)]
         self.assertEqual(monday["planned"], [])    # default 4 h + margins: 00:00-06:00
         self.assertEqual(monday["skipped"], ["would overlap UniFi Cloud backup “Offsite” at Mon 23 Nov 01:00"])
-        self.assertIn("skipped", self.app.press("right"))
+        text = self.app.press("right")
+        self.assertIn("  !          ○4", text)                   # the cell's chip line: a skipped night
+        self.assertIn("! No test this night: overlaps UniFi Cloud backup “Offsite”", text)
 
     def test_backup_window(self):
         self.backups = {"tasks": [BACKUP_TASK], "problems": [], "runs": [
@@ -202,7 +217,7 @@ class CalendarScreenTests(CalendarFixture, unittest.TestCase):
         text = self.calendar("right")
         self.assertEqual(self.screen.sel, dt.date(2026, 11, 23))
         self.assertSnapshot("calendar_backup", text)
-        self.assertIn(" 23  bk", text)
+        self.assertIn(" [23] ⇡ ", text)
         days = self.screen.data["days"]
         # The last run took 50 minutes, so the window (with its 1 h margin) is
         # 00:00-02:50 and Monday's test waits until 03:00.
@@ -218,9 +233,10 @@ class CalendarScreenTests(CalendarFixture, unittest.TestCase):
     def test_snoozed_drive(self):
         self.state["snoozes"] = {"SERIAL6": {"until": "2026-11-25", "note": "waiting for a spare",
                                              "set": "2026-11-21T10:00:00-07:00"}}
-        text = self.calendar("right", "right", "right")
+        self.assertIn("Slot 6 snoozed to Wed 25 Nov (waiting for a spare)", self.calendar())
+        text = self.app.press("right", "right", "right")
         self.assertSnapshot("calendar_snoozed", text)
-        self.assertIn("Snoozed: S6 until Wed 25 Nov (waiting for a spare)", text)
+        self.assertNotIn("snoozed to", text)                   # the 25th is the day it may test again
         first = dict((s, d) for d, s in self.planned())
         self.assertEqual(first["SERIAL6"], "2026-11-25")
         self.assertEqual(self.planned()[0], ("2026-11-22", "SERIAL4"))
@@ -237,7 +253,7 @@ class CalendarScreenTests(CalendarFixture, unittest.TestCase):
         text = self.app.press("pgup", "pgup")
         self.assertIn("October 2026", text)
         self.assertSnapshot("calendar_october", text)
-        self.assertIn("S5", text)                     # slot 5's October test
+        self.assertIn("✓5", text)                     # slot 5's October test
         self.assertIn("No test on record.", self.app.press("left"))   # 21 Oct
         # Arrows cross month edges; t comes back to today.
         self.app.press("t")
@@ -249,6 +265,17 @@ class CalendarScreenTests(CalendarFixture, unittest.TestCase):
         self.assertEqual(self.screen.sel, dt.date(2027, 2, 6))
         self.app.press("home")
         self.assertEqual(self.screen.sel, dt.date(2026, 11, 22))
+
+    def test_ascii_terminal(self):
+        with_history(self.fake)
+        self.app = self.make_app()
+        self.term.ascii = self.term.surface.ascii = True
+        text = self.app.press("2")
+        self.assertIn("+3", text)
+        self.assertIn("x4", text)
+        self.assertIn("o6         o4", text)
+        self.assertIn("-- o planned  + passed  x failed  > running  s scrub  b backup --", text)
+        self.assertTrue(all(ord(ch) < 128 for ch in text.split("\n", 2)[2].rsplit("\n", 3)[0]))
 
     def test_pgdn_clamps_the_day(self):
         self.calendar()
@@ -277,7 +304,7 @@ class CalendarScreenTests(CalendarFixture, unittest.TestCase):
     def test_problems_are_listed(self):
         self.backups = {"tasks": [], "runs": [], "problems": [("backups:read", "Couldn't read UniFi Drive's backup tasks: psql failed")]}
         text = self.calendar()
-        self.assertIn("Problem: Couldn't read UniFi Drive's backup tasks", text)
+        self.assertIn("! Couldn't read UniFi Drive's backup tasks", text)
 
     def test_settings_preview_uses_unsaved_values_only(self):
         self.write_config("MAX_STARTS_PER_NIGHT=1\n")
@@ -302,8 +329,8 @@ class CalendarScreenTests(CalendarFixture, unittest.TestCase):
     def test_narrow_cells_show_how_many_more(self):
         self.write_config("MAX_STARTS_PER_NIGHT=4\nMAX_CONCURRENT=4\n")
         text = self.calendar()
-        row = next(line for line in text.splitlines() if "S6" in line)
-        self.assertIn("S6 S4 +2", row)
+        row = next(line for line in text.splitlines() if "○6" in line)
+        self.assertIn("○6 ○4 +2", row)
 
 
 class PluginTests(CalendarFixture, unittest.TestCase):

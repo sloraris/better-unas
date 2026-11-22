@@ -64,6 +64,13 @@ real NAS.
   Values use smart-scheduler's short words (Why `baseline`, `retry`, …;
   interval `old drive`, `per drive`, …); SMART attribute ids come after the
   count. Table cells can be status cells.
+- Calendar (docs/tui-style.md, step 7): day cells show drive chips as a
+  status glyph and the slot (`○6`, `✓3`, `✗4`, `▶1`, up to three then `+N`)
+  and scrub/backup glyphs; today's number is reversed and the selected day
+  bracketed. The legend moved into the rule above the day panel, which shows
+  the date as a heading, status rows and `! No test tonight: …` reasons in
+  short words (`one is already running`, `scrub on pool 2 at 02:30`). Day
+  details are headed sections with notes, and long rows wrap.
 - Screen style (docs/tui-style.md, step 1): keys on the action bar are
   reversed chips and the nav bar is dim, so the two no longer blend; the tab
   bar shows the installed version, or `▲ v…` when an update is out; screens
