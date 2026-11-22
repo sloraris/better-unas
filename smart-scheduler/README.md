@@ -187,7 +187,7 @@ firmware: Python 3 (a dependency of UniFi's own base packages), `smartctl`,
   it runs a full self-check and tells you whether everything survived.
 - **It respects deliberate shutdowns:**
   - If you set `DRIVE_USER` and later delete that account, that counts as "turned off on purpose": one notice, no tests, nothing recreated.
-  - `ENABLED=no` in `config` removes the triggers on the next run.
+  - Turning Enabled off in Settings removes the timer and cron line when you save (it runs `install.sh`, which does that when `ENABLED=no`); turning it on puts them back. After a hand edit of `config`, the next run removes them, and `install.sh` puts them back.
   - Uninstalling (`x` on its page in Settings, or `better-unas uninstall smart-scheduler`) removes the triggers, and updates leave it off.
 
 ### What it can't heal

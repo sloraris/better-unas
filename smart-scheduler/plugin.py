@@ -54,7 +54,7 @@ def status(ctx):
     problems = [f"{k}: {msg}" for k, msg in ctx.config_errors().items()]
     if not cfg["ENABLED"]:
         return {"enabled": False, "state": "off", "problems": problems,
-                "detail": ["Turned off (ENABLED=no); the next run removes its timer."]}
+                "detail": ["Turned off (ENABLED=no): no new tests start."]}
     problems += ss.trigger_problems()
     state = ss.load_state()
     detail = []

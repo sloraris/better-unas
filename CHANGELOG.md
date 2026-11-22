@@ -42,6 +42,13 @@ real NAS.
   for the webhook as a better-unas setting. The Alerts tab shows where
   alerts are sent instead of its `n` setup form. A tool's own URL settings
   get `t` too, through its plugin's `send_test`.
+- Inputs (docs/tui-style.md, step 4): an edited text, URL or list field opens
+  as a full-width box under its label, so a pasted URL is visible end to end.
+  A schema field can say `"on_change": "install"`: saving a change to it asks
+  first, then runs the tool's `install.sh`. smart-scheduler's Enabled uses
+  it, so turning it off removes the hourly timer when you save and turning it
+  on puts the timer back, with no reinstall by hand; `install.sh` now handles
+  `ENABLED=no` by removing the timer instead of failing.
 - Screen style (docs/tui-style.md, step 1): keys on the action bar are
   reversed chips and the nav bar is dim, so the two no longer blend; the tab
   bar shows the installed version, or `▲ v…` when an update is out; screens

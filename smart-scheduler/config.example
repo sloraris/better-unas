@@ -2,8 +2,9 @@
 # defaults shown here. Changes take effect on the next hourly run.
 # Check your edits with:  python3 smart_scheduler.py status
 
-# Set to "no" to stop: the next run removes the timer and cron line.
-# To turn it back on, set "yes" and run install.sh.
+# "no" stops new tests and the next run removes the hourly timer; running
+# tests finish. Changing Enabled in Settings does this when you save. After a
+# hand edit back to "yes", run install.sh to put the timer back.
 ENABLED=yes
 
 # UniFi OS account the tests run as. Empty = the console owner, which needs no

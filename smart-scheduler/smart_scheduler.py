@@ -917,8 +917,8 @@ def cmd_run(cfg, args):
     if not cfg.yes("ENABLED"):
         if not state.get("disabled"):
             removed = remove_triggers(dry)
-            alerts.info("ENABLED=no in config: removed triggers (" + (", ".join(removed) or "none")
-                        + "). Set ENABLED=yes and run install.sh to turn it back on.")
+            alerts.info("Turned off (ENABLED=no): removed the hourly timer and cron line ("
+                        + (", ".join(removed) or "none") + "). Turn Enabled back on in Settings to restart it.")
             state["disabled"] = True
         alerts.flush()
         save_state(state, dry)

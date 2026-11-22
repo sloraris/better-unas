@@ -170,6 +170,7 @@ follow the `# ---` sections of `config.example`.
 | `default` | yes | The default **as the text written in the config file**, e.g. `"90"`, `"yes"`, `"5,187,197,198"`, `""`. It must pass the field's own validation. |
 | `help` | no | One or two sentences shown under the field when it is selected and in the setup wizard. Usually the `config.example` comment, tightened. |
 | `essential` | no | `true` puts the field in first-run setup (step 2). Keep it to the few settings someone must look at before the first run. Default `false`. |
+| `on_change` | no | `"install"`: a save that changes this field also runs the tool's `install.sh`, after the config is written, so the change takes effect without another step. The save asks first and says so. `install.sh` must then do the right thing for the config it finds (smart-scheduler's removes its timer when `ENABLED=no` and puts it back when yes). Help text never tells the user to reinstall by hand. |
 
 Keys a type doesn't list are an error, again to catch typos.
 
