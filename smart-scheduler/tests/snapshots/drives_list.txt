@@ -1,5 +1,7 @@
- 1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings
- Drives ─────────────────────────────────────────────────────── smart-scheduler
+┌──────────────────────────────────────────────────────────────────────────────┐
+│    1 Home     │  2 Calendar   │   3 Drives    │   4 Alerts    │  5 Settings  │
+└──────────────────────────────────────────────────────────── smart-scheduler ─┘
+
    Slot Model                   Temp Last test         Next test         Every
  ›    1 ST4000VN006-3CW104      41°C ▶ running         Sun 21 Feb 2027     90d
       2 ST4000VN006-3CW104      42°C never             ○ Fri 27 Nov        90d
@@ -20,5 +22,7 @@
  ┌─ Slot 1 · ST4000VN006-3CW104 · SERIAL1 ────────────────────────────────────┐
  │ ▶ Extended test running, started Sun 00:10. Next: Sun 21 Feb 2027.         │
  └────────────────────────────────────────────────────────────────────────────┘
- Enter slot 1  t test  z snooze  x exclude  i interval  r refresh       ↑↓ move
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  Enter open  t test  z snooze  x exclude  i interval  r refresh     ↑↓ move  │
+└──────────────────────────────────────────────────────────────────────────────┘
  1-5/Tab tabs                                                    ? help  q quit

@@ -1,5 +1,7 @@
- 1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings                  v0.2.0
- Settings › Notifications ────────────────────────────────────────────────────
+┌───────────────────────────────────────────────────────────────────── v0.2.0 ─┐
+│    1 Home     │  2 Calendar   │   3 Drives    │   4 Alerts    │  5 Settings  │
+└─ Notifications ──────────────────────────────────────────────────────────────┘
+
  better-unas/better-unas.conf                                no unsaved changes
  Notifications
    Webhook URL                 (none)
@@ -15,10 +17,12 @@
 
 
 
-
- ──────────────────────────────────────────────────────────────────────────────
- Where every tool's alerts go, e.g. an ntfy topic or a Slack or Discord
- webhook. Empty: alerts go only to the system log.
-
- s save  t send test  Enter edit                                        ↑↓ move
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ Where every tool's alerts go, e.g. an ntfy topic or a Slack or Discord       │
+│ webhook. Empty: alerts go only to the system log.                            │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  s save  t send test  Enter edit                                    ↑↓ move  │
+└──────────────────────────────────────────────────────────────────────────────┘
  Esc back  1-5/Tab tabs                                          ? help  q quit

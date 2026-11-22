@@ -1,5 +1,7 @@
- 1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings
- Drives › Slot 6 ────────────────────────────────────────────── smart-scheduler
+┌──────────────────────────────────────────────────────────────────────────────┐
+│    1 Home     │  2 Calendar   │   3 Drives    │   4 Alerts    │  5 Settings  │
+└─ Slot 6 ─────────────────────────────────────────────────── smart-scheduler ─┘
+
  WDC WD4002FYYZ-01B7CB0   SERIAL6   4 TB                                snoozed
 
  ┌─ Schedule ─────────────────────────┐  ┌─ Health ───────────────────────────┐
@@ -20,5 +22,7 @@
 
 
 
- t test  z snooze  x exclude  i interval  u unsnooze  r refresh      ↑↓ history
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  t test  z snooze  x exclude  i interval  u unsnooze  r refresh  ↑↓ history  │
+└──────────────────────────────────────────────────────────────────────────────┘
  Esc back  1-5/Tab tabs                                          ? help  q quit

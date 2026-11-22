@@ -280,7 +280,7 @@ class SettingsScreen:
 
     def keys(self):
         name = self.current_name()
-        return ([("Enter", f"open {name}")] if name else []) + [("↑↓", "move")]
+        return ([("Enter", "open")] if name else []) + [("↑↓", "move")]
 
     def line(self, entry):
         """(lead text, status kind or None, detail text, tone) for a list
@@ -312,7 +312,7 @@ class SettingsScreen:
         return "", glyph, state + extra, "dim" if glyph is None else "normal"
 
     def render(self, canvas):
-        y = 1
+        y = 0   # the chrome already leaves a blank line above the body
         stops = self.stops()
         for i, entry in enumerate(self.entries):
             if y >= canvas.height:

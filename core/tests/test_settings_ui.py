@@ -56,6 +56,11 @@ def load_ss_settings():
     return mod
 
 
+
+def body(text):
+    """The screen between the nav box and the info box (80x28)."""
+    return "\n".join(text.split("\n")[4:19])
+
 class Fixture(AppFixture):
     def setUp(self):
         super().setUp()
@@ -105,7 +110,7 @@ class SettingsScreenTests(Fixture, unittest.TestCase):
         self.assertIn("space-watch/config", text)
         self.assertIn("kept as is: LEGACY_THING", text)
         self.assertIn("/volume1", text)
-        self.assertIn("s save", text.split("\n")[22])
+        self.assertIn("s save", text.split("\n")[25])
         self.assertNotIn("p preview", text)      # space-watch has no preview hook
 
     def test_list_flags_a_broken_config(self):
@@ -278,10 +283,10 @@ class SettingsScreenTests(Fixture, unittest.TestCase):
         app.plugins["space-watch"].preview = preview
         self.app = app
         app.press("5", "down", "down", "down", "enter")
-        self.assertIn("p preview", self.term.text().split("\n")[22])
+        self.assertIn("p preview", self.term.text().split("\n")[25])
         self.set_warn("80")
         text = app.press("p")
-        self.assertIn("Settings › space-watch › Preview", text)
+        self.assertIn("└─ space-watch › Preview ", text)
         self.assertIn("previewing", text)
         name, values = seen[0]
         self.assertEqual(name, "space-watch")
@@ -433,7 +438,7 @@ class InstallOnSaveTests(Fixture, unittest.TestCase):
     def test_a_failed_installer_says_so(self):
         self.answer = (False, "systemctl: not found\n")
         text = self.toggle_enabled("y")
-        self.assertIn("space-watch installer", text.splitlines()[1])
+        self.assertIn("space-watch installer", text.splitlines()[2])
         self.assertIn("Saved, but the installer failed", text)
         self.assertIn("ENABLED=no", self.read_config())
 
@@ -463,18 +468,18 @@ class EditBoxTests(Fixture, unittest.TestCase):
         self.assertTrue(app.screen.open("Notifications"))
         text = app.press("enter", *self.URL)
         self.assertSnapshot("settings_edit_box", text)
-        joined = "".join(ln.strip(" │") for ln in text.splitlines()[5:9])
+        joined = "".join(ln.strip(" │") for ln in text.splitlines()[7:11])
         self.assertIn(self.URL, joined)
-        self.assertIn("Enter done", text.split("\n")[22])
+        self.assertIn("Enter done", text.split("\n")[25])
         text = app.press("enter")
-        self.assertNotIn("┌", text)                            # the box goes when editing ends
+        self.assertNotIn("┌", body(text))                      # the box goes when editing ends
         self.assertIn("* Webhook URL", text)
 
     def test_numbers_stay_inline(self):
         self.write_config()
         self.open_form()
         text = self.app.press("home", "down", "down", "enter")   # Warn above: an int
-        self.assertNotIn("┌", text)
+        self.assertNotIn("┌", body(text))
 
 
 class WriterTests(unittest.TestCase):

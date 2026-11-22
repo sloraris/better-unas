@@ -9,6 +9,9 @@ read_key(timeout=None) -> key name or None.
 import curses
 import locale
 import os
+import shutil
+import sys
+import time
 
 from . import keys
 from .canvas import Canvas, TextSurface
@@ -23,7 +26,7 @@ class ScriptDone(BaseException):
 class HeadlessTerminal:
     """Keys are names ("down", "q") or ("resize", width, height)."""
 
-    def __init__(self, width=80, height=24, keys=(), ascii=False):
+    def __init__(self, width=80, height=28, keys=(), ascii=False):
         self.width, self.height, self.ascii = width, height, ascii
         self.script = list(keys)
         self.surface = TextSurface(width, height, ascii)
@@ -119,14 +122,45 @@ class CursesTerminal:
         return k
 
 
-def run_curses(build, theme=None):
-    """Start curses, build the app with build(terminal), run it, restore the terminal."""
+def ask_for_size(min_w, min_h, out=None, env=None):
+    """Ask the terminal to grow to at least min_w x min_h (xterm's window
+    resize request, CSI 8 ; rows ; cols t). macOS Terminal and xterm do it;
+    iTerm2 may be set to ignore it, and tmux, VS Code and Windows Terminal
+    ignore it, so the app's "please enlarge" screen stays the fallback.
+    Returns the old (cols, rows) to restore, or None if nothing was asked."""
+    out = out or sys.stdout
+    env = os.environ if env is None else env
+    if not out.isatty() or env.get("TMUX") or env.get("TERM_PROGRAM") == "vscode":
+        return None
+    cols, rows = shutil.get_terminal_size((min_w, min_h))
+    if cols >= min_w and rows >= min_h:
+        return None
+    out.write(f"\x1b[8;{max(rows, min_h)};{max(cols, min_w)}t")
+    out.flush()
+    time.sleep(0.2)              # let the window manager catch up before curses reads the size
+    return cols, rows
+
+
+def run_curses(build, theme=None, min_size=None):
+    """Start curses, build the app with build(terminal), run it, restore the
+    terminal. With min_size (w, h), first ask a smaller terminal to grow, and
+    put it back to its old size afterwards."""
     locale.setlocale(locale.LC_ALL, "")
     os.environ.setdefault("ESCDELAY", "25")   # Esc shouldn't wait a second
+    old = ask_for_size(*min_size) if min_size else None
+
+    made = []
 
     def inner(stdscr):
         app = build(CursesTerminal(stdscr, theme))
+        made.append(app)
         app.run()
         return app
 
-    return curses.wrapper(inner)
+    try:
+        return curses.wrapper(inner)
+    finally:
+        # A restart execs a new app at once; leave the size for it.
+        if old and not (made and getattr(made[0], "restart", False)):
+            sys.stdout.write(f"\x1b[8;{old[1]};{old[0]}t")
+            sys.stdout.flush()

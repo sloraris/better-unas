@@ -335,7 +335,7 @@ class HomeScreen:
     # ------------------------------------------------------------ screen protocol
 
     def keys(self):
-        ks = [("Enter", self.selected.label)] if self.selected else []
+        ks = [("Enter", "open")] if self.selected else []   # where it goes: the stop's › hint
         return ks + [("a", "alerts"), ("r", "refresh"), ("↑↓", "move")]
 
     def render(self, canvas):

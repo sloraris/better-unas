@@ -54,7 +54,7 @@ class DrivesPlaceholder:
         self.loaded = False
 
     def keys(self):
-        return [("Enter", "details"), ("t", "run test"), ("r", "refresh")] + self.table.keys()
+        return [("Enter", "open"), ("t", "run test"), ("r", "refresh")] + self.table.keys()
 
     def show(self):
         self.ctx.run_slow(lambda: time.sleep(0.6), "Reading drives (demo)")

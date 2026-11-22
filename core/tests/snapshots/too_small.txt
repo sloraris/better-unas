@@ -8,9 +8,13 @@
 
 
 
+
+
                           Please widen the terminal.
-             better-unas needs at least 80x24; this one is 79x24.
+             better-unas needs at least 80x28; this one is 79x28.
                   Make the window bigger, or press q to quit.
+
+
 
 
 

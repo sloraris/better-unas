@@ -1,5 +1,4 @@
-When tests may start                                                           ↑
-  Start window                00:00 to 05:00
+  Start window                00:00 to 05:00                                   ↑
   Tests at once               1
   Starts per night            1
   Scrub margin                2 hours
@@ -14,7 +13,8 @@ UniFi backups and replication
 
 Notifications
   Webhook URL                 ••••••••                                         ↓
-────────────────────────────────────────────────────────────────────────────────
-Where every tool's alerts go, e.g. an ntfy topic or a Slack or Discord
-webhook. Empty: alerts go only to the system log.
-
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ Where every tool's alerts go, e.g. an ntfy topic or a Slack or Discord       │
+│ webhook. Empty: alerts go only to the system log.                            │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
