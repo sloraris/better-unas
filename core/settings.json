@@ -20,7 +20,7 @@
      "required": true,
      "pattern": "[A-Za-z0-9._/-]+",
      "max_length": 200,
-     "help": "The branch developer mode follows, e.g. main or a pull request's branch. On the Tools tab, b lists the branches on GitHub to pick from."
+     "help": "The branch developer mode follows, e.g. main or a pull request's branch. Enter lists the branches on GitHub to pick from."
     }
    ]
   }

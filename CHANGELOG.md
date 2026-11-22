@@ -27,7 +27,8 @@ real NAS.
   an install made by the old `install.sh` and moves it over, keeping config
   and state. The root `install.sh` is gone (#15).
 - Developer mode (Settings → better-unas): follow the newest commit on a
-  GitHub branch instead of releases, pick the branch with `b` on Tools, and
+  GitHub branch instead of releases, pick the branch from GitHub's list in
+  Settings or with `b` on Tools, and
   `better-unas update` installs that commit. `update --ref` takes a branch,
   tag or commit for a one-off.
 - Plain commands: `better-unas status`, `list`, `update`, `install`,
