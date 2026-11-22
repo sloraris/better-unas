@@ -21,4 +21,4 @@ Notifications
 Warn when the volume is fuller than this.
 
  Saved 1 setting(s) to space-watch/config.
- s save  ↑↓ move  Enter edit            Esc back  1-6/Tab tabs  ? help  q quit
+ s save  ↑↓ move  Enter edit

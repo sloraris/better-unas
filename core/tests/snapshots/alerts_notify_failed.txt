@@ -20,5 +20,5 @@ Notifications
 Pinged (GET) after every healthy hourly run: a dead-man's switch such as
 healthchecks.io or an Uptime Kuma push monitor.
 Last test, Heartbeat URL: failed: HTTP 404 Not Found
-────────────────────────────────────────────────────────────────────────────────
- Enter edit  t test  s save  ↑↓ move    Esc back  1-4/Tab tabs  ? help  q quit
+────────────────────────────────────── Esc back  1-4/Tab tabs  ? help  q quit ──
+ Enter edit  t test  s save  ↑↓ move

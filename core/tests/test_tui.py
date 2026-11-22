@@ -781,12 +781,34 @@ class AppTests(AppFixture, unittest.TestCase):
         self.assertEqual(len(app.stack()), 1)
 
     def test_footer_always_lists_keys(self):
+        # Shared keys sit in the rule above the footer; the screen's own keys
+        # get the footer row to themselves.
         app = self.make_app()
         for k in ("2", "enter", "esc", "3", "4", "enter", "esc", "5", "6", "enter", "esc", "1"):
-            text = app.press(k)
-            last = text.splitlines()[-1]
-            self.assertIn("q quit", last, k)
-            self.assertIn("? help", last, k)
+            rule = app.press(k).split("\n")[22]
+            self.assertIn("q quit", rule, k)
+            self.assertIn("? help", rule, k)
+
+    def test_screen_keys_get_the_whole_footer(self):
+        class Seven:
+            title = "Seven"
+
+            def keys(self):   # 79 columns of keys, like smart-scheduler's Drives screen
+                return [("Enter", "details"), ("t", "test"), ("z", "snooze"), ("x", "exclude"),
+                        ("i", "interval"), ("u", "unsnooze"), ("r", "refresh")]
+
+            def render(self, c):
+                pass
+
+            def key(self, k):
+                return False
+
+        app = self.make_app(80, 24, extra_tabs=[("Seven", lambda ctx: Seven())])
+        lines = app.press("2").splitlines()
+        self.assertEqual(lines[-1].strip(),
+                         "Enter details  t test  z snooze  x exclude  i interval  u unsnooze  r refresh")
+        self.assertNotIn("…", lines[-1])
+        self.assertTrue(lines[-2].rstrip().endswith("q quit ──"), lines[-2])
 
     def test_footer_cuts_long_key_lists_but_keeps_core_keys(self):
         class Busy:
@@ -802,12 +824,12 @@ class AppTests(AppFixture, unittest.TestCase):
                 return False
 
         app = self.make_app(extra_tabs=[("Busy", lambda ctx: Busy())])
-        last = app.press("2").splitlines()[-1]
-        self.assertIn("F0 does a thing", last)
-        self.assertIn("… ?", last)
-        self.assertTrue(last.endswith("q quit"))
+        lines = app.press("2").splitlines()
+        self.assertIn("F0 does a thing", lines[-1])
+        self.assertTrue(lines[-1].rstrip().endswith("… ?"), lines[-1])
+        self.assertIn("q quit", lines[-2])
 
-    def test_footer_overflow_marker_never_covers_core_keys(self):
+    def test_footer_overflow_marker_always_fits(self):
         class Crowded:
             title = "Crowded"
             fill = 0
@@ -824,17 +846,13 @@ class AppTests(AppFixture, unittest.TestCase):
         screen = Crowded()
         app = self.make_app(80, 24, extra_tabs=[("Crowded", lambda ctx: screen)])
         app.press("2")
-        core_text = "  ".join(f"{k} {lbl}" for k, lbl in app.core_keys())
-        # Every length of the first key, including the ones that end right
-        # where the marker used to run into the first core key.
-        for fill in range(30, 80 - len(core_text) - 4):
+        for fill in range(40, 70):
             screen.fill = fill
             app.draw()
-            last = self.term.text().splitlines()[-1]
-            self.assertTrue(last.rstrip().endswith(core_text), (fill, last))
-            self.assertIn("… ?", last, fill)
-            before = last[:last.index(core_text)]
-            self.assertTrue(before.endswith(" "), (fill, last))
+            last = self.term.text().splitlines()[-1].rstrip()
+            self.assertLessEqual(len(last), 79, (fill, last))
+            self.assertTrue(last.endswith("c third") or last.endswith("… ?"), (fill, last))
+            self.assertIn("a " + "x" * fill, last, fill)
 
     def test_alerts_and_tools(self):
         app = self.make_app()
@@ -902,7 +920,7 @@ class SizeTests(AppFixture, unittest.TestCase):
         self.assertIn("Board › Item", text)    # state survived
         text = app.press(("resize", 120, 40))
         self.assertSnapshot("app_120x40", text)
-        self.assertEqual(len(text.splitlines()), 40)
+        self.assertEqual(len(text.split("\n")), 40)
 
     def test_resize_during_a_dialog(self):
         app = self.make_app()

@@ -21,4 +21,4 @@
 
 
  Can't start an extended test on slot 5 (SERIAL5): a SMART test is already runn…
- ↑↓ scroll                              Esc back  1-6/Tab tabs  ? help  q quit
+ ↑↓ scroll

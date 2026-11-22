@@ -20,5 +20,5 @@ Notifications
 ────────────────────────────────────────────────────────────────────────────────
 Days between tests on a healthy drive.
 
-────────────────────────────────────────────────────────────────────────────────
- ↑↓ move  Enter edit  n next                          Esc back  ? help  q quit
+──────────────────────────────────────────────────── Esc back  ? help  q quit ──
+ ↑↓ move  Enter edit  n next

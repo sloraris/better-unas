@@ -21,4 +21,4 @@ Notifications
 Warn when the volume is fuller than this.
 
  Not saved: Warn above: value must be at least 50.
- s save  ↑↓ move  Enter edit            Esc back  1-6/Tab tabs  ? help  q quit
+ s save  ↑↓ move  Enter edit

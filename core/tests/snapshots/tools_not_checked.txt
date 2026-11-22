@@ -20,5 +20,5 @@
 
 
 
-────────────────────────────────────────────────────────────────────────────────
- x uninstall  c check  R remove  Enter info  … ?  1-4/Tab tabs  ? help  q quit
+──────────────────────────────────────────────── 1-4/Tab tabs  ? help  q quit ──
+ x uninstall  c check  R remove  Enter info  i reinstall  ↑↓ move

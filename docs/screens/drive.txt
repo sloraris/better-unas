@@ -20,5 +20,5 @@
 
 
 
-────────────────────────────────────────────────────────────────────────────────
- t test  z snooze  x exclude  … ?       Esc back  1-6/Tab tabs  ? help  q quit
+────────────────────────────────────── Esc back  1-6/Tab tabs  ? help  q quit ──
+ t test  z snooze  x exclude  i interval  u unsnooze  ↑↓ history  r refresh
