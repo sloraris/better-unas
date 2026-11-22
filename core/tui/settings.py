@@ -71,9 +71,9 @@ class SettingsForm:
     After a save, the saved values count as unchanged.
     """
 
-    def __init__(self, ctx, schema, raw, on_save, validate=None, suggestions=None):
+    def __init__(self, ctx, schema, raw, on_save, validate=None, suggestions=None, pickers=None):
         self.ctx, self.on_save, self.validator = ctx, on_save, validate
-        self.form = W.Form(schema, raw, suggestions)
+        self.form = W.Form(schema, raw, suggestions, pickers)
         self.save_errors = {}
         self.revalidate()
 
@@ -192,6 +192,23 @@ def core_entry(app):
     return tool, Context(app, tool)
 
 
+def branch_picker(ctx):
+    """load() for the Branch field: the branches on GitHub, or None after
+    saying why there are none."""
+    from .tools import updater_of
+
+    def load():
+        try:
+            names = ctx.run_slow(updater_of(ctx.app).fetch_branches, "Listing branches on GitHub")
+        except (OSError, ValueError) as e:
+            ctx.message(f"Couldn't list branches: {getattr(e, 'reason', e)}.", "bad")
+            return None
+        if not names:
+            ctx.message("GitHub listed no branches.", "bad")
+        return names
+    return load
+
+
 class SettingsScreen:
     """The Settings tab: pick a tool to see its settings form."""
 
@@ -233,7 +250,8 @@ class SettingsScreen:
             tool = self.tools[self.list.index]
             app = self.ctx.app
             if self.core and tool is self.core[0]:
-                self.ctx.push(FormScreen(self.core[1]))
+                core_ctx = self.core[1]
+                self.ctx.push(FormScreen(core_ctx, pickers={"DEV_BRANCH": branch_picker(core_ctx)}))
             else:
                 self.ctx.push(FormScreen(app.contexts[tool.name], app.plugins.get(tool.name)))
             return True
@@ -245,7 +263,7 @@ class FormScreen:
     line, `p` to preview the effect (the plugin's optional preview(ctx, values))
     and a discard question when leaving with unsaved edits."""
 
-    def __init__(self, ctx, plugin=None):
+    def __init__(self, ctx, plugin=None, pickers=None):
         self.ctx, self.plugin = ctx, plugin
         tool = ctx.tool
         self.title = tool.name
@@ -257,7 +275,8 @@ class FormScreen:
         self.unknown = sorted(k for k in raw if k not in known)
         validate = getattr(plugin, "validate", None) if plugin is not None else None
         self.sform = SettingsForm(ctx, tool.schema, raw, lambda edits: save_config(ctx, edits),
-                                  validate=validate if callable(validate) else None)
+                                  validate=validate if callable(validate) else None,
+                                  pickers=pickers)
 
     @property
     def form(self):

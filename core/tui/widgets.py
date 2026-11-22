@@ -590,11 +590,15 @@ class ChoiceField(Field):
         super().__init__(spec, text)
         self.list = None
 
+    @property
+    def choices(self):
+        return self.spec["choices"]
+
     def keys(self):
         return [("↑↓", "move"), ("Enter", "choose"), ("Esc", "cancel")]
 
     def key(self, k):
-        choices = self.spec["choices"]
+        choices = self.choices
         if not self.editing:
             if k in ("left", "right"):
                 i = choices.index(self.text) if self.text in choices else -1
@@ -619,12 +623,54 @@ class ChoiceField(Field):
         return f"{symbols['left']} {self.text} {symbols['right']}", "normal"
 
     def popup_size(self):
-        choices = self.spec["choices"]
+        choices = self.choices
         return min(len(choices), 8) + 2, max(max(len(c) for c in choices) + 8, len(self.label) + 6)
 
     def render_popup(self, canvas):
         canvas.box(0, 0, canvas.height, canvas.width, self.label)
         self.list.render(canvas.sub(1, 1, canvas.height - 2, canvas.width - 2))
+
+
+class PickField(ChoiceField):
+    """A text field picked from a list fetched when Enter is pressed, such as
+    the branches on GitHub. load() returns the options, or None/[] when it
+    couldn't (it says why itself); the value then stays as it is. The current
+    value is marked in the list."""
+
+    edit_hints = [("Enter", "pick")]
+
+    def __init__(self, spec, text=None, load=None):
+        super().__init__(spec, text)
+        self.load, self.options = load, []
+
+    @property
+    def choices(self):
+        return self.options
+
+    def key(self, k):
+        if not self.editing:
+            if k != "enter":
+                return False
+            options = list(self.load() or [])
+            if not options:
+                return True
+            self.options = options
+            i = options.index(self.text) if self.text in options else 0
+            self.list = ListView([f"{o}  (current)" if o == self.text else o for o in options], i)
+            self.begin()
+            return True
+        if k == "enter":
+            self.text = self.options[self.list.index]
+            self.finish()
+            return True
+        return super().key(k)
+
+    def display(self, symbols):
+        return self.text, "normal"
+
+    def popup_size(self):
+        h, w = super().popup_size()
+        return h, w + len("  (current)")
 
 
 class TimeWindowField(Field):
@@ -917,7 +963,10 @@ FIELD_TYPES = {
 }
 
 
-def make_field(spec, text=None, suggestions=None):
+def make_field(spec, text=None, suggestions=None, pickers=None):
+    load = (pickers or {}).get(spec["key"])
+    if load is not None and spec["type"] == "text":
+        return PickField(spec, text, load)
     if spec["type"] == "serial_list":
         return SerialListField(spec, text, (suggestions or {}).get(spec["key"], ()))
     return FIELD_TYPES[spec["type"]](spec, text)
@@ -930,6 +979,7 @@ class Form:
 
     raw: {KEY: text} from the config file; a missing key shows its default.
     suggestions: {KEY: [serial, ...]} for serial_list pickers.
+    pickers: {KEY: load} turns a text field into a PickField.
     Changed fields are marked with *, errors show under the field, and the
     selected field's help sits at the bottom. Saving is the screen's job (#12):
     read changed(), errors() and values().
@@ -937,13 +987,13 @@ class Form:
 
     LABEL_W = 30
 
-    def __init__(self, schema, raw=None, suggestions=None):
+    def __init__(self, schema, raw=None, suggestions=None, pickers=None):
         raw = raw or {}
         self.rows, self.fields = [], []
         for g in schema["groups"]:
             self.rows.append(("group", g))
             for spec in g["fields"]:
-                f = make_field(spec, raw.get(spec["key"]), suggestions)
+                f = make_field(spec, raw.get(spec["key"]), suggestions, pickers)
                 self.rows.append(("field", f))
                 self.fields.append(f)
         self.scroll = Scroller(len(self.fields))

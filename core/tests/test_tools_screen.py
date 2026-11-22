@@ -216,6 +216,26 @@ class DevModeToolsTests(SnapshotMixin, unittest.TestCase):
         self.assertEqual(U.dev_branch(self.home), "feature/x")
         self.assertIn("New commit: feature/x @ a2b3c4d", text)
 
+    def test_pick_the_branch_in_settings(self):
+        app = self.make_app()
+        app.press("2", "enter", "down")          # Settings, better-unas, Branch
+        text = app.press("enter")
+        self.assertIn("main  (current)", text)
+        self.assertIn("feature/x", text)
+        text = app.press("down", "enter")
+        self.assertIn("* Branch                      feature/x", text)
+        app.press("s")
+        self.assertEqual(U.dev_branch(self.home), "feature/x")
+
+    def test_branch_picker_without_github_keeps_the_branch(self):
+        self.up.branches_url = "file:///nonexistent/branches.json"
+        app = self.make_app()
+        app.press("2", "enter", "down")
+        text = app.press("enter")
+        self.assertIn("Couldn't list branches", text)
+        self.assertNotIn("(current)", text)
+        self.assertIn("Branch                      main", text)
+
     def test_no_branch_key_without_developer_mode(self):
         with open(os.path.join(self.home, U.CORE_CONFIG), "w") as f:
             f.write("DEV_MODE=no\n")
