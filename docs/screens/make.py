@@ -29,7 +29,8 @@ SHOTS = {
     "drives": ["3"],
     "drive": ["3", "down", "down", "down", "enter"],
     "alerts": ["4"],
-    "settings": ["5", "down", "enter"],
+    "settings": ["5", "down", "down", "enter"],
+    "settings-notifications": ["5", "down", "enter"],
     "settings-list": ["5"],
     "settings-better-unas": ["5", "enter"],
 }

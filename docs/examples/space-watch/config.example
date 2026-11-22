@@ -11,7 +11,7 @@ WATCH_PATH=/
 WARN_PERCENT=90
 
 # --- Notifications ---------------------------------------------------------------
-# Where warnings go. Empty = journal only.
-WEBHOOK_URL=
+# The webhook itself is shared by every tool: Settings › Notifications, saved in
+# better-unas.conf next to this folder.
 # Don't send warnings in this window (local time). May cross midnight.
 QUIET_HOURS=22:00-07:00

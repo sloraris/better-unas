@@ -166,7 +166,7 @@ class SettingsPagesTests(SnapshotMixin, unittest.TestCase):
 
     def test_install_and_uninstall_a_tool(self):
         app = self.make_app()
-        text = app.press(SETTINGS, "down", "down", "enter")     # beta, uninstalled
+        text = app.press(SETTINGS, "down", "down", "down", "enter")     # beta, uninstalled
         self.assertIn("i install", text.split("\n")[22])
         text = app.press("i", "y", "n")
         self.assertIn("Turns it back on with the config it had.", self.frame_with("Install beta?"))
@@ -186,7 +186,7 @@ class SettingsPagesTests(SnapshotMixin, unittest.TestCase):
 
     def test_details(self):
         app = self.make_app()
-        text = app.press(SETTINGS, "down", "down", "down", "enter")    # gamma
+        text = app.press(SETTINGS, "down", "down", "down", "down", "enter")    # gamma
         self.assertIn("Not installed. Press i to install it.", text)
         self.assertIn("Changes:  Adds a gamma timer.", text)
         self.assertNotIn("x uninstall", text)
@@ -216,7 +216,7 @@ class SettingsPagesTests(SnapshotMixin, unittest.TestCase):
         self.assertIn("Dry run: would update to v0.3.0.", text)
         text = app.press("R")
         self.assertIn("Dry run: would remove better-unas.", text)
-        text = app.press("esc", "down", "enter", "x")
+        text = app.press("esc", "down", "down", "enter", "x")
         self.assertIn("Dry run: would uninstall alpha.", text)
         self.assertEqual(U.suite_version(self.home), "v0.2.0")
         self.assertEqual(I.installed_tools(self.home), ["alpha"])

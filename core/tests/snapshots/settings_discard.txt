@@ -9,8 +9,8 @@
  * W│                                                                      │
     │ Discard your changes?                                                │
  Not│                                                                      │
-   W│ 1 setting(s) were edited and not saved. The config file stays as it  │
-   Q│ was.                                                                 │
+   Q│ 1 setting(s) were edited and not saved. The config file stays as it  │
+    │ was.                                                                 │
     │                                                                      │
     │                           [ Yes ]   [ No ]                           │
     │                                                                      │

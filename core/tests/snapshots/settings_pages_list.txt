@@ -3,12 +3,12 @@
 
  better-unas
  › better-unas          v0.2.0  ▲ v0.3.0 available
+   Notifications        webhook: off · heartbeat: off
 
  Tools
    alpha                ✓ installed
    beta                 uninstalled
    gamma                not installed
-
 
 
 

@@ -11,6 +11,8 @@ import http.server
 import importlib.util
 import json
 import os
+import shutil
+import tempfile
 import threading
 import unittest
 
@@ -64,69 +66,48 @@ def closed_port_url():
     return f"http://127.0.0.1:{port}/hook"
 
 
-class SendTestTests(unittest.TestCase):
+class SharedSettingsTests(unittest.TestCase):
+    """The webhook, heartbeat and repeat come from better-unas.conf, with the
+    tool's own config as the fallback (docs/plugin-contract.md)."""
+
     def setUp(self):
-        self.ep = FakeEndpoint()
-        self.addCleanup(self.ep.close)
+        self.dir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.dir)
+        self.tool = os.path.join(self.dir, "config")
+        self.core = os.path.join(self.dir, "better-unas.conf")
 
-    def values(self, fmt="text", **kw):
-        v = {"WEBHOOK_URL": self.ep.url(), "WEBHOOK_FORMAT": fmt,
-             "HEARTBEAT_URL": self.ep.url("/ping"), "HEARTBEAT_FAIL_URL": self.ep.url("/ping/fail")}
-        v.update(kw)
-        return v
+    def write(self, path, text):
+        with open(path, "w") as f:
+            f.write(text)
 
-    def test_every_format_matches_the_scheduled_runs_payload(self):
-        for fmt in ("text", "json", "slack", "discord"):
-            with self.subTest(fmt=fmt):
-                self.ep.requests.clear()
-                text = ss.send_test(self.values(fmt), "WEBHOOK_URL", host="nas")
-                self.assertEqual(text, f"test alert sent ({fmt} format)")
-                (got,) = self.ep.requests
-                self.assertEqual((got["method"], got["path"]), ("POST", "/hook"))
-                # The same builder the scheduled run's Alerts._send uses.
-                m = {"level": "info", "msg": ss.TEST_MESSAGE, "at": "X"}
-                want = ss.webhook_request("http://x/", fmt, m, "nas")
-                self.assertEqual(got["headers"]["Content-Type"], want.get_header("Content-type"))
-                self.assertEqual(got["headers"]["Title"], "nas smart-scheduler: info")
-                if fmt == "text":
-                    self.assertEqual(got["body"], f"nas smart-scheduler: info\n{ss.TEST_MESSAGE}")
-                else:
-                    body = json.loads(got["body"])
-                    expect = json.loads(want.data)
-                    if fmt == "json":
-                        self.assertTrue(dt.datetime.fromisoformat(body.pop("at")))
-                        expect.pop("at")
-                    self.assertEqual(body, expect)
-        self.assertEqual(json.loads(ss.webhook_request("http://x/", "slack", m, "nas").data),
-                         {"text": f"*nas smart-scheduler: info*\n{ss.TEST_MESSAGE}"})
-        self.assertEqual(json.loads(ss.webhook_request("http://x/", "discord", m, "nas").data),
-                         {"content": f"**nas smart-scheduler: info**\n{ss.TEST_MESSAGE}"})
+    def config(self):
+        return ss.Config(self.tool, core_path=self.core)
 
-    def test_heartbeat_urls_get_a_get(self):
-        self.assertEqual(ss.send_test(self.values(), "HEARTBEAT_URL"), "heartbeat ping answered")
-        self.assertEqual(ss.send_test(self.values(), "HEARTBEAT_FAIL_URL"), "fail ping answered")
-        self.assertEqual([(r["method"], r["path"]) for r in self.ep.requests],
-                         [("GET", "/ping"), ("GET", "/ping/fail")])
+    def test_better_unas_conf_wins(self):
+        self.write(self.tool, "WEBHOOK_URL=https://old.example/x\nALERT_REPEAT_HOURS=12\n")
+        self.write(self.core, "WEBHOOK_URL=https://ntfy.sh/nas\nWEBHOOK_FORMAT=slack\n")
+        c = self.config()
+        self.assertEqual((c["WEBHOOK_URL"], c["WEBHOOK_FORMAT"]), ("https://ntfy.sh/nas", "slack"))
+        self.assertEqual(c.int("ALERT_REPEAT_HOURS"), 12)        # not in better-unas.conf: the tool's
+        self.assertEqual(c.errors, [])
 
-    def test_http_error_is_reported(self):
-        self.ep.status = 404
-        with self.assertRaises(ss.SendError) as e:
-            ss.send_test(self.values("slack"), "WEBHOOK_URL")
-        self.assertEqual(str(e.exception), "HTTP 404 Not Found")
-        self.ep.status = 500
-        with self.assertRaises(ss.SendError) as e:
-            ss.send_test(self.values(), "HEARTBEAT_URL")
-        self.assertEqual(str(e.exception), "HTTP 500 Internal Server Error")
+    def test_an_empty_value_there_still_counts(self):
+        self.write(self.tool, "WEBHOOK_URL=https://old.example/x\n")
+        self.write(self.core, "WEBHOOK_URL=\n")
+        self.assertEqual(self.config()["WEBHOOK_URL"], "")
 
-    def test_unreachable_and_missing(self):
-        with self.assertRaises(ss.SendError) as e:
-            ss.send_test(self.values(WEBHOOK_URL=closed_port_url()), "WEBHOOK_URL", timeout=2)
-        self.assertIn("refused", str(e.exception).lower())
-        with self.assertRaises(ss.SendError) as e:
-            ss.send_test(self.values(WEBHOOK_URL=""), "WEBHOOK_URL")
-        self.assertEqual(str(e.exception), "no URL set")
-        self.assertIsNone(ss.send_test(self.values(), "DRIVE_USER"))
-        self.assertEqual(self.ep.requests, [])
+    def test_defaults_and_bad_values(self):
+        c = self.config()
+        self.assertEqual((c["WEBHOOK_URL"], c["WEBHOOK_FORMAT"], c.yes("NOTIFY_SUCCESS"),
+                          c.int("ALERT_REPEAT_HOURS")), ("", "text", False, 72))
+        self.write(self.core, "WEBHOOK_FORMAT=teams\n")
+        c = self.config()
+        self.assertEqual(c["WEBHOOK_FORMAT"], "text")
+        self.assertEqual(c.errors, ["WEBHOOK_FORMAT: want one of text, json, slack, discord"])
+
+    def test_old_keys_in_the_tool_config_are_not_unknown(self):
+        self.write(self.tool, "HEARTBEAT_URL=https://hc.example/ping\nNOPE=1\n")
+        self.assertEqual(self.config().errors, ["NOPE: unknown setting"])
 
 
 class AlertsTests(unittest.TestCase):

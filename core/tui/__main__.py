@@ -89,6 +89,10 @@ def main(argv=None, out=sys.stdout, execv=os.execv):
         home, extra, log_path = tmp, demo.TABS, os.path.join(tmp, "tui.log")
     else:
         home, log_path = args.home, os.path.join(args.home, "tui.log")
+        if not args.dry_run:
+            # Notifications moved to better-unas.conf: copy what a tool's
+            # config still holds, once. Updating from an older version lands here.
+            updates.move_shared(home)
     try:
         tools, broken = P.discover(home)
 

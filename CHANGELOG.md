@@ -33,6 +33,15 @@ real NAS.
   uninstall (`x`). Home shows an update notice only when there is one, and it
   opens Settings › better-unas. Saving the developer-mode branch checks it at
   once.
+- Notifications in the core (docs/tui-style.md, step 3): the webhook,
+  heartbeat and alert repeat are shared by every tool, set once in Settings ›
+  Notifications and saved in `better-unas.conf`. `t` sends a test through the
+  selected URL and shows the answer. smart-scheduler reads them from there,
+  falling back to its own `config`; the first start or update copies
+  smart-scheduler's existing values across once, and the setup wizard asks
+  for the webhook as a better-unas setting. The Alerts tab shows where
+  alerts are sent instead of its `n` setup form. A tool's own URL settings
+  get `t` too, through its plugin's `send_test`.
 - Screen style (docs/tui-style.md, step 1): keys on the action bar are
   reversed chips and the nav bar is dim, so the two no longer blend; the tab
   bar shows the installed version, or `▲ v…` when an update is out; screens

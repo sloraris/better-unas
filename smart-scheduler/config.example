@@ -61,19 +61,7 @@ BACKUP_DEFAULT_HOURS=4
 # the task has no bandwidth limit. 0 = unknown (BACKUP_DEFAULT_HOURS applies).
 BACKUP_UPLOAD_MBPS=0
 
-# --- Notifications ---------------------------------------------------------------
-# Where alerts go. Empty = journal/syslog only.
-WEBHOOK_URL=
-# text (plain body; ntfy and most receivers), json, slack, or discord
-WEBHOOK_FORMAT=text
-# Also notify when a test passes (UniFi already shows results in Health Monitor).
-NOTIFY_SUCCESS=no
-# Repeat a still-active alert after this many hours.
-ALERT_REPEAT_HOURS=72
-
-# Dead-man's switch: pinged (GET) after every healthy hourly run. Point it at
-# healthchecks.io or an Uptime Kuma push monitor with a grace period of a few
-# hours, and you'll hear about it if this stops running for any reason.
-HEARTBEAT_URL=
-# Optional: pinged instead when a run ends with active errors.
-HEARTBEAT_FAIL_URL=
+# Notifications (webhook, heartbeat, alert repeat) are shared by every tool:
+# set them in Settings › Notifications, saved in better-unas.conf next to this
+# folder. WEBHOOK_URL and the other notification keys set here are still read
+# when better-unas.conf doesn't set them.

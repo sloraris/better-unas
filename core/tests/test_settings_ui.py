@@ -72,7 +72,9 @@ class Fixture(AppFixture):
     def open_form(self, **kw):
         """Settings tab (4), Enter on space-watch."""
         self.app = self.make_app(**kw)
-        self.app.press("5", "down", "down", "enter")
+        self.app.press("5")
+        self.assertTrue(self.app.screen.open("space-watch"))
+        self.app.press()
         return self.app.screen
 
     def set_warn(self, text):
@@ -96,7 +98,7 @@ class SettingsScreenTests(Fixture, unittest.TestCase):
         self.write_config()
         app = self.make_app()
         self.assertSnapshot("settings_list", app.press("5"))
-        text = app.press("down", "down", "enter")
+        text = app.press("down", "down", "down", "enter")
         self.assertSnapshot("settings_form", text)
         self.assertIn("space-watch/config", text)
         self.assertIn("kept as is: LEGACY_THING", text)
@@ -107,7 +109,7 @@ class SettingsScreenTests(Fixture, unittest.TestCase):
     def test_list_flags_a_broken_config(self):
         self.write_config("WARN_PERCENT=7\n")
         text = self.make_app().press("5")
-        self.assertIn("5 settings, 1 config problem", text)
+        self.assertIn("4 settings, 1 config problem", text)
 
     def test_edit_validate_save_keeps_comments(self):
         self.write_config()
@@ -144,13 +146,13 @@ class SettingsScreenTests(Fixture, unittest.TestCase):
         self.assertEqual(P.read_keyvalue(self.config)[0], {"WARN_PERCENT": "75"})
 
     def test_new_key_lands_under_its_group(self):
-        self.write_config()
+        self.write_config(CONFIG.replace("QUIET_HOURS=22:00-07:00\n", "# (quiet hours not set)\n"))
         self.open_form()
-        self.app.press("end", "up", "enter", *"https://hooks.example.com/x", "enter")
+        self.app.press("end", "enter", *["backspace"] * 20, *"23:00-06:00", "enter")
         self.app.press("s")
         text = self.read_config()
         self.assertIn("# --- Notifications -------------------------------------------------"
-                      "--------------\nWEBHOOK_URL=https://hooks.example.com/x\nQUIET_HOURS=", text)
+                      "--------------\nQUIET_HOURS=23:00-06:00\n# (quiet hours not set)\n", text)
         self.assertIn("# my own note: 90 was too late last time\n", text)
         self.assertIn("LEGACY_THING=keep me\n", text)
 
@@ -180,8 +182,8 @@ class SettingsScreenTests(Fixture, unittest.TestCase):
         app = self.make_app()
         app.plugins["space-watch"].validate = lambda values: (
             {"WARN_PERCENT": "must leave room for quiet hours"} if values["WARN_PERCENT"] > 95 else {})
-        app.press("5", "down", "down", "enter")
         self.app = app
+        app.press("5", "down", "down", "down", "enter")
         text = self.set_warn("97")
         self.assertIn("! must leave room for quiet hours", text)
         text = app.press("s")
@@ -273,7 +275,7 @@ class SettingsScreenTests(Fixture, unittest.TestCase):
 
         app.plugins["space-watch"].preview = preview
         self.app = app
-        app.press("5", "down", "down", "enter")
+        app.press("5", "down", "down", "down", "enter")
         self.assertIn("p preview", self.term.text().split("\n")[22])
         self.set_warn("80")
         text = app.press("p")
@@ -324,7 +326,7 @@ class SettingsFormTests(unittest.TestCase):
         P.check_schema(sub)
         sub = S.schema_subset(self.schema, keys=["MAX_CONCURRENT", "ENABLED"])
         self.assertEqual([f["key"] for f in P.fields(sub)], ["ENABLED", "MAX_CONCURRENT"])
-        self.assertEqual(len(P.fields(self.schema)), 26)     # the original is untouched
+        self.assertEqual(len(P.fields(self.schema)), 20)     # the original is untouched
 
     def test_on_save_gets_changed_texts_and_errors_map_to_fields(self):
         ctx = self.Ctx()
@@ -381,10 +383,10 @@ class WriterTests(unittest.TestCase):
     EDITS = [
         {"INTERVAL_DAYS": "35"},
         {"INTERVAL_DAYS": 35, "ENABLED": False, "START_WINDOW": "23:00 - 05:00"},
-        {"WEBHOOK_URL": "https://hooks.example.com/abc", "WEBHOOK_FORMAT": "slack"},
+        {"DRIVE_USER": "ops", "BACKUP_AVOID": "no"},
         {"EXCLUDE_SERIALS": " AAA1, BBB2 ", "INTERVAL_OVERRIDES": "AAA1:7"},
         {"DURATION_FACTOR": "1.50", "MAX_CONCURRENT": None},
-        {"NOTIFY_SUCCESS": "true"},
+        {"BACKUP_AVOID": "true"},
     ]
 
     def setUp(self):
@@ -395,7 +397,7 @@ class WriterTests(unittest.TestCase):
 
     def test_same_output_as_smart_schedulers_writer(self):
         texts = [self.example, "", "# only a comment\r\nINTERVAL_DAYS = '28'\r\n",
-                 "\n".join(ln for ln in self.example.splitlines() if not ln.startswith("WEBHOOK"))]
+                 "\n".join(ln for ln in self.example.splitlines() if not ln.startswith("BACKUP"))]
         for text in texts:
             for edits in self.EDITS:
                 with self.subTest(text=text[:30], edits=edits):

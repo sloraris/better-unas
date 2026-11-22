@@ -95,8 +95,8 @@ the words always say the same thing, and `NO_COLOR` is respected.
 | Home | An update notice when there is one, active alerts, and a card per tool. Enter on a line jumps to the tab it's about. | [home](docs/screens/home.txt) |
 | Calendar | smart-scheduler's month grid: past tests, planned tests, scrub and backup days. Enter shows why a night has or hasn't got a test. | [month](docs/screens/calendar.txt), [day](docs/screens/calendar-day.txt) |
 | Drives | Every drive's schedule, temperature and status. Enter opens one drive (SMART values, UniFi test history); `t` runs a test now, `z` snoozes, `x` excludes, `i` sets its interval. | [list](docs/screens/drives.txt), [drive](docs/screens/drive.txt) |
-| Alerts | Active and recent alerts. `n` sets up the webhook and heartbeat URLs and sends a test. | [alerts](docs/screens/alerts.txt) |
-| Settings | **better-unas**: version, update (`u`), check (`c`), developer mode, remove (`R`). **Each tool**, installed or not: its settings as a form, checked as you type (`s` saves, Esc offers to discard, `p` previews the calendar), plus install (`i`) and uninstall (`x`). | [list](docs/screens/settings-list.txt), [better-unas](docs/screens/settings-better-unas.txt), [smart-scheduler](docs/screens/settings.txt) |
+| Alerts | Active and recent alerts, and where they're sent. | [alerts](docs/screens/alerts.txt) |
+| Settings | **better-unas**: version, update (`u`), check (`c`), developer mode, remove (`R`). **Notifications**: the webhook and heartbeat every tool shares; `t` sends a test. **Each tool**, installed or not: its settings as a form, checked as you type (`s` saves, Esc offers to discard, `p` previews the calendar), plus install (`i`) and uninstall (`x`). | [list](docs/screens/settings-list.txt), [better-unas](docs/screens/settings-better-unas.txt), [notifications](docs/screens/settings-notifications.txt), [smart-scheduler](docs/screens/settings.txt) |
 
 Calendar and Drives come from smart-scheduler's plugin; a tool without
 screens just gets a Home card and a Settings section. The captures are the

@@ -7,7 +7,9 @@ launcher asks needs_setup(home); on a first run it opens the wizard
 (core/tui/setup.py), which drives a Setup:
 
     1. pick tools            Setup.offered, Setup.selected
-    2. essential settings    Setup.essentials(name), Setup.set_edits(name, {...})
+    2. essential settings    Setup.needs_settings(): better-unas's own first
+                             (CORE: the webhook, saved in better-unas.conf),
+                             then each tool's; Setup.set_edits(name, {...})
     3. review                Setup.review(): every change, in words
     4. install               Setup.apply(): core/install.py does the work
 
@@ -32,6 +34,8 @@ import tempfile
 from . import install as I
 from . import plugins as P
 
+CORE = "better-unas"            # step 2's name for better-unas's own settings
+CORE_CONFIG = "better-unas.conf"
 MARKER = ".setup-done"          # written by apply(); a home with it never re-runs setup
 REQUIRED = ("python3", "curl", "tar")
 VERSION_FILE = "/usr/lib/version"
@@ -230,6 +234,24 @@ class Offer:
         return sorted(f for f in os.listdir(d) if not f.startswith("."))
 
 
+class CoreOffer:
+    """better-unas's own settings in step 2 (core/settings.json's essential
+    fields: the shared webhook), written to better-unas.conf in the home."""
+
+    name = CORE
+    config_name = CORE_CONFIG
+    example_name = ""
+
+    def __init__(self, src):
+        try:
+            self.schema = P.load_schema(os.path.join(src, "core", "settings.json"))
+        except (OSError, ValueError, P.ContractError):
+            self.schema = None
+
+    def essentials(self):
+        return P.essential_fields(self.schema) if self.schema else []
+
+
 class Setup:
     """Everything the wizard decides, and apply() to carry it out.
 
@@ -248,6 +270,7 @@ class Setup:
         self.version = _read(os.path.join(self.source, "VERSION")).strip().splitlines()[0:1]
         self.version = self.version[0] if self.version else "?"
         self.offered = [Offer(self.source, n, m) for n, m in I.release_tools(self.source).items()]
+        self.core = CoreOffer(self.source)
         self.legacy = find_legacy(self.home, link=self.link)
         self.installed = {n: I._manifest(os.path.join(self.home, n, "tool.conf")).get("VERSION", "?")
                           for n in I.installed_tools(self.home)}
@@ -259,6 +282,8 @@ class Setup:
 
     # --- step 1
     def offer(self, name):
+        if name == CORE:
+            return self.core
         return next(o for o in self.offered if o.name == name)
 
     def toggle(self, name):
@@ -273,7 +298,17 @@ class Setup:
 
     # --- step 2
     def current_config(self, name):
-        """{KEY: text} the tool's config has now (an old install's, or none)."""
+        """{KEY: text} the tool's config has now (an old install's, or none).
+        For CORE: better-unas.conf, then any shared key a tool's config
+        still holds (an old install keeps its webhook)."""
+        if name == CORE:
+            from . import notify
+            cur = _raw_config(os.path.join(self.home, CORE_CONFIG))
+            for _, path in notify.tool_configs(self.home):
+                for k, v in _raw_config(path).items():
+                    if k in notify.KEYS:
+                        cur.setdefault(k, v)
+            return cur
         o = self.offer(name)
         if not o.config_name:
             return {}
@@ -292,8 +327,9 @@ class Setup:
         return dict(o.schema, groups=groups)
 
     def needs_settings(self):
-        """Selected tools with essential settings, in order."""
-        return [o.name for o in self.chosen() if o.essentials()]
+        """CORE (when it has essential settings), then the selected tools
+        with essential settings, in order."""
+        return [CORE] * bool(self.core.essentials()) + [o.name for o in self.chosen() if o.essentials()]
 
     def starting_text(self, name):
         """{KEY: text} the form starts from: the current config, else defaults."""
@@ -338,6 +374,7 @@ class Setup:
                          f"in {home}", "warn"))
         if self.link and has_entry:
             core.append((f"Link {self.link} -> {home}/{I.ENTRY}", "normal"))
+        core += self._config_lines(self.core, home)
         sections.append((f"better-unas {self.version}", core))
 
         for o in self.chosen():
@@ -379,6 +416,8 @@ class Setup:
         cfg = os.path.join(dest, o.config_name)
         edits = self.edits.get(o.name, {})
         lines = []
+        if o is self.core and not edits:
+            return lines
         if os.path.exists(cfg):
             lines.append((f"Keep {o.config_name}" + ("; change:" if edits else " unchanged"), "normal"))
         elif o.example_name:
@@ -414,6 +453,7 @@ class Setup:
         old_entry = self.legacy["entry"] if self.legacy else None
         moved = None
         I.install_core(self.source, home)
+        self._write_config(self.core, home)
         src = I.release_source(home) or self.source
         entry = os.path.join(home, I.ENTRY)
         if old_entry and is_legacy_entry(entry):
@@ -439,6 +479,11 @@ class Setup:
                 linked = I.restore_link(home, self.link)
             except OSError:
                 linked = False
+        from . import notify
+        try:
+            notify.migrate(home)     # an old install's webhook moves to better-unas.conf
+        except Exception:
+            pass                     # the tools still read their own config
         with open(os.path.join(home, MARKER), "w", encoding="utf-8") as f:
             f.write(self.version + "\n")
         self.done = True

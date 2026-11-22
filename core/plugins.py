@@ -66,6 +66,11 @@ EMPTY_OK = {"text", "url", "serial_list", "int_list", "serial_map"}
 
 PLUGIN_REQUIRED = ("summary", "alerts", "status")
 PLUGIN_OPTIONAL = ("screens", "validate", "send_test", "preview")
+# Settings every tool shares, kept in <home>/better-unas.conf (core/notify.py).
+# A tool reads them from there with its own config as a fallback, so they may
+# still sit in a tool's config; that is never an "unknown setting".
+SHARED_KEYS = ("WEBHOOK_URL", "WEBHOOK_FORMAT", "NOTIFY_SUCCESS", "ALERT_REPEAT_HOURS",
+               "HEARTBEAT_URL", "HEARTBEAT_FAIL_URL")
 STATES = ("ok", "warn", "error", "off", "unknown")
 TONES = ("normal", "good", "warn", "bad", "dim")
 LEVELS = ("error", "warn", "info")
@@ -455,7 +460,8 @@ def validate_config(schema, raw):
     raw: {KEY: text} as read from the config file; missing keys take their default.
     Returns (typed, errors): typed has every schema key (a bad value falls back
     to its default, so a tool keeps running on a broken line), errors maps
-    KEY -> message. Keys the schema doesn't know are reported under that key.
+    KEY -> message. Keys the schema doesn't know are reported under that key,
+    except the shared ones (SHARED_KEYS).
     """
     typed, errors = {}, {}
     known = field_map(schema)
@@ -467,7 +473,7 @@ def validate_config(schema, raw):
             errors[key] = str(e)
             typed[key] = parse_value(f, f["default"])
     for key in raw:
-        if key not in known:
+        if key not in known and key not in SHARED_KEYS:
             errors[key] = "unknown setting"
     return typed, errors
 

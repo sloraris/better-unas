@@ -406,7 +406,8 @@ class DevModeTests(Base):
 
     def test_off_by_default(self):
         self.installed_at("v0.2.0")
-        self.assertEqual(U.core_settings(self.home), {"DEV_MODE": False, "DEV_BRANCH": "main"})
+        cfg = U.core_settings(self.home)
+        self.assertEqual((cfg["DEV_MODE"], cfg["DEV_BRANCH"]), (False, "main"))
         self.assertIsNone(U.dev_branch(self.home))
 
     def test_follows_the_branch_head_and_installs_the_commit(self):

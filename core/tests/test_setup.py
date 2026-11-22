@@ -210,7 +210,7 @@ class PlanTests(Base):
         self.assertEqual([o.name for o in s.offered], [TOOL])
         self.assertEqual(s.selected, [])                     # nothing ticked on a fresh box
         s.toggle(TOOL)
-        self.assertEqual(s.needs_settings(), [TOOL])
+        self.assertEqual(s.needs_settings(), [S.CORE, TOOL])        # the shared webhook first
         keys = [f["key"] for f in S.P.fields(s.essential_schema(TOOL))]
         self.assertIn("INTERVAL_DAYS", keys)
         self.assertNotIn("DRIVE_USER", keys)
@@ -356,6 +356,8 @@ class WizardTests(SnapshotMixin, Base):
     def test_full_install(self):
         app = self.make_app()
         text = app.press(" ", "enter")
+        self.assertIn("Setup › Notifications", text)
+        text = app.press("n")
         self.assertSnapshot("setup_essentials", text)
         # Healthy drive: 90 -> 60
         app.press("enter", "backspace", "backspace", "6", "0", "enter")
@@ -379,19 +381,19 @@ class WizardTests(SnapshotMixin, Base):
 
     def test_back_keeps_choices(self):
         app = self.make_app()
-        app.press(" ", "enter", "enter", "backspace", "backspace", "7", "7", "enter", "n")
+        app.press(" ", "enter", "n", "enter", "backspace", "backspace", "7", "7", "enter", "n")
         text = app.press("esc")
         self.assertIn("77 days", text)                       # back on the settings step
-        text = app.press("esc")
+        text = app.press("esc", "esc")
         self.assertIn(f"[x] {TOOL}", text)                   # back on the pick step
-        text = app.press("enter")
+        text = app.press("enter", "n")
         self.assertIn("77 days", text)
         text = app.press("n")
         self.assertIn("INTERVAL_DAYS=77", text)
 
     def test_bad_value_blocks_next(self):
         app = self.make_app()
-        app.press(" ", "enter", "enter", "backspace", "backspace", "0", "enter")
+        app.press(" ", "enter", "n", "enter", "backspace", "backspace", "0", "enter")
         text = app.press("n")
         self.assertIn("Healthy drive:", text)
         self.assertIn("settings", text.splitlines()[1])
@@ -410,7 +412,7 @@ class WizardTests(SnapshotMixin, Base):
 
     def test_dry_run_shows_review_only(self):
         app = self.make_app(dry_run=True)
-        text = app.press(" ", "enter", "n")
+        text = app.press(" ", "enter", "n", "n")
         self.assertIn("Dry run: this is what setup would do.", text)
         self.assertIn("DRY RUN", text.splitlines()[0])
         self.assertNotIn("Enter install", text.split("\n")[22])
@@ -425,11 +427,35 @@ class WizardTests(SnapshotMixin, Base):
         text = app.press()
         self.assertIn("Found an install from the old installer: smart-scheduler 0.1.0.", text)
         self.assertIn(f"[x] {TOOL}", text)
-        text = app.press("enter")
+        text = app.press("enter", "n")
         self.assertIn("45 days", text)                       # the old config's value
         app.press("n", "enter", "y")
         self.assertEqual(self.read(TOOL, "config"), OLD_CONFIG)
         self.assertEqual(self.read(TOOL, "state.json"), OLD_STATE)
+
+    def test_webhook_goes_to_better_unas_conf(self):
+        app = self.make_app()
+        app.press(" ", "enter", "enter", *"https://ntfy.sh/nas", "enter")
+        text = app.press("n", "n")
+        self.assertIn("Create better-unas.conf with:", text)
+        self.assertIn("WEBHOOK_URL=https://ntfy.sh/nas   (was empty)", text)
+        app.press("enter", "y")
+        self.assertIn("WEBHOOK_URL=https://ntfy.sh/nas\n", self.read("better-unas.conf"))
+        self.assertFalse(os.path.exists(os.path.join(self.home, TOOL, "config")))   # the tool's own config: untouched
+
+    def test_an_old_installs_webhook_moves_across(self):
+        self.make_old_install()
+        with open(os.path.join(self.home, TOOL, "config"), "a") as f:
+            f.write("WEBHOOK_URL=https://ntfy.sh/old\nHEARTBEAT_URL=https://hc.example/p\n")
+        app = self.make_app()
+        app.press("enter")
+        self.assertEqual(app.screen.form.field("WEBHOOK_URL").text, "https://ntfy.sh/old")   # prefilled
+        app.press("n", "n", "enter", "y")
+        self.assertTrue(self.s.done)
+        conf = self.read("better-unas.conf")
+        self.assertIn("WEBHOOK_URL=https://ntfy.sh/old\n", conf)
+        self.assertIn("HEARTBEAT_URL=https://hc.example/p\n", conf)
+        self.assertIn("WEBHOOK_URL=https://ntfy.sh/old", self.read(TOOL, "config"))   # left as it was
 
 
 # --------------------------------------------------------------------- the launcher
@@ -443,7 +469,7 @@ class LauncherTests(Base):
 
     def test_dry_run_headless(self):
         code, out, _ = self.main("--source", self.src, "--dry-run", "--headless", "80x24",
-                                 "--keys", "space enter n")
+                                 "--keys", "space enter n n")
         self.assertEqual(code, 0)
         self.assertIn(f"{TOOL} 0.1.1 (new)", out)
         self.assertFalse(os.path.exists(self.home))

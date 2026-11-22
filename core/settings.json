@@ -23,6 +23,67 @@
      "help": "The branch developer mode follows, e.g. main or a pull request's branch. Enter lists the branches on GitHub to pick from."
     }
    ]
+  },
+  {
+   "id": "notifications",
+   "title": "Notifications",
+   "fields": [
+    {
+     "key": "WEBHOOK_URL",
+     "type": "url",
+     "label": "Webhook URL",
+     "default": "",
+     "secret": true,
+     "essential": true,
+     "help": "Where every tool's alerts go, e.g. an ntfy topic or a Slack or Discord webhook. Empty: alerts go only to the system log."
+    },
+    {
+     "key": "WEBHOOK_FORMAT",
+     "type": "choice",
+     "label": "Webhook format",
+     "choices": [
+      "text",
+      "json",
+      "slack",
+      "discord"
+     ],
+     "default": "text",
+     "essential": true,
+     "help": "How alerts are sent. text is a plain body, which ntfy and most receivers take."
+    },
+    {
+     "key": "NOTIFY_SUCCESS",
+     "type": "bool",
+     "label": "Notify on success",
+     "default": "no",
+     "help": "Also send a message when things go well, such as a passed SMART test. UniFi already shows those."
+    },
+    {
+     "key": "ALERT_REPEAT_HOURS",
+     "type": "int",
+     "label": "Repeat alerts every",
+     "unit": "hours",
+     "min": 1,
+     "default": "72",
+     "help": "Send a still-active alert again after this many hours."
+    },
+    {
+     "key": "HEARTBEAT_URL",
+     "type": "url",
+     "label": "Heartbeat URL",
+     "default": "",
+     "secret": true,
+     "help": "Pinged after every healthy run, so a monitor such as healthchecks.io or Uptime Kuma notices when runs stop."
+    },
+    {
+     "key": "HEARTBEAT_FAIL_URL",
+     "type": "url",
+     "label": "Heartbeat URL on failure",
+     "default": "",
+     "secret": true,
+     "help": "Optional: pinged instead of the heartbeat when a run ends with errors."
+    }
+   ]
   }
  ]
 }
