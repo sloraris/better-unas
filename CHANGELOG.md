@@ -26,6 +26,8 @@ real NAS.
   settings, review, install), with `--dry-run`, `--ref` and `--force`. Finds
   an install made by the old `install.sh` and moves it over, keeping config
   and state. The root `install.sh` is gone (#15).
+- After an update, install or uninstall on Tools, the app offers to restart
+  itself so the change loads without quitting and reopening.
 - Developer mode (Settings → better-unas): follow the newest commit on a
   GitHub branch instead of releases, pick the branch from GitHub's list in
   Settings or with `b` on Tools, and

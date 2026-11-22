@@ -267,9 +267,20 @@ class ToolsScreen:
         for name in report["skipped"]:
             out += [(f"{name}: not in this release; left as it is.", "dim"), ""]
         out.append((RESTART, "warn"))
+        if not failed and self.offer_restart(f"Updated to {report['to']}."):
+            return
         self.ctx.push(DetailScreen("Update", out))
         self.ctx.message(f"Updated to {report['to']}" + (f"; {', '.join(failed)} failed." if failed else ". ")
                          + ("" if failed else RESTART), "bad" if failed else "good")
+
+    def offer_restart(self, done):
+        """Ask to restart better-unas now to load a change. True if it will."""
+        if not self.ctx.confirm("Restart better-unas now?",
+                                [done, "The app that's open still runs the old code;",
+                                 "restarting loads the new version and its tabs."]):
+            return False
+        self.app.request_restart()
+        return True
 
     def pick_branch(self):
         """Developer mode: list the branches on GitHub and follow the one picked."""
@@ -332,6 +343,8 @@ class ToolsScreen:
 
     def after(self, name, ok, headline, text):
         self.show()
+        if ok and self.offer_restart(headline):
+            return
         self.ctx.push(DetailScreen(name, [(headline, "good" if ok else "bad"), ""] + output_lines(text)
                                    + ["", (RESTART, "warn")]))
         self.ctx.message(headline + (" " + RESTART if ok else ""), "good" if ok else "bad")

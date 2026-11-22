@@ -27,7 +27,7 @@ from core.tui import widgets as W                # noqa: E402
 from core.tui.app import App                     # noqa: E402
 from core.tui.terminal import HeadlessTerminal   # noqa: E402
 from core.tui.theme import Theme                 # noqa: E402
-from fakerelease import FakeGitHub               # noqa: E402
+from fakerelease import FakeGitHub, tool_files   # noqa: E402
 from test_tui import SnapshotMixin               # noqa: E402
 
 CLOCK = dt.datetime(2026, 11, 22, 1, 0, tzinfo=dt.timezone(dt.timedelta(hours=-7)))
@@ -111,7 +111,9 @@ class ToolsScreenTests(SnapshotMixin, unittest.TestCase):
         app.press("u", "n")
         self.assertSnapshot("tools_update_confirm", self.frame_with("Update better-unas v0.2.0 to v0.3.0?"))
         self.assertEqual(U.suite_version(self.home), "v0.2.0")
-        text = app.press("u", "y")
+        text = app.press("u", "y", "n")       # update, then not restarting now
+        self.frame_with("Restart better-unas now?")
+        self.assertFalse(app.restart)
         self.assertSnapshot("tools_updated", text)
         self.assertEqual(U.suite_version(self.home), "v0.3.0")
         self.assertEqual(os.readlink(self.link), os.path.join(self.home, "better-unas"))
@@ -120,12 +122,30 @@ class ToolsScreenTests(SnapshotMixin, unittest.TestCase):
         self.assertIn("better-unas v0.3.0", text)
         self.assertIn("Up to date.", text)
 
+    def test_update_and_restart(self):
+        app = self.make_app()
+        app.press(TOOLS_TAB)
+        app.press("u", "y", "y")
+        self.assertIn("Updated to v0.3.0.", self.frame_with("Restart better-unas now?"))
+        self.assertTrue(app.restart)
+        self.assertFalse(app.running)
+        self.assertEqual(U.suite_version(self.home), "v0.3.0")
+
+    def test_no_restart_offer_when_an_installer_failed(self):
+        self.gh.publish("v0.3.0", tools={"alpha": tool_files("alpha", "Alpha", failing=True)})
+        app = self.make_app()
+        app.press(TOOLS_TAB)
+        text = app.press("u", "y")
+        self.assertFalse([f for f in self.frames if "Restart better-unas now?" in f])
+        self.assertIn("alpha failed", text)
+        self.assertFalse(app.restart)
+
     def test_install_and_uninstall_a_tool(self):
         app = self.make_app()
         app.press(TOOLS_TAB)
         text = app.press("down")             # beta, uninstalled
         self.assertIn("i install", text.split("\n")[22])
-        text = app.press("i", "y")
+        text = app.press("i", "y", "n")
         self.assertIn("Turns it back on with the config it had.", self.frame_with("Install beta?"))
         self.assertIn("beta installed", text)
         self.assertEqual(I.installed_tools(self.home), ["alpha", "beta"])
@@ -133,7 +153,7 @@ class ToolsScreenTests(SnapshotMixin, unittest.TestCase):
         self.assertIn("beta               installed", text)
 
         app.press("up", "up")                # alpha
-        text = app.press("x", "y")
+        text = app.press("x", "y", "n")
         self.assertSnapshot("tools_uninstall_confirm", self.frame_with("Uninstall alpha?"))
         self.assertIn("alpha uninstalled", text)
         self.assertTrue(os.path.exists(os.path.join(self.home, "alpha", I.UNINSTALLED)))
@@ -198,7 +218,7 @@ class DevModeToolsTests(SnapshotMixin, unittest.TestCase):
         self.assertIn("New commit: main @ 1111111. Press u to update.", text)
         self.assertIn("developer mode: following main", text)
         self.assertIn("b branch", text.split("\n")[22])
-        text = app.press("u", "y")
+        text = app.press("u", "y", "n")
         frame = self.frame_with("main @ 1111111?")
         self.assertIn("unreleased code (developer mode)", frame)
         self.assertIn("Updated from v0.2.0 to main @ 1111111.", text)

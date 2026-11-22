@@ -129,7 +129,9 @@ The app checks GitHub's latest release when it opens (cached for 6 hours)
 and shows it on Home and Tools. Update with `u` on the Tools tab or
 `better-unas update`. Nothing updates on its own. One version covers
 better-unas and every tool, and updates keep each tool's `config` and state.
-A tool you uninstalled stays off.
+A tool you uninstalled stays off. After an update on the Tools tab the app
+offers to restart itself, so the new version loads without retyping the
+command.
 
 To try unreleased changes, turn on **Developer mode** in Settings →
 better-unas. Updates then follow the newest commit on a GitHub branch

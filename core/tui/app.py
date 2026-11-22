@@ -115,6 +115,7 @@ class App:
         self.clock = clock or (lambda: dt.datetime.now().astimezone())
         self.log_path = log_path
         self.running = True
+        self.restart = False                   # quit, then start the (new) better-unas again
         self.toast = self.spinner = self.overlay = None
         self.tools = list(tools)
         self.broken = dict(broken or {})       # tool folder name -> problems
@@ -231,6 +232,12 @@ class App:
     def quit(self):
         if self.can_leave():
             self.running = False
+
+    def request_restart(self):
+        """Stop the loop and have the launcher start better-unas again, so an
+        update or a tool change is loaded (core/tui/__main__.py does the exec)."""
+        self.log("restart requested")
+        self.restart, self.running = True, False
 
     # ------------------------------------------------------------ context services
 
