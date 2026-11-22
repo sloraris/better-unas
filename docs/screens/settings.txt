@@ -1,6 +1,6 @@
- 1 Home │ 2 Calendar │ 3 Drives │ 4 Settings │ 5 Alerts │ 6 Tools        v0.2.0
+ 1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings                  v0.2.0
  Settings › smart-scheduler ──────────────────────────────────────────────────
- smart-scheduler/config                                      no unsaved changes
+ ! installed   smart-scheduler/config                        no unsaved changes
  General
    Enabled                     [x] yes
    UniFi OS account            (none)
@@ -20,5 +20,5 @@
  ──────────────────────────────────────────────────────────────────────────────
  Set to no to stop: the next run removes the timer and cron line. To turn it
  back on, set yes and reinstall.
- s save  p preview  Space toggle                                        ↑↓ move
- Esc back  1-6/Tab tabs                                          ? help  q quit
+ s save  p preview  Space toggle  x uninstall  i reinstall              ↑↓ move
+ Esc back  1-5/Tab tabs                                          ? help  q quit

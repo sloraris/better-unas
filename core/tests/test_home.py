@@ -163,7 +163,7 @@ class HomeSnapshotTests(HomeFixture, unittest.TestCase):
         self.tool(FRESH)
         app = self.make_app(updates=None)
         text = self.term.text()
-        self.assertIn("Updates not checked yet.", text)
+        self.assertNotIn("Update", text)          # no notice until there is one
         self.assertIn("No active alerts.", text)
         self.assertIn("Next backup", text)
         self.check("fresh", app)
@@ -171,7 +171,7 @@ class HomeSnapshotTests(HomeFixture, unittest.TestCase):
     def test_update_available(self):
         self.tool(FRESH)
         app = self.make_app(updates=UPDATE)
-        self.assertIn("v0.2.0  Update available: v0.3.0", self.term.text())
+        self.assertIn("› ▲ Update available: v0.3.0   Settings › better-unas", self.term.text())
         self.assertEqual(self.updates.calls, [self.home])
         self.check("update", app)
 
@@ -195,7 +195,7 @@ class HomeSnapshotTests(HomeFixture, unittest.TestCase):
         self.make_app(updates=None)
         text = self.term.text()
         self.assertIn("No tools are installed yet.", text)
-        self.assertIn("Tools tab (press t)", text)
+        self.assertIn("Install tools in Settings.", text)
 
 
 class HomeBehaviourTests(HomeFixture, unittest.TestCase):
@@ -205,12 +205,10 @@ class HomeBehaviourTests(HomeFixture, unittest.TestCase):
     def test_enter_jumps_to_the_rows_tab(self):
         self.tool(ALERT)
         app = self.make_app(updates=CURRENT)
-        self.assertEqual(self.tabs(app), ["Home", "Calendar", "Drives", "Settings", "Alerts", "Tools"])
-        app.press("enter")                          # first row: the update line
-        self.assertEqual(app.tab.title, "Tools")
-        app.press("1", "down", "enter")             # alerts heading
+        self.assertEqual(self.tabs(app), ["Home", "Calendar", "Drives", "Alerts", "Settings"])
+        app.press("enter")                          # first row: the alerts heading
         self.assertEqual(app.tab.title, "Alerts")
-        app.press("1", "down", "down", "enter")     # the first alert
+        app.press("1", "down", "enter")             # the first alert
         self.assertEqual(app.tab.title, "Alerts")
 
         def goto(label):
@@ -240,15 +238,22 @@ class HomeBehaviourTests(HomeFixture, unittest.TestCase):
         self.assertEqual(screen.index, len(screen.rows) - 1)
         app.press("pgup", "pgup")
         self.assertEqual(screen.index, 0)
-        self.assertIn("› better-unas", self.term.text())
+        self.assertIn("› Alerts", self.term.text())
 
-    def test_a_and_t_jump(self):
+    def test_a_jumps_and_t_is_gone(self):
         self.tool(FRESH)
         app = self.make_app()
         app.press("a")
         self.assertEqual(app.tab.title, "Alerts")
         app.press("1", "t")
-        self.assertEqual(app.tab.title, "Tools")
+        self.assertEqual(app.tab.title, "Home")
+
+    def test_update_notice_opens_settings_better_unas(self):
+        self.tool(FRESH)
+        app = self.make_app(updates=UPDATE)
+        app.press("enter")
+        self.assertEqual(app.tab.title, "Settings")
+        self.assertIn("Settings › better-unas", self.term.text().split("\n")[1])
 
     def test_unknown_item_tab_falls_back_to_the_tools_first_tab(self):
         data = dict(FRESH, summary=dict(FRESH["summary"], items=[
@@ -276,25 +281,13 @@ class HomeBehaviourTests(HomeFixture, unittest.TestCase):
             json.dump(ALERT, f)
         self.assertIn("2 active", app.press("2", "1"))
 
-    def test_no_updates_module_means_no_update_info(self):
+    def test_no_update_info_means_no_notice(self):
         self.tool(FRESH)
-        self.make_app(updates="missing")
-        self.assertIn("Updates not checked yet.", self.term.text())
-
-    def test_update_checker_failure_means_no_update_info(self):
-        self.tool(FRESH)
-        self.make_app(updates=RuntimeError("cache unreadable"))
-        self.assertIn("Updates not checked yet.", self.term.text())
-
-    def test_update_check_error_is_shown(self):
-        self.tool(FRESH)
-        self.make_app(updates=dict(CURRENT, error="GitHub did not answer"))
-        self.assertIn("Update check failed: GitHub did not answer", self.term.text())
-
-    def test_up_to_date(self):
-        self.tool(FRESH)
-        self.make_app(updates=CURRENT)
-        self.assertIn("better-unas v0.2.0  Up to date  checked Sat 21 Nov 18:00", self.term.text())
+        for updates in ("missing", RuntimeError("cache unreadable"), CURRENT,
+                        dict(CURRENT, error="GitHub did not answer")):
+            self.make_app(updates=updates)
+            self.assertNotIn("Update", self.term.text(), updates)
+            self.assertIn("› Alerts", self.term.text())
 
     def test_summary_failure_and_bad_alerts_show_on_the_card(self):
         self.tool(dict(FRESH, summary_raises="drive api down", alerts=[{"id": "x"}]))
@@ -320,10 +313,10 @@ class HomeBehaviourTests(HomeFixture, unittest.TestCase):
             f.write(conf)
         app = self.make_app()
         text = self.term.text()
-        self.assertIn("broken-one  1.2.3  broken  See the Tools tab.", text)
+        self.assertIn("broken-one  1.2.3  broken  See Settings.", text)
         self.assertIn("No status available.", text)
         self.assertEqual({r.target for r in app.screen.rows if r.segments and "broken-one" in r.segments[0][0]},
-                         {"Tools"})
+                         {"Settings:broken-one"})
 
     def test_many_rows_scroll_with_the_cursor(self):
         for i in range(4):

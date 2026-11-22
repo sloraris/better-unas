@@ -1,4 +1,4 @@
- 1 Home │ 2 Calendar │ 3 Drives │ 4 Settings │ 5 Alerts │ 6 Tools        v0.2.0
+ 1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings                  v0.2.0
  Calendar ───────────────────────────────────────────────────── smart-scheduler
  ‹ November 2026 ›                                        plan until Sun 21 Feb
   Mon        Tue        Wed        Thu        Fri        Sat        Sun
@@ -21,4 +21,4 @@
 
  S6 planned   S6 passed   S6! failed   S6* running   sc scrub   bk backup
  Enter details  t today  r recalculate                Arrows day  PgUp/Dn month
- 1-6/Tab tabs                                                    ? help  q quit
+ 1-5/Tab tabs                                                    ? help  q quit

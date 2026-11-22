@@ -1,4 +1,4 @@
- 1 Home │ 2 Settings │ 3 Alerts │ 4 Tools
+ 1 Home │ 2 Alerts │ 3 Settings
  Alerts ──────────────────────────────────────────────────────────────────────
  2 active, 2 recent                              n: webhook and heartbeat setup
 
@@ -21,4 +21,4 @@
 
 
  Enter details  n setup  r refresh                                      ↑↓ move
- 1-4/Tab tabs                                                    ? help  q quit
+ 1-3/Tab tabs                                                    ? help  q quit

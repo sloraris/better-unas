@@ -1,4 +1,4 @@
- 1 Home │ 2 Calendar │ 3 Drives │ 4 Settings │ 5 Alerts │ 6 Tools
+ 1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings
  Drives › Can't start an extended test on slot 5 (SERIAL5) ──── smart-scheduler
   Safety checks for starting a test now:
 
@@ -21,4 +21,4 @@
 
 
  ✗ Can't start an extended test on slot 5 (SERIAL5): a SMART test is already ru…
- Esc back  1-6/Tab tabs                                          ? help  q quit
+ Esc back  1-5/Tab tabs                                          ? help  q quit

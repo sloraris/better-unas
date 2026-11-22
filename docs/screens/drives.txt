@@ -1,4 +1,4 @@
- 1 Home │ 2 Calendar │ 3 Drives │ 4 Settings │ 5 Alerts │ 6 Tools        v0.2.0
+ 1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings                  v0.2.0
  Drives ─────────────────────────────────────────────────────── smart-scheduler
    Slot Serial        Temp Last test  Next test   Every Status
  ›    1 SERIAL1       41 C never      Sun 21 Feb    90d test running
@@ -21,4 +21,4 @@
 
 
  Enter details  t test  z snooze  x exclude  i interval  u unsnooze  r refresh
- 1-6/Tab tabs                                                    ? help  q quit
+ 1-5/Tab tabs                                                    ? help  q quit

@@ -28,9 +28,10 @@ SHOTS = {
     "calendar-day": ["2", "enter"],
     "drives": ["3"],
     "drive": ["3", "down", "down", "down", "enter"],
-    "settings": ["4", "enter"],
-    "alerts": ["5"],
-    "tools": ["6"],
+    "alerts": ["4"],
+    "settings": ["5", "down", "enter"],
+    "settings-list": ["5"],
+    "settings-better-unas": ["5", "enter"],
 }
 
 

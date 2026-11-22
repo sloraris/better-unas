@@ -92,12 +92,11 @@ the words always say the same thing, and `NO_COLOR` is respected.
 
 | Tab | What's on it | Capture |
 |---|---|---|
-| Home | Update status, active alerts, and a card per tool. Enter on a line jumps to the tab it's about. | [home](docs/screens/home.txt) |
+| Home | An update notice when there is one, active alerts, and a card per tool. Enter on a line jumps to the tab it's about. | [home](docs/screens/home.txt) |
 | Calendar | smart-scheduler's month grid: past tests, planned tests, scrub and backup days. Enter shows why a night has or hasn't got a test. | [month](docs/screens/calendar.txt), [day](docs/screens/calendar-day.txt) |
 | Drives | Every drive's schedule, temperature and status. Enter opens one drive (SMART values, UniFi test history); `t` runs a test now, `z` snoozes, `x` excludes, `i` sets its interval. | [list](docs/screens/drives.txt), [drive](docs/screens/drive.txt) |
-| Settings | Every setting as a form, grouped like the config file and checked as you type. `s` saves, Esc offers to discard, `p` previews the calendar with your unsaved values. | [settings](docs/screens/settings.txt) |
 | Alerts | Active and recent alerts. `n` sets up the webhook and heartbeat URLs and sends a test. | [alerts](docs/screens/alerts.txt) |
-| Tools | Installed and available tools, updates (`u`), install, uninstall (`x`) and removing better-unas (`R`). | [tools](docs/screens/tools.txt) |
+| Settings | **better-unas**: version, update (`u`), check (`c`), developer mode, remove (`R`). **Each tool**, installed or not: its settings as a form, checked as you type (`s` saves, Esc offers to discard, `p` previews the calendar), plus install (`i`) and uninstall (`x`). | [list](docs/screens/settings-list.txt), [better-unas](docs/screens/settings-better-unas.txt), [smart-scheduler](docs/screens/settings.txt) |
 
 Calendar and Drives come from smart-scheduler's plugin; a tool without
 screens just gets a Home card and a Settings section. The captures are the
@@ -125,28 +124,27 @@ interrupted. A tool's own command exits with that tool's code.
 
 ## Updating
 
-The app checks GitHub's latest release when it opens (cached for 6 hours)
-and shows it on Home and Tools. Update with `u` on the Tools tab or
-`better-unas update`. Nothing updates on its own. One version covers
-better-unas and every tool, and updates keep each tool's `config` and state.
-A tool you uninstalled stays off. After an update on the Tools tab the app
-offers to restart itself, so the new version loads without retyping the
-command.
+The app checks GitHub's latest release when it opens (cached for 6 hours).
+The tab bar shows the installed version, or `▲ v…` when an update is out,
+and Home shows a notice that opens Settings › better-unas. Update there with
+`u`, or with `better-unas update`. Nothing updates on its own. One version
+covers better-unas and every tool, and updates keep each tool's `config` and
+state. A tool you uninstalled stays off. After an update the app offers to
+restart itself, so the new version loads without retyping the command.
 
 To try unreleased changes, turn on **Developer mode** in Settings →
 better-unas. Updates then follow the newest commit on a GitHub branch
 (`main` unless you pick another in **Branch**, which lists the branches on
-GitHub) instead of releases: Tools shows each
-new commit as an update, `b` on the Tools tab lists the branches to pick
-from, and `better-unas update` installs the branch's newest commit. For a
+GitHub) instead of releases: Settings › better-unas offers each new commit
+as an update, and `better-unas update` installs the branch's newest commit. For a
 one-off, `better-unas update --ref <branch|tag|commit>` works without it.
 Turn developer mode off and the next update goes back to the latest release.
 
 ## Removing
 
-- One tool: `x` on the Tools tab, or `better-unas uninstall <tool>`. Its
-  config and state are kept unless you add `--purge`.
-- Everything: `R` on the Tools tab uninstalls every tool, removes the
+- One tool: `x` on its page in Settings, or `better-unas uninstall <tool>`.
+  Its config and state are kept unless you add `--purge`.
+- Everything: `R` in Settings › better-unas uninstalls every tool, removes the
   `better-unas` link and, if you say so, deletes `/persistent/better-unas`.
 
 ## Upgrading from the old `install.sh`
@@ -171,7 +169,7 @@ Every tool follows these, so they behave alike and can be installed alone:
   changes on the NAS (`CHANGES`), any UniFi UI step (`SETUP`), and where its
   settings schema (`SCHEMA`, `CONFIG`) and plugin module (`PLUGIN`) are. See
   the [plugin contract](docs/plugin-contract.md).
-- **Installed through better-unas.** The setup wizard, the Tools tab and
+- **Installed through better-unas.** The setup wizard, a tool's page in Settings and
   `better-unas install` copy the tool from the release and run its own
   `install.sh`. No tool depends on another.
 - **Works without the app.** The scheduled run and the tool's CLI never

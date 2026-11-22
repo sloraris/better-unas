@@ -1,11 +1,11 @@
- 1 Home │ 2 Board │ 3 Space │ 4 Settings │ 5 Alerts │ 6 Tools
+ 1 Home │ 2 Board │ 3 Space │ 4 Alerts │ 5 Settings
  Board › Help ───────────────────────────────────────────────────────── fixture
  Keys on this screen
    Enter        open
    b            boom
 
  Keys everywhere
-   1-6/Tab      tabs
+   1-5/Tab      tabs
    ?            help
    q            quit
    Enter        open the selected item
@@ -21,4 +21,4 @@
    ⇡  backup window          (cyan)
    ▲  update available       (yellow)
                                                                       ↑↓ scroll
- Esc back  1-6/Tab tabs                                          ? help  q quit
+ Esc back  1-5/Tab tabs                                          ? help  q quit

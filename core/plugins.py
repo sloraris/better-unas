@@ -598,7 +598,7 @@ def check_screens(specs):
     return p
 
 
-CORE_TABS = ("Home", "Settings", "Alerts", "Tools")
+CORE_TABS = ("Home", "Alerts", "Settings")
 
 
 def _iso(v):

@@ -1,6 +1,6 @@
- 1 Home │ 2 Calendar │ 3 Drives │ 4 Settings │ 5 Alerts │ 6 Tools
+ 1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings
  Home ────────────────────────────────────────────────────────────────────────
- › better-unas v0.2.0  Update available: v0.3.0  checked Sat 21 Nov 18:00
+ › ▲ Update available: v0.3.0   Settings › better-unas
 
    Alerts  No active alerts.
 
@@ -20,5 +20,5 @@
 
 
 
- Enter open  a alerts  t tools  r refresh                             ↑↓ select
- 1-6/Tab tabs                                                    ? help  q quit
+ Enter open  a alerts  r refresh                                      ↑↓ select
+ 1-5/Tab tabs                                                    ? help  q quit

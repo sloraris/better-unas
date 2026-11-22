@@ -1,4 +1,4 @@
- 1 Home │ 2 Calendar │ 3 Drives │ 4 Settings │ 5 Alerts │ 6 Tools
+ 1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings
  Settings › smart-scheduler › Calendar preview (unsaved settings) ────────────
  ‹ November 2026 ›                                        plan until Wed 25 Nov
   Mon        Tue        Wed        Thu        Fri        Sat        Sun
@@ -21,4 +21,4 @@
 
  S6 planned   S6 passed   S6! failed   S6* running   sc scrub   bk backup
  Enter details  t today  r recalculate                Arrows day  PgUp/Dn month
- Esc back  1-6/Tab tabs                                          ? help  q quit
+ Esc back  1-5/Tab tabs                                          ? help  q quit

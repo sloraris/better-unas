@@ -13,7 +13,7 @@ never draws a screen, so it works in scripts, cron and over plain ssh:
     better-unas <tool> <command...>      a tool's own command (tool.conf CLI)
     better-unas --help | --version
 
-The work is done by core.updates and core.install, the same code the Tools
+The work is done by core.updates and core.install, the same code the Settings
 screen uses. The home is the folder holding core/ (BETTER_UNAS_HOME
 overrides it, for testing). See USAGE for the exit codes.
 """

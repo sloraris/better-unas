@@ -1,0 +1,24 @@
+ 1 Home │ 2 Alerts │ 3 Settings                                        ▲ v0.3.0
+ Settings › better-unas ──────────────────────────────────────────────────────
+ Version     v0.2.0  release
+ Update      ▲ v0.3.0 available
+             ↳ checked Sun 22 Nov 01:00. Press u to update.
+
+ better-u┌─ Confirm ──────────────────────────────────────────────────┐ changes
+ Updates │                                                            │
+   Develo│ Update better-unas v0.2.0 to v0.3.0?                       │
+   Branch│                                                            │
+         │ Downloads the release from GitHub and replaces better-unas │
+         │ and the tools' files. Config and state stay as they are.   │
+         │ Then runs the installer of: alpha.                         │
+         │ Stays off: beta.                                           │
+         │                                                            │
+         │                      [ Yes ]   [ No ]                      │
+         │                                                            │
+         └────────────────────────────────────────────────────────────┘
+
+ ──────────────────────────────────────────────────────────────────────────────
+ Follow the latest commit on a GitHub branch instead of releases. Settings ›
+ better-unas then offers each new commit as an update. For testing unreleased
+ y yes  n no  Enter pick  Esc no                                      ←→ choose
+

@@ -1,4 +1,4 @@
- 1 Home │ 2 Calendar │ 3 Drives │ 4 Settings │ 5 Alerts │ 6 Tools
+ 1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings
  Calendar › Mon 30 Nov 2026 ─────────────────────────────────── smart-scheduler
   Why no test starts this night
     - would overlap pool 2 scrub at Mon 30 Nov 02:30
@@ -21,4 +21,4 @@
 
 
                                                                       ↑↓ scroll
- Esc back  1-6/Tab tabs                                          ? help  q quit
+ Esc back  1-5/Tab tabs                                          ? help  q quit

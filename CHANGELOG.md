@@ -26,16 +26,23 @@ real NAS.
   settings, review, install), with `--dry-run`, `--ref` and `--force`. Finds
   an install made by the old `install.sh` and moves it over, keeping config
   and state. The root `install.sh` is gone (#15).
+- Where things live (docs/tui-style.md, step 2): the Tools tab is gone. Tabs
+  are Home, the tools' tabs, Alerts, Settings. Settings › better-unas has the
+  version, update (`u`), check (`c`), developer mode and remove (`R`); each
+  tool, installed or not, has a page in Settings with install (`i`) and
+  uninstall (`x`). Home shows an update notice only when there is one, and it
+  opens Settings › better-unas. Saving the developer-mode branch checks it at
+  once.
 - Screen style (docs/tui-style.md, step 1): keys on the action bar are
   reversed chips and the nav bar is dim, so the two no longer blend; the tab
   bar shows the installed version, or `▲ v…` when an update is out; screens
   get 1-column margins; text roles and status glyphs (with ASCII fallbacks)
   and `heading`, `panel` and `KeyValue` blocks for the screens to come.
-- After an update, install or uninstall on Tools, the app offers to restart
+- After an update, install or uninstall, the app offers to restart
   itself so the change loads without quitting and reopening.
 - Developer mode (Settings → better-unas): follow the newest commit on a
   GitHub branch instead of releases, pick the branch from GitHub's list in
-  Settings or with `b` on Tools, and
+  Settings, and
   `better-unas update` installs that commit. `update --ref` takes a branch,
   tag or commit for a one-off.
 - Plain commands: `better-unas status`, `list`, `update`, `install`,

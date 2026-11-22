@@ -1,4 +1,4 @@
- 1 Home │ 2 Calendar │ 3 Drives │ 4 Settings │ 5 Alerts │ 6 Tools
+ 1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings
  Drives ─────────────────────────────────────────────────────── smart-scheduler
    Slot Serial        Temp Last test  Next test   Every Status
       1 SERIAL1       41 C never      Thu 26 Nov    90d due
