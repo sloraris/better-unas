@@ -105,8 +105,8 @@ the user sets them once in Settings › Notifications:
 | `WEBHOOK_FORMAT` | choice | `text`, `json`, `slack` or `discord` |
 | `NOTIFY_SUCCESS` | bool | also send good news, e.g. a passed test |
 | `ALERT_REPEAT_HOURS` | int | send a still-active alert again after this long |
-| `HEARTBEAT_URL` | url | pinged after every healthy run |
-| `HEARTBEAT_FAIL_URL` | url | pinged instead when a run ends with errors |
+| `HEARTBEAT_URL` | url | pinged each time a tool's scheduled check ends without errors |
+| `HEARTBEAT_FAIL_URL` | url | pinged instead when a tool's scheduled check ends with errors |
 
 A tool doesn't import the core, so it reads these from
 `<home>/better-unas.conf` itself (a plain `KEY=VALUE` file, the folder above
@@ -157,7 +157,7 @@ follow the `# ---` sections of `config.example`.
 |---|---|---|
 | `id` | yes | Lowercase letters, digits and `-`; unique in the schema. |
 | `title` | yes | Section heading. |
-| `help` | no | Text shown under the heading. |
+| `help` | no | Text shown under the heading, on one line (at most 75 characters). |
 | `fields` | yes | Non-empty list of fields, in display order. |
 
 ### Fields: common keys
@@ -168,7 +168,7 @@ follow the `# ---` sections of `config.example`.
 | `type` | yes | One of the types below. |
 | `label` | yes | Short name shown in the form, at most 28 characters (the label column at 80 columns). |
 | `default` | yes | The default **as the text written in the config file**, e.g. `"90"`, `"yes"`, `"5,187,197,198"`, `""`. It must pass the field's own validation. |
-| `help` | no | One or two sentences shown under the field when it is selected and in the setup wizard. Usually the `config.example` comment, tightened. |
+| `help` | no | Shown under the form when the field is selected, and in the setup wizard. At most three lines at 76 columns; it says what the setting controls, what changing it does and when, and how to undo it if that isn't obvious (docs/tui-style.md §8). `core/tests/test_wording.py` checks the length and the glossary. |
 | `essential` | no | `true` puts the field in first-run setup (step 2). Keep it to the few settings someone must look at before the first run. Default `false`. |
 | `on_change` | no | `"install"`: a save that changes this field also runs the tool's `install.sh`, after the config is written, so the change takes effect without another step. The save asks first and says so. `install.sh` must then do the right thing for the config it finds (smart-scheduler's removes its timer when `ENABLED=no` and puts it back when yes). Help text never tells the user to reinstall by hand. |
 

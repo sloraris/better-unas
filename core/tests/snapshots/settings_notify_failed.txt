@@ -16,9 +16,9 @@
 
 
 
-
  ──────────────────────────────────────────────────────────────────────────────
- Pinged after every healthy run, so a monitor such as healthchecks.io or
- Uptime Kuma notices when runs stop.
+ Pinged each time a tool's scheduled check ends without errors, so a monitor
+ such as healthchecks.io or Uptime Kuma notices when the pings stop.
+
  ✗ Heartbeat URL: test failed: HTTP 404 Not Found
  Esc back  1-3/Tab tabs                                          ? help  q quit

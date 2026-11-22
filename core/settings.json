@@ -73,7 +73,7 @@
      "label": "Heartbeat URL",
      "default": "",
      "secret": true,
-     "help": "Pinged after every healthy run, so a monitor such as healthchecks.io or Uptime Kuma notices when runs stop."
+     "help": "Pinged each time a tool's scheduled check ends without errors, so a monitor such as healthchecks.io or Uptime Kuma notices when the pings stop."
     },
     {
      "key": "HEARTBEAT_FAIL_URL",
@@ -81,7 +81,7 @@
      "label": "Heartbeat URL on failure",
      "default": "",
      "secret": true,
-     "help": "Optional: pinged instead of the heartbeat when a run ends with errors."
+     "help": "Optional: pinged instead of the heartbeat when a tool's scheduled check ends with errors."
     }
    ]
   }

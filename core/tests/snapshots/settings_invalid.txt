@@ -16,9 +16,9 @@
 
 
 
-
  ──────────────────────────────────────────────────────────────────────────────
  Warn when the volume is fuller than this.
+
 
  ✗ Not saved: Warn above: value must be at least 50.
  Esc back  1-5/Tab tabs                                          ? help  q quit

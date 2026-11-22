@@ -16,9 +16,9 @@
 
 
 
-
  ──────────────────────────────────────────────────────────────────────────────
  Where every tool's alerts go, e.g. an ntfy topic or a Slack or Discord
  webhook. Empty: alerts go only to the system log.
+
  Enter done  Esc cancel
 

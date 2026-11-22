@@ -16,9 +16,9 @@
 
 
 
-
  ──────────────────────────────────────────────────────────────────────────────
  Set to no to stop checking.
+
 
  s save  Space toggle  x uninstall  i reinstall                         ↑↓ move
  Esc back  1-5/Tab tabs                                          ? help  q quit

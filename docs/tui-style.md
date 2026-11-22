@@ -1,6 +1,6 @@
 # better-unas TUI: style and layout
 
-Status: steps 1 to 7 of the build order (§12) are built: roles, glyphs, chips, the action and nav bars, margins, the version in the tab bar, `heading`, `panel` and `KeyValue`; the Tools tab is gone, with updates and remove in Settings › better-unas and install / uninstall on each tool's page; the webhook and heartbeat are in Settings › Notifications (`better-unas.conf`) with `t` send test, and Alerts shows where alerts are sent; an editing text field opens a full-width box, and `on_change: install` makes saving do the follow-up step (smart-scheduler's Enabled); Home tool cards are panels with one stop each, and only items that lead elsewhere (a drive's page) are stops too; the Drives list, Drive page and Calendar have the layouts in §10 and smart-scheduler's vocabulary (§8). The rest is spec. It applies to every screen in the core and in every tool. The building blocks it describes live in `core/tui/widgets.py`, so a screen that follows this spec has little to decide for itself. What the app does is in [tui-design.md](tui-design.md); this file covers how it looks and reads.
+Status: all 8 steps of the build order (§12) are built. The checks in §11 keep it that way: snapshot tests for the layouts below, and `core/tests/test_wording.py` for the wording in §8. It applies to every screen in the core and in every tool. The building blocks it describes live in `core/tui/widgets.py`, so a screen that follows this spec has little to decide for itself. What the app does is in [tui-design.md](tui-design.md); this file covers how it looks and reads.
 
 Where this came from: the first hardware run showed screens that worked but read as a wall of same-looking text. The problems are covered in the rules below. Each rule says which problem it fixes, so it doesn't get "simplified" away later.
 
@@ -382,7 +382,7 @@ The mockups below show layout only. Tones and chips are described under each one
 
 - **Widget tests** cover each role, the chips, glyph fallbacks under ASCII, and the full-width editor.
 - **Snapshot tests** keep the headless screens matching the layouts above.
-- **A wording lint** (`core/tests/test_wording.py`) reads every schema's help text and every plugin's summary and screen strings from the fixtures. It flags words from the "Not" column of the glossary, `-` as a value, and help text over three lines.
+- **A wording lint** (`core/tests/test_wording.py`) reads every schema's labels and help, and every screen the TUI draws from smart-scheduler's fixtures (Home, Calendar and a day, Drives and each drive, Alerts, each Settings page). It flags words from the "Not" column of the glossary, in the sense the glossary rules them out (`reinstall` for updating, not `[i] reinstall` for a tool), `-` standing alone as a value, field help over three lines at 76 columns and group help over one. The settings form shows all three lines of a field's help.
 - **The screen captures** in `docs/screens/` are regenerated with each change, so the README shows what's real.
 
 ## 12. Build order

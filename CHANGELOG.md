@@ -71,6 +71,14 @@ real NAS.
   the date as a heading, status rows and `! No test tonight: …` reasons in
   short words (`one is already running`, `scrub on pool 2 at 02:30`). Day
   details are headed sections with notes, and long rows wrap.
+- Wording (docs/tui-style.md, step 8): `core/tests/test_wording.py` lints
+  every settings schema and every screen drawn from the fixtures for the
+  glossary's ruled-out words, a lone `-` as a value, and help longer than
+  the form shows. The settings form now shows three lines of help, not two.
+  Help reworded where it said "run" for the hourly check, "pauses", or
+  didn't say what a setting sets (heartbeat URLs, Starts per night, Old
+  drive, Drive with warning signs, Old-drive age, Retry after a failure,
+  Busy drive above).
 - Screen style (docs/tui-style.md, step 1): keys on the action bar are
   reversed chips and the nav bar is dim, so the two no longer blend; the tab
   bar shows the installed version, or `▲ v…` when an update is out; screens

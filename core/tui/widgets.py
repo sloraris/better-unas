@@ -1198,7 +1198,7 @@ class Form:
 
     def render(self, canvas):
         more = canvas.symbols["more"]
-        help_h = 3 if canvas.height >= 10 else 0
+        help_h = 4 if canvas.height >= 12 else (3 if canvas.height >= 10 else 0)
         area = canvas.sub(0, 0, canvas.height - help_h, canvas.width)
         lines = []           # (kind, payload)
         sel_line = anchor = 0
@@ -1255,9 +1255,10 @@ class Form:
                     sel_y = y
         _indicators(area, self.top, rows, len(lines))
         if help_h:
-            canvas.text(canvas.height - 3, 0, canvas.symbols["h"] * canvas.width, "dim")
-            for i, line in enumerate(wrap(self.current.help, canvas.width - 2)[:2]):
-                canvas.text(canvas.height - 2 + i, 0, line, "dim")
+            # docs/tui-style.md §8: help is at most three lines; the form shows them all.
+            canvas.text(canvas.height - help_h, 0, canvas.symbols["h"] * canvas.width, "dim")
+            for i, line in enumerate(wrap(self.current.help, canvas.width - 2)[:help_h - 1]):
+                canvas.text(canvas.height - help_h + 1 + i, 0, line, "dim")
         size = self.current.popup_size() if self.current.editing else None
         if size and sel_y is not None:
             h, w = min(size[0], area.height), min(size[1], area.width - self.LABEL_W)
