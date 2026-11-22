@@ -527,6 +527,23 @@ def smart_facts(device, attr_ids):
     return minutes, attrs
 
 
+def self_test_progress(device):
+    """Percent remaining of a self-test the drive itself says is running, else None.
+
+    UniFi Drive's history only lists tests started through Drive. A test
+    started another way (smartctl -t long, another tool) shows up only here."""
+    rc, out = sh("smartctl", "-j", "-c", device, timeout=30)
+    try:
+        status = json.loads(out).get("ata_smart_data", {}).get("self_test", {}).get("status", {})
+    except (ValueError, AttributeError):
+        return None
+    value = status.get("value") if isinstance(status, dict) else None
+    if not isinstance(value, int) or value >> 4 != 0xF:   # 0xF_: in progress, low nibble = tenths left
+        return None
+    pct = status.get("remaining_percent")
+    return pct if isinstance(pct, int) else (value & 0xF) * 10
+
+
 def get_storage():
     status, data = api("GET", "/storage")
     if status == 404:
@@ -663,8 +680,10 @@ def evaluate_drives(cfg, storage, user_id, state, alerts, report=True):
                 "excluded": serial in excluded, "running": False,
                 "kbps": (d.get("readKBPS") or 0) + (d.get("writeKBPS") or 0)}
         result.append(info)
+        left = self_test_progress(devices[serial]) if serial in devices else None
         if info["excluded"]:
             info["reason"] = "excluded in config"
+            _mark_outside_test(info, left)
             continue
         try:
             history = get_history(slot, serial, user_id)
@@ -672,10 +691,12 @@ def evaluate_drives(cfg, storage, user_id, state, alerts, report=True):
         except ApiError as e:
             if not report:
                 info["reason"], info["error"] = f"history unavailable: {e.detail}", True
+                _mark_outside_test(info, left)
                 continue
             alerts.raise_(f"history:{serial}", f"Couldn't read SMART history for slot {slot} ({serial}): {e.detail}")
             info["reason"] = "history unavailable"
             info["error"] = True
+            _mark_outside_test(info, left)
             continue
         extended = [h for h in history if str(h.get("type")).lower() == "extended"]
         finished = sorted((h for h in extended if not is_running(h)),
@@ -703,7 +724,20 @@ def evaluate_drives(cfg, storage, user_id, state, alerts, report=True):
                 alerts.info(f"Extended SMART test on slot {slot} ({serial}) passed.")
 
         info.update(planner.assess(cfg, d, history, attrs, baseline, t))
+        _mark_outside_test(info, left)
     return result
+
+
+def _mark_outside_test(info, left):
+    """A test the drive says is running but Drive's history doesn't list
+    (started with smartctl or another tool). It counts as running everywhere."""
+    if left is None:
+        return
+    info["remaining_percent"] = left
+    if not info.get("running"):
+        info["running"] = True
+        info["outside_drive"] = True
+        info["reason"] = f"test running outside UniFi Drive ({left}% left)"
 
 
 def read_backups(cfg, tz):

@@ -34,6 +34,7 @@ class Fake:
             self.storage = json.load(f)
         self.history = {}      # slot -> list of tests
         self.attrs = {}        # serial -> {attr id: raw}
+        self.progress = {}     # serial -> % left of a self-test the drive reports
         self.calls = []
 
     def api(self, method, path, user_id=None, body=None, timeout=15):
@@ -50,6 +51,7 @@ class Fake:
         ss.api = self.api
         ss.serial_to_device = lambda: {d["serial"]: "/dev/" + d["serial"] for d in self.storage["disks"]}
         ss.smart_facts = lambda dev, ids: (571, self.attrs.get(dev[5:], {}))
+        ss.self_test_progress = lambda dev: self.progress.get(dev[5:])
         ss.log = lambda *a, **k: None
 
 
@@ -119,6 +121,34 @@ class SchedulingTests(unittest.TestCase):
         drives = list(self.drives().values())
         self.assertEqual(ss.start_gate(self.cfg, self.fake.storage, drives, self.state, NIGHT),
                          "a SMART test is already running")
+
+    def test_test_started_outside_drive_counts_as_running(self):
+        # Drive's history is empty, but the drive itself says a test is 80% done.
+        self.fake.progress["SERIAL4"] = 20
+        d = self.drives()["SERIAL4"]
+        self.assertTrue(d["running"])
+        self.assertTrue(d["outside_drive"])
+        self.assertIn("outside UniFi Drive (20% left)", d["reason"])
+        self.assertEqual(ss.start_gate(self.cfg, self.fake.storage, list(self.drives().values()), self.state, NIGHT),
+                         "a SMART test is already running")
+
+    def test_outside_test_on_excluded_drive_still_counts(self):
+        self.fake.progress["SERIAL4"] = 50
+        with tempfile.NamedTemporaryFile("w", delete=False) as f:
+            f.write("EXCLUDE_SERIALS=SERIAL4\n")
+        try:
+            self.cfg = ss.Config(f.name)
+        finally:
+            os.unlink(f.name)
+        d = self.drives()["SERIAL4"]
+        self.assertTrue(d["excluded"] and d["running"])
+
+    def test_drive_test_listed_by_drive_is_not_marked_outside(self):
+        self.fake.history["4"] = [ext(9, "running", None, None, "2026-11-22T00:10:00-07:00")]
+        self.fake.progress["SERIAL4"] = 60
+        d = self.drives()["SERIAL4"]
+        self.assertTrue(d["running"])
+        self.assertNotIn("outside_drive", d)
 
     def test_unhealthy_pool_closes_gate(self):
         self.fake.storage["pools"][0]["status"] = "degraded"

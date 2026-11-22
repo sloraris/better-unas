@@ -161,6 +161,15 @@ def _gather(slot, kind, cfg, t, state):
                 continue
             if any(ss.is_running(h) for h in history):
                 checks.append(_block("running", f"a SMART test is already running on slot {d['slotId']}"))
+    # Tests started outside UniFi Drive (smartctl, other tools) only show on the drive itself.
+    devices = ss.serial_to_device()
+    for d in storage["disks"]:
+        dev = devices.get(d.get("serial"))
+        left = ss.self_test_progress(dev) if dev and d.get("smartTestSupported") else None
+        if left is not None and not any(c.code == "running" and f"slot {d['slotId']}" in c.reason
+                                        for c in checks):
+            checks.append(_block("running", f"a SMART test is already running on slot {d['slotId']} "
+                                            f"(started outside UniFi Drive, {left}% left)"))
 
     busy = cfg.int("BUSY_KBPS")
     kbps = (disk.get("readKBPS") or 0) + (disk.get("writeKBPS") or 0)

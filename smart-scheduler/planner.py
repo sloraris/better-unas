@@ -358,11 +358,17 @@ def plan(storage, drives, state, cfg, now, horizon=None, windows=(), not_before=
     sim = []
     for d in drives:
         s = dict(d)
-        if s.get("running") and not s.get("excluded") and not s.get("error"):
-            # Assume the running test passes and ends after its estimated length.
-            s["busy_until"] = now + test_length(cfg, s.get("minutes"))
-            s["due"] = s["busy_until"] + dt.timedelta(days=s["interval"])
-            s["reason"] = f"every {s['interval']} days ({s.get('why', 'after the running test')})"
+        if s.get("running"):
+            # Assume the running test passes and ends after its estimated length
+            # (scaled by what the drive says is left). It blocks other starts even
+            # on an excluded drive or one whose history couldn't be read.
+            length = test_length(cfg, s.get("minutes"))
+            if isinstance(s.get("remaining_percent"), int):
+                length = length * max(s["remaining_percent"], 10) / 100
+            s["busy_until"] = now + length
+            if not s.get("excluded") and not s.get("error") and s.get("interval"):
+                s["due"] = s["busy_until"] + dt.timedelta(days=s["interval"])
+                s["reason"] = f"every {s['interval']} days ({s.get('why', 'after the running test')})"
         s["running"] = False
         sim.append(s)
     wanted = {s["serial"] for s in sim if not s.get("excluded") and not s.get("error") and s.get("due")}

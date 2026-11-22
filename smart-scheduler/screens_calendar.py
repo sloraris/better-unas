@@ -118,6 +118,14 @@ def gather(ss, ctx):
                 "slot": d["slot"], "serial": d["serial"], "model": d.get("model", "?"),
                 "start": start, "end": end.astimezone(tz) if end else None, "outcome": outcome,
                 "status": h.get("status"), "result": h.get("result")})
+    # Tests the drive is running that Drive's history doesn't list (started with
+    # smartctl or another tool). Their start time is unknown, so they sit on today.
+    for d in drives:
+        if d.get("outside_drive"):
+            day(_night(planner, cfg, t))["tests"].append({
+                "slot": d["slot"], "serial": d["serial"], "model": d.get("model", "?"),
+                "start": t, "end": None, "outcome": "running", "outside": True,
+                "left": d.get("remaining_percent"), "status": "outside UniFi Drive", "result": None})
     for v in days.values():
         v["tests"].sort(key=lambda x: x["start"])
 
@@ -210,6 +218,9 @@ def marks(info):
 def outcome_text(x):
     word = {"passed": "passed", "failed": "failed", "running": "running"}[x["outcome"]]
     detail = f" ({x['status']}/{x['result']})" if x["outcome"] == "failed" else ""
+    if x.get("outside"):
+        left = f", {x['left']}% left" if x.get("left") is not None else ""
+        return word, f"started outside UniFi Drive{left}"
     span = f"{x['start']:%H:%M}" + (f"-{_hm(x['end'], x['start'].date())}" if x["end"] else "")
     return word + detail, span
 

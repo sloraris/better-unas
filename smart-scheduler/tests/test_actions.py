@@ -121,6 +121,18 @@ class CheckTests(Base):
         self.fake.history["3"] = [ext(9, "running", None, None, "2026-11-22T00:10:00-07:00")]
         self.assertEqual(self.codes(), [("running", False)])
 
+    def test_test_started_outside_drive_blocks(self):
+        self.fake.progress["SERIAL3"] = 20
+        checks = actions.check_run_now("6", "quick", cfg=self.cfg)
+        self.assertEqual([(c.code, c.overridable) for c in checks], [("running", False)])
+        self.assertIn("slot 3", checks[0].reason)
+        self.assertIn("outside UniFi Drive, 20% left", checks[0].reason)
+
+    def test_drive_listed_test_is_not_reported_twice(self):
+        self.fake.history["3"] = [ext(9, "running", None, None, "2026-11-22T00:10:00-07:00")]
+        self.fake.progress["SERIAL3"] = 60
+        self.assertEqual(self.codes(), [("running", False)])
+
     def test_unreadable_history_blocks(self):
         real = self.fake.api
 

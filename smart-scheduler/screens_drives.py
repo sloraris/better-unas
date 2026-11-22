@@ -144,7 +144,11 @@ def schedule_lines(ss, d, tz):
     if d.get("excluded"):
         out.append(("Next test", "none: excluded", "dim"))
     elif d.get("running"):
-        out.append(("Next test", "a test is running now", "warn"))
+        how = ""
+        if d.get("outside_drive"):
+            left = d.get("remaining_percent")
+            how = " (started outside UniFi Drive" + (f", {left}% left)" if left is not None else ")")
+        out.append(("Next test", "a test is running now" + how, "warn"))
     elif d.get("next"):
         out.append(("Next test", f"{d['next']['start']:%a %d %b %H:%M} (planned)", "warn"))
     else:
