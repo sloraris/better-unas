@@ -1,0 +1,164 @@
+{
+  "contract": 1,
+  "groups": [
+    {
+      "id": "general",
+      "title": "General",
+      "fields": [
+        {
+          "key": "ENABLED",
+          "type": "bool",
+          "label": "Enabled",
+          "default": "yes",
+          "on_change": "install",
+          "help": "The check every 15 minutes. Off: saving removes its timer. On: saving puts the timer back."
+        }
+      ]
+    },
+    {
+      "id": "smart",
+      "title": "SMART counters",
+      "help": "Every drive in a bay. A rise is a warning; another soon after is an error.",
+      "fields": [
+        {
+          "key": "WATCH_ATTRIBUTES",
+          "type": "checklist",
+          "label": "Watched attributes",
+          "options": [
+            {"value": "5", "label": "reallocated sectors"},
+            {"value": "187", "label": "reported uncorrectable"},
+            {"value": "197", "label": "pending sectors"},
+            {"value": "198", "label": "offline uncorrectable"},
+            {"value": "199", "label": "interface CRC (often a cable)"}
+          ],
+          "other": "Other IDs",
+          "prefix": "S",
+          "min": 1,
+          "max": 255,
+          "default": "5,187,197,198",
+          "help": "Any rise in one of these is a warning. Drives that are asleep are skipped, never woken."
+        },
+        {
+          "key": "RISE_ERROR_JUMP",
+          "type": "int",
+          "label": "Error on a jump of",
+          "unit": "or more",
+          "min": 1,
+          "max": 100000,
+          "default": "10",
+          "help": "A rise this big in one reading is an error at once. So is a counter that rises again before its alert clears."
+        },
+        {
+          "key": "QUIET_DAYS",
+          "type": "int",
+          "label": "Clear after",
+          "unit": "quiet days",
+          "min": 1,
+          "max": 365,
+          "default": "7",
+          "help": "A SMART or btrfs alert clears after this many days with no further rise. A later rise opens it again."
+        },
+        {
+          "key": "EXCLUDE_SERIALS",
+          "type": "serial_list",
+          "label": "Never watch",
+          "default": "",
+          "help": "Drives to leave out, by serial number."
+        }
+      ]
+    },
+    {
+      "id": "prefail",
+      "title": "Close to failing, checked at install",
+      "help": "The first reading only warns about drives already near these limits.",
+      "fields": [
+        {
+          "key": "PREFAIL_MARGIN",
+          "type": "int",
+          "label": "Threshold margin",
+          "min": 0,
+          "max": 100,
+          "default": "10",
+          "help": "Warn when an attribute's normalized value is within this much of the manufacturer's threshold."
+        },
+        {
+          "key": "PREFAIL_S5",
+          "type": "int",
+          "label": "S5 limit",
+          "unit": "sectors",
+          "min": 1,
+          "max": 1000000,
+          "default": "100",
+          "help": "Warn when S5 (reallocated sectors) is at least this."
+        },
+        {
+          "key": "PREFAIL_S187",
+          "type": "int",
+          "label": "S187 limit",
+          "unit": "errors",
+          "min": 1,
+          "max": 1000000,
+          "default": "10",
+          "help": "Warn when S187 (reported uncorrectable) is at least this."
+        },
+        {
+          "key": "PREFAIL_S197",
+          "type": "int",
+          "label": "S197 limit",
+          "unit": "sectors",
+          "min": 1,
+          "max": 1000000,
+          "default": "10",
+          "help": "Warn when S197 (pending sectors) is at least this."
+        },
+        {
+          "key": "PREFAIL_S198",
+          "type": "int",
+          "label": "S198 limit",
+          "unit": "sectors",
+          "min": 1,
+          "max": 1000000,
+          "default": "100",
+          "help": "Warn when S198 (offline uncorrectable) is at least this."
+        }
+      ]
+    },
+    {
+      "id": "arrays",
+      "title": "Arrays",
+      "help": "A parity check that finds mismatches is always a warning.",
+      "fields": [
+        {
+          "key": "MD_STATE_ALERTS",
+          "type": "bool",
+          "label": "Alert on degraded arrays",
+          "default": "no",
+          "help": "UNAS already alerts when an array degrades. Yes: health-monitor does too, for data arrays only, and says when one has recovered."
+        }
+      ]
+    },
+    {
+      "id": "heartbeat",
+      "title": "Heartbeat",
+      "help": "Empty: the shared heartbeat URLs in Notifications are used.",
+      "fields": [
+        {
+          "key": "OWN_HEARTBEAT_URL",
+          "type": "url",
+          "label": "Own heartbeat URL",
+          "default": "",
+          "secret": true,
+          "help": "Pinged after every check that ends without errors, so this tool has its own check (a 15-minute period) apart from the others."
+        },
+        {
+          "key": "OWN_HEARTBEAT_FAIL_URL",
+          "type": "url",
+          "label": "Own heartbeat URL on failure",
+          "default": "",
+          "secret": true,
+          "help": "Pinged instead when a check ends with errors. Used only with the own heartbeat URL."
+        }
+      ]
+    }
+  ]
+}

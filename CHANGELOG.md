@@ -131,6 +131,18 @@ real NAS.
   attributes use it: S5, S187, S197 and S198 ticked, S199 offered but off.
   The config text is unchanged (`5,187,197,198`).
 
+- health-monitor (#18), a new tool: every 15 minutes it reads the watched
+  SMART counters of every drive in a bay (asleep drives skipped, never
+  woken), btrfs device error counters and md parity checks, and alerts when
+  one rises. A SMART rise is a warning, an error when it repeats before the
+  alert clears or jumps by 10 or more; alerts clear after 7 quiet days. The
+  first check warns only about drives already close to failing. Degraded
+  array alerts are a setting, off by default. Home card, no screens.
+- Heartbeat per tool: smart-scheduler and health-monitor each have an
+  optional Own heartbeat URL (and one on failure). When set, the tool pings
+  its own pair instead of the shared one, so one tool stopping isn't hidden
+  by the other's pings.
+
 ### smart-scheduler
 
 - Shared planner (`planner.py`): the hourly run and the plan in `status` and

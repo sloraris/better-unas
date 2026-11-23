@@ -107,6 +107,14 @@ class SharedSettingsTests(unittest.TestCase):
         self.assertEqual(c["WEBHOOK_FORMAT"], "text")
         self.assertEqual(c.errors, ["WEBHOOK_FORMAT: want one of text, json, slack, discord"])
 
+    def test_own_heartbeat_pair_wins_over_the_shared_one(self):
+        self.write(self.core, "HEARTBEAT_URL=https://hc.example/shared\nHEARTBEAT_FAIL_URL=https://hc.example/shared/fail\n")
+        self.assertEqual(ss.heartbeat_urls(self.config()),
+                         ("https://hc.example/shared", "https://hc.example/shared/fail"))
+        self.write(self.tool, "OWN_HEARTBEAT_URL=https://hc.example/ss\n")
+        # The own pair is used whole: no failure ping to the shared check.
+        self.assertEqual(ss.heartbeat_urls(self.config()), ("https://hc.example/ss", ""))
+
     def test_old_keys_in_the_tool_config_are_not_unknown(self):
         self.write(self.tool, "HEARTBEAT_URL=https://hc.example/ping\nNOPE=1\n")
         self.assertEqual(self.config().errors, ["NOPE: unknown setting"])

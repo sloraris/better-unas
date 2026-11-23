@@ -1,0 +1,8 @@
+# Installed by health-monitor. Restored automatically if removed or changed.
+[Unit]
+Description=Check drive and filesystem error counters
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 @BASE@/health_monitor.py run --source timer
+Nice=10

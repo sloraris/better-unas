@@ -1,6 +1,6 @@
 # health-monitor design
 
-Agreed design for health-monitor (#18). It is not built yet; this page is the spec the build follows.
+Agreed design for health-monitor (#18), built in `health-monitor/` (see its README for what it reads on the NAS). Not yet run on a NAS.
 
 ## What it is
 

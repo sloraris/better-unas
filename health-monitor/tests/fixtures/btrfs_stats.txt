@@ -1,0 +1,5 @@
+[/dev/mapper/vgdata-lvdata].write_io_errs    0
+[/dev/mapper/vgdata-lvdata].read_io_errs     0
+[/dev/mapper/vgdata-lvdata].flush_io_errs    0
+[/dev/mapper/vgdata-lvdata].corruption_errs  0
+[/dev/mapper/vgdata-lvdata].generation_errs  0

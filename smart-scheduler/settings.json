@@ -217,6 +217,29 @@
           "help": "Upload speed to the backup provider, used with no run history when the task has no bandwidth limit. 0 = unknown."
         }
       ]
+    },
+    {
+      "id": "heartbeat",
+      "title": "Heartbeat",
+      "help": "Empty: the shared heartbeat URLs in Notifications are used.",
+      "fields": [
+        {
+          "key": "OWN_HEARTBEAT_URL",
+          "type": "url",
+          "label": "Own heartbeat URL",
+          "default": "",
+          "secret": true,
+          "help": "Pinged after every hourly check that ends without errors, so this tool has its own check (an hourly period) apart from the others."
+        },
+        {
+          "key": "OWN_HEARTBEAT_FAIL_URL",
+          "type": "url",
+          "label": "Own heartbeat URL on failure",
+          "default": "",
+          "secret": true,
+          "help": "Pinged instead when the hourly check ends with errors. Used only with the own heartbeat URL."
+        }
+      ]
     }
   ]
 }

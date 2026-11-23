@@ -428,6 +428,14 @@ def send_webhook(url, fmt, m, host=None, timeout=10):
     return open_url(req, timeout)
 
 
+def heartbeat_urls(cfg):
+    """(ok URL, failure URL): the tool's own pair when OWN_HEARTBEAT_URL is
+    set, else the shared pair from Notifications."""
+    if cfg["OWN_HEARTBEAT_URL"]:
+        return cfg["OWN_HEARTBEAT_URL"], cfg["OWN_HEARTBEAT_FAIL_URL"]
+    return cfg["HEARTBEAT_URL"], cfg["HEARTBEAT_FAIL_URL"]
+
+
 def ping(url):
     if not url:
         return
@@ -980,10 +988,8 @@ def cmd_run(cfg, args):
     state["last_tick"] = t.isoformat()
     alerts.flush()
     if not dry:
-        if alerts.has_errors():
-            ping(cfg["HEARTBEAT_FAIL_URL"])
-        else:
-            ping(cfg["HEARTBEAT_URL"])
+        ok_url, fail_url = heartbeat_urls(cfg)
+        ping(fail_url if alerts.has_errors() else ok_url)
     save_state(state, dry)
     return 1 if alerts.has_errors() else 0
 

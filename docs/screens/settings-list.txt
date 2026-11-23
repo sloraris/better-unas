@@ -7,7 +7,7 @@
    Notifications        webhook: off · heartbeat: off
 
  Tools
-   smart-scheduler      ! installed  20 settings
+   smart-scheduler      ! installed  22 settings
 
 
 

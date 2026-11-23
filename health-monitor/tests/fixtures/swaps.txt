@@ -1,0 +1,2 @@
+Filename				Type		Size		Used		Priority
+/dev/md0                                partition	2097084		0		-2
