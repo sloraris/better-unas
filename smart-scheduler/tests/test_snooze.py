@@ -120,7 +120,7 @@ class SnoozeSchedulingTests(unittest.TestCase):
         text = out.getvalue()
         self.assertIn("  Next test: not before Wed 25 Nov 2026 (snoozed)", text)
         self.assertIn("  Snoozed:   until Wed 25 Nov 2026 (RMA)", text)
-        self.assertIn("Wed 25 Nov 00:00  slot 6 (SERIAL6)", text)
+        self.assertIn("Wed 25 Nov 00:00  Drive 6 (SERIAL6)", text)
 
 
 class SnoozeCliTests(unittest.TestCase):
@@ -150,19 +150,19 @@ class SnoozeCliTests(unittest.TestCase):
     def test_round_trip_by_slot_and_serial(self):
         rc, out = self.main("snooze", "6", "2026-12-01", "--note", "waiting for RMA")
         self.assertEqual(rc, 0)
-        self.assertEqual(out.strip(), "Snoozed slot 6 (SERIAL6): no test before Tue 01 Dec 2026 (waiting for RMA).")
+        self.assertEqual(out.strip(), "Snoozed Drive 6 (SERIAL6): no test before Tue 01 Dec 2026 (waiting for RMA).")
         self.assertEqual(self.state()["snoozes"]["SERIAL6"]["until"], "2026-12-01")
         rc, out = self.main("unsnooze", "SERIAL6")
-        self.assertEqual((rc, out.strip()), (0, "Removed the snooze on slot 6 (SERIAL6)."))
+        self.assertEqual((rc, out.strip()), (0, "Removed the snooze on Drive 6 (SERIAL6)."))
         self.assertNotIn("snoozes", self.state())
         rc, out = self.main("unsnooze", "6")
-        self.assertEqual((rc, out.strip()), (0, "slot 6 (SERIAL6) isn't snoozed."))
+        self.assertEqual((rc, out.strip()), (0, "Drive 6 (SERIAL6) isn't snoozed."))
 
     def test_bad_input(self):
         self.assertEqual(self.main("snooze", "6")[0], 2)
         self.assertEqual(self.main("snooze", "6", "1 Dec")[0], 2)
         rc, out = self.main("snooze", "99", "2026-12-01")
-        self.assertEqual((rc, out.strip()), (1, "no drive with slot or serial '99'."))
+        self.assertEqual((rc, out.strip()), (1, "no drive with number or serial '99'."))
         rc, out = self.main("snooze", "6", "2026-11-01")
         self.assertEqual(rc, 1)
         self.assertIn("isn't after today", out)
@@ -171,7 +171,7 @@ class SnoozeCliTests(unittest.TestCase):
     def test_dry_run_writes_nothing(self):
         rc, out = self.main("snooze", "6", "2026-12-01", "--dry-run")
         self.assertEqual(rc, 0)
-        self.assertTrue(out.startswith("(dry-run) would snooze slot 6"))
+        self.assertTrue(out.startswith("(dry-run) would snooze Drive 6"))
         self.assertFalse(os.path.exists(ss.STATE_FILE))
 
     def test_unsnooze_a_removed_drive_while_the_api_is_down(self):

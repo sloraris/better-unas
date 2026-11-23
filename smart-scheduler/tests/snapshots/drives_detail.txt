@@ -1,6 +1,6 @@
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │    1 Home     │  2 Calendar   │   3 Drives    │   4 Alerts    │  5 Settings  │
-└─ Slot 5 ─────────────────────────────────────────────────── smart-scheduler ─┘
+└─ Drive 5 ────────────────────────────────────────────────── smart-scheduler ─┘
 
  WDC WD4002FYYZ-01B7CB0   SERIAL5   4 TB                        ! warning signs
 
@@ -8,11 +8,11 @@
  │ Last test   ✓ Tue 20 Oct  passed   │  │ Temperature                   48°C │
  │ Next test   ○ Mon 23 Nov 00:00     │  │ Power-on            59,080 h  6.7y │
  │ Why         warning signs          │  │                                    │
- │ Interval    30 days  warning signs │  │ Reallocated sectors     0        5 │
- │ Snoozed     no                     │  │ Uncorrectable errors    0      187 │
- │ Excluded    no                     │  │ Pending sectors         3 ↑3   197 │
- │                                    │  │ Offline uncorrectable   0      198 │
- │                                    │  │ Interface CRC errors    2      199 │
+ │ Interval    30 days  watch         │  │ Reallocated sectors     0       S5 │
+ │ Snoozed     no                     │  │ Uncorrectable errors    0     S187 │
+ │ Excluded    no                     │  │ Pending sectors         3 ↑3  S197 │
+ │                                    │  │ Offline uncorrectable   0     S198 │
+ │                                    │  │ Interface CRC errors    2     S199 │
  └────────────────────────────────────┘  └────────────────────────────────────┘
 
  Test history (UniFi Drive)

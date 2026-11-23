@@ -115,6 +115,17 @@ real NAS.
 - Enter's label in the action bar is just `open` on every screen; the
   selected row, panel or `›` hint already says where it goes.
 
+- Wording: drives are "Drive N" everywhere (screens, alerts, the CLI's
+  `<drive|serial>`), not "slot N", and SMART attributes are written "S197",
+  e.g. `S197 0->3`. The glossary and the wording lint cover both.
+- smart-scheduler: a test planned because its interval came round names
+  that interval as its reason instead of `due`: `default interval`,
+  `old-drive interval`, `watch interval` (30 days after warning signs) or
+  `drive interval` (set per drive). A test moved sooner by warning signs or
+  a retry stands out on the Calendar. The Drive page's interval source uses
+  the same words beside the days (`30 days  watch`, `14 days  drive`).
+- Design for health-monitor (#18): `docs/health-monitor-design.md`.
+
 ### smart-scheduler
 
 - Shared planner (`planner.py`): the hourly run and the plan in `status` and

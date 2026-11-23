@@ -7,7 +7,7 @@ real plugin, planner and backup code. UniFi Drive's API, smartctl, psql and
 systemctl are faked as in test_scheduling, so nothing touches a NAS.
 
 The clock is Sun 22 Nov 2026 01:00 (-07:00), inside the default start window.
-Fixture facts (see test_planner): slot 6 has a warning attribute (30 days),
+Fixture facts (see test_planner): Drive 6 has a warning attribute (30 days),
 slots 4, 5, 7 are old (60 days), slots 1-3 healthy (90 days); the pool scrubs
 on the last day of each month at 02:30 (next Mon 30 Nov).
 
@@ -119,8 +119,8 @@ class CalendarFixture:
 
 
 def with_history(fake):
-    """Slot 3 passed early in November, slot 4 failed, slot 5 passed in October,
-    and slot 1's test is running right now."""
+    """Drive 3 passed early in November, Drive 4 failed, Drive 5 passed in October,
+    and Drive 1's test is running right now."""
     fake.history["3"] = [ext(31, "successful", "optimal", "2026-11-03T10:30:00-07:00", "2026-11-03T01:00:00-07:00")]
     fake.history["4"] = [ext(41, "failed", "failed", "2026-11-12T03:10:00-07:00", "2026-11-12T01:00:00-07:00")]
     fake.history["5"] = [ext(51, "successful", "optimal", "2026-10-20T11:00:00-07:00", "2026-10-20T01:00:00-07:00")]
@@ -144,7 +144,7 @@ class CalendarScreenTests(CalendarFixture, unittest.TestCase):
         today = self.screen.data["days"][dt.date(2026, 11, 22)]
         self.assertEqual([(x["slot"], x["outcome"]) for x in today["tests"]], [("4", "running")])
         self.assertIn("a SMART test is already running", today["skipped"])
-        self.assertIn("▶ Slot 4  test running outside UniFi Drive, 10% done", text)
+        self.assertIn("▶ Drive 4  test running outside UniFi Drive, 10% done", text)
         self.assertIn("! No test tonight: one is already running", text)
         self.assertNotIn("SERIAL4", {s for n, s in self.planned() if n == "2026-11-22"})
 
@@ -157,10 +157,10 @@ class CalendarScreenTests(CalendarFixture, unittest.TestCase):
         self.assertEqual([x["outcome"] for x in days[dt.date(2026, 11, 3)]["tests"]], ["passed"])
         self.assertEqual([x["outcome"] for x in days[dt.date(2026, 11, 12)]["tests"]], ["failed"])
         self.assertEqual([x["outcome"] for x in days[dt.date(2026, 11, 22)]["tests"]], ["running"])
-        # Slot 1's running test holds tonight; the plan starts tomorrow, most urgent first.
+        # Drive 1's running test holds tonight; the plan starts tomorrow, most urgent first.
         self.assertIn("a SMART test is already running", days[dt.date(2026, 11, 22)]["skipped"])
         self.assertEqual(self.planned()[0], ("2026-11-23", "SERIAL6"))
-        # The plan runs until every drive has a test (slot 3's is in February);
+        # The plan runs until every drive has a test (Drive 3's is in February);
         # short-interval drives come round again before that.
         self.assertEqual({s for _, s in self.planned()}, {f"SERIAL{i}" for i in range(1, 8)})
         self.assertEqual(self.screen.data["plan_until"], dt.date(2027, 2, 21))
@@ -174,14 +174,14 @@ class CalendarScreenTests(CalendarFixture, unittest.TestCase):
         self.assertIn("planned through Sun 21 Feb 2027", lines[4])   # the year: not this one
         self.assertRegex(lines[18], r"^ ── ○ planned  ✓ passed  ✗ failed  ▶ running  ↻ scrub  ⇡ backup ─+$")
         self.assertIn("Sunday 22 November", lines[19])
-        self.assertIn("▶ Slot 1  extended test running, started 00:10", text)
+        self.assertIn("▶ Drive 1  extended test running, started 00:10", text)
         self.assertNotIn("S1", text)
         x = lines[12].index("[22]")
         self.assertEqual(self.term.surface.tone_at(12, x + 1), "selected")   # today's number is reversed
         self.assertEqual(self.term.surface.tone_at(18, 4), "dim")            # the legend is dim
 
     def test_scrub_day_blocks_the_night(self):
-        # Slot 3 is snoozed until the scrub day, so the scrub is what holds it next.
+        # Drive 3 is snoozed until the scrub day, so the scrub is what holds it next.
         self.state["snoozes"] = {"SERIAL3": {"until": "2026-11-30", "set": "2026-11-20T10:00:00-07:00"}}
         self.calendar("down", "right")
         self.assertEqual(self.screen.sel, dt.date(2026, 11, 30))
@@ -233,7 +233,7 @@ class CalendarScreenTests(CalendarFixture, unittest.TestCase):
     def test_snoozed_drive(self):
         self.state["snoozes"] = {"SERIAL6": {"until": "2026-11-25", "note": "waiting for a spare",
                                              "set": "2026-11-21T10:00:00-07:00"}}
-        self.assertIn("Slot 6 snoozed to Wed 25 Nov (waiting for a spare)", self.calendar())
+        self.assertIn("Drive 6 snoozed to Wed 25 Nov (waiting for a spare)", self.calendar())
         text = self.app.press("right", "right", "right")
         self.assertSnapshot("calendar_snoozed", text)
         self.assertNotIn("snoozed to", text)                   # the 25th is the day it may test again
@@ -253,7 +253,7 @@ class CalendarScreenTests(CalendarFixture, unittest.TestCase):
         text = self.app.press("pgup", "pgup")
         self.assertIn("October 2026", text)
         self.assertSnapshot("calendar_october", text)
-        self.assertIn("✓5", text)                     # slot 5's October test
+        self.assertIn("✓5", text)                     # Drive 5's October test
         self.assertIn("No test on record.", self.app.press("left"))   # 21 Oct
         # Arrows cross month edges; t comes back to today.
         self.app.press("t")
@@ -341,7 +341,7 @@ class PluginTests(CalendarFixture, unittest.TestCase):
 
     def test_data_api_is_contract_correct(self):
         with_history(self.fake)
-        self.state["alerts"] = {"test:SERIAL4:41": {"msg": "Extended SMART test on slot 4 failed.", "level": "error",
+        self.state["alerts"] = {"test:SERIAL4:41": {"msg": "Extended SMART test on Drive 4 failed.", "level": "error",
                                                     "sent": "2026-11-21T01:00:00-07:00",
                                                     "since": "2026-11-12T03:10:00-07:00"},
                                 "backups:read": {"msg": "Couldn't read backups.", "level": "warning",
@@ -357,15 +357,15 @@ class PluginTests(CalendarFixture, unittest.TestCase):
         self.assertEqual(P.check_summary(sm), [])
         self.assertEqual(sm["headline"], "7 drives scheduled, 4 due now")
         self.assertEqual({i["label"]: i["value"] for i in sm["items"]}, {
-            "Running": "slot 1 (SERIAL1)",
-            "Next test": "Mon 23 Nov, slot 4 (SERIAL4)",
-            "Last result": "failed, slot 4, Thu 12 Nov",
+            "Running": "Drive 1 (SERIAL1)",
+            "Next test": "Mon 23 Nov, Drive 4 (SERIAL4)",
+            "Last result": "failed, Drive 4, Thu 12 Nov",
             "Next scrub": "Mon 30 Nov, pool 2 scrub 02:30",
-            "Snoozed": "slot 6 until Wed 25 Nov",
+            "Snoozed": "Drive 6 until Wed 25 Nov",
         })
         by = {i["label"]: i for i in sm["items"]}
         self.assertEqual((by["Last result"]["target"], by["Last result"]["target_label"], by["Last result"]["status"]),
-                         ("Drives:SERIAL4", "slot 4", "failed"))
+                         ("Drives:SERIAL4", "Drive 4", "failed"))
         self.assertEqual(by["Running"]["target"], "Drives:SERIAL1")
         self.assertNotIn("target", by["Next test"])          # the card itself opens the Calendar
         al = self.plugin.alerts(ctx)
@@ -384,7 +384,7 @@ class PluginTests(CalendarFixture, unittest.TestCase):
         self.assertIn("Enter open ", text.split("\n")[25])
         text = self.app.press("enter")
         self.assertEqual(self.app.tab.title, "Drives")
-        self.assertIn("└─ Slot 4 ", text.split("\n")[2])
+        self.assertIn("└─ Drive 4 ", text.split("\n")[2])
         self.assertNotIn("Slot", self.app.press("esc").split("\n")[2])   # back to the list
 
     def test_quiet_nas_is_ok(self):

@@ -135,10 +135,10 @@ def _gather(slot, kind, cfg, t, state):
     ctx["storage"] = storage
     disk = _find(storage, slot)
     if disk is None:
-        return [_block("drive", f"no drive in slot {slot}")], ctx
+        return [_block("drive", f"Drive {slot} is empty")], ctx
     ctx["disk"] = disk
     if not disk.get("serial") or not disk.get("smartTestSupported"):
-        return [_block("smart", f"slot {slot} doesn't support SMART tests")], ctx
+        return [_block("smart", f"Drive {slot} doesn't support SMART tests")], ctx
 
     checks = []
     user_id, problem = _identity(cfg, storage, state)
@@ -156,19 +156,19 @@ def _gather(slot, kind, cfg, t, state):
             try:
                 history = ss.get_history(d["slotId"], d["serial"], user_id, d.get("smartTest"))
             except ss.ApiError as e:
-                checks.append(_block("history", f"couldn't read SMART history for slot {d['slotId']} "
+                checks.append(_block("history", f"couldn't read SMART history for Drive {d['slotId']} "
                                                 f"to check nothing is running: {e.detail}"))
                 continue
             if any(ss.is_running(h) for h in history):
-                checks.append(_block("running", f"a SMART test is already running on slot {d['slotId']}"))
+                checks.append(_block("running", f"a SMART test is already running on Drive {d['slotId']}"))
     # Tests started outside UniFi Drive (smartctl, other tools) only show on the drive itself.
     devices = ss.serial_to_device()
     for d in storage["disks"]:
         dev = devices.get(d.get("serial"))
         left = ss.self_test_progress(dev) if dev and d.get("smartTestSupported") else None
-        if left is not None and not any(c.code == "running" and f"slot {d['slotId']}" in c.reason
+        if left is not None and not any(c.code == "running" and f"Drive {d['slotId']}" in c.reason
                                         for c in checks):
-            checks.append(_block("running", f"a SMART test is already running on slot {d['slotId']} "
+            checks.append(_block("running", f"a SMART test is already running on Drive {d['slotId']} "
                                             f"(started outside UniFi Drive, {left}% left)"))
 
     busy = cfg.int("BUSY_KBPS")
@@ -220,7 +220,7 @@ def run_now(slot, kind, override=False, cfg=None, dry_run=False, lock=True, wait
             return Result(False, checks, "Not started: " + "; ".join(c.reason for c in soft)
                           + ". Override to start anyway.")
         disk = ctx["disk"]
-        label = f"slot {disk['slotId']} ({disk['serial']}, {disk.get('model', '?')})"
+        label = f"Drive {disk['slotId']} ({disk['serial']}, {disk.get('model', '?')})"
         if dry_run:
             return Result(True, checks, f"(dry-run) would start a {kind} test on {label}.")
         try:

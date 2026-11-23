@@ -68,14 +68,14 @@ def status(ctx):
 
 def summary(ctx):
     return {"state": "warn", "headline": "3 drives scheduled, 1 overdue", "items": [
-        {"label": "Next test", "value": "Sat 22 Nov, slot 3", "tone": "warn"},
-        {"label": "Last result", "value": "Passed, slot 5, Tue 18 Nov", "tone": "good"},
-        {"label": "Failed", "value": "slot 2, Thu 20 Nov", "tone": "bad"}]}
+        {"label": "Next test", "value": "Sat 22 Nov, Drive 3", "tone": "warn"},
+        {"label": "Last result", "value": "Passed, Drive 5, Tue 18 Nov", "tone": "good"},
+        {"label": "Failed", "value": "Drive 2, Thu 20 Nov", "tone": "bad"}]}
 
 def alerts(ctx):
     return [
         {"id": "test:ZL2", "level": "error", "active": True, "since": "2026-11-20T01:04:00-07:00",
-         "message": "Extended test on slot 2 (ZL2) failed: read failure."},
+         "message": "Extended test on Drive 2 (ZL2) failed: read failure."},
         {"id": "hb", "level": "warn", "active": False, "since": "2026-11-18T03:00:00-07:00",
          "message": "Heartbeat URL did not answer."},
     ]
@@ -355,15 +355,15 @@ class WidgetTests(SnapshotMixin, unittest.TestCase):
         self.assertEqual(self.render(W.ListView([], empty="Nothing.")).row(0), "  Nothing.")
 
     def test_table(self):
-        t = W.Table([("Slot", 4, "right"), ("Serial", 10), ("Result", None)],
+        t = W.Table([("Drive", 5, "right"), ("Serial", 10), ("Result", None)],
                     [["1", "ZL1", ("passed", "good")], ["12", "ZL2", ("failed: read failure on LBA 123456", "bad")],
                      ["3", "ZL3", ("planned", "warn")]])
         t.key("down")
         s = self.render(t, 40, 5)
         self.assertSnapshot("table", s.dump())
-        self.assertEqual(s.tone_at(1, 18), "good")
-        self.assertEqual(s.tone_at(2, 18), "selected")
-        self.assertEqual(s.tone_at(3, 18), "warn")
+        self.assertEqual(s.tone_at(1, 19), "good")
+        self.assertEqual(s.tone_at(2, 19), "selected")
+        self.assertEqual(s.tone_at(3, 19), "warn")
         self.assertEqual(t.current[1], "ZL2")
 
     def test_table_status_cells(self):
@@ -434,7 +434,7 @@ class WidgetTests(SnapshotMixin, unittest.TestCase):
             self.assertEqual((d.done, d.result), (True, want), ks)
 
     def test_second_confirm(self):
-        d = W.ConfirmDialog("Start a test on slot 3?", ["The drive is busy."], second="Start anyway?")
+        d = W.ConfirmDialog("Start a test on Drive 3?", ["The drive is busy."], second="Start anyway?")
         d.key("y")
         self.assertFalse(d.done)
         s = self.render(d, 60, 12)
@@ -1012,9 +1012,9 @@ class StyleTests(unittest.TestCase):
     def test_status_pairs_glyph_and_tone(self):
         c, s = headless(30, 3)
         c.status(0, 0, "failed", "failed")
-        c.status(1, 0, "running", "slot 1")
+        c.status(1, 0, "running", "Drive 1")
         c.status(2, 0, "planned")
-        self.assertEqual([s.row(i) for i in range(3)], ["✗ failed", "▶ slot 1", "○"])
+        self.assertEqual([s.row(i) for i in range(3)], ["✗ failed", "▶ Drive 1", "○"])
         self.assertEqual([s.tone_at(i, 0) for i in range(3)], ["bad", "accent", "warn"])
 
     def test_ascii_fallbacks(self):
@@ -1272,7 +1272,7 @@ class EntryPointTests(unittest.TestCase):
         text = out.getvalue()
         self.assertIn("1 Home", text)
         self.assertIn("6 Settings", text)
-        self.assertIn("└─ Slot 2 ", text)
+        self.assertIn("└─ Drive 2 ", text)
 
     def test_demo_second_confirm_headless(self):
         out = io.StringIO()

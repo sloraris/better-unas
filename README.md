@@ -80,13 +80,13 @@ the words always say the same thing, and `NO_COLOR` is respected.
  1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings
  Home ────────────────────────────────────────────────────────────────────────
  › ! 1 active alert
-     ! smart-scheduler: Extended SMART test failed on slot 4 (S…  12 Nov 03:15
+     ! smart-scheduler: Extended SMART test failed on Drive 4 (…  12 Nov 03:15
 
   ┌─ smart-scheduler 0.1.1 ────────────────────────────────────── ! warning ──┐
   │ 7 drives scheduled, 4 due now                                             │
-  │ Running       ▶ slot 1 (SERIAL1)                                 › slot 1 │
-  │ Next test     ○ Mon 23 Nov, slot 6 (SERIAL6)                              │
-  │ Last result   ✗ failed, slot 4, Thu 12 Nov                       › slot 4 │
+  │ Running       ▶ Drive 1 (SERIAL1)                               › Drive 1 │
+  │ Next test     ○ Mon 23 Nov, Drive 6 (SERIAL6)                             │
+  │ Last result   ✗ failed, Drive 4, Thu 12 Nov                     › Drive 4 │
   │ Next scrub    ↻ Mon 30 Nov, pool 2 scrub 02:30                            │
   └───────────────────────────────────────────────────────────────────────────┘
 ```

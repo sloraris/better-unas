@@ -47,7 +47,7 @@ def alerts(ctx):
          "message": "Heartbeat URL did not answer."},
         {"id": "test:ZL2", "level": "error", "active": True, "since": "2026-11-20T01:04:00-07:00",
          "last": "2026-11-21T01:04:00-07:00",
-         "message": "Extended SMART test on slot 2 (ZL2) failed: read failure."},
+         "message": "Extended SMART test on Drive 2 (ZL2) failed: read failure."},
         {"id": "triggers", "level": "error", "active": False, "since": "2026-11-15T01:00:00-07:00",
          "resolved": "2026-11-16T01:00:00-07:00", "message": "Triggers broken (not healed)."},
     ]

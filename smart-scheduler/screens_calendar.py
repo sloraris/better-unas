@@ -98,12 +98,12 @@ def gather(ss, ctx):
     # The past: UniFi's own test history, filed under the night it started.
     for d in drives:
         if d.get("error"):
-            problems.append(f"Slot {d['slot']}: {d.get('reason', 'history unavailable')}")
+            problems.append(f"Drive {d['slot']}: {d.get('reason', 'history unavailable')}")
             continue
         try:
             history = ss.get_history(d["slot"], d["serial"], user_id, d.get("current_test"))
         except ss.ApiError as e:
-            problems.append(f"Slot {d['slot']}: history unavailable ({e.detail})")
+            problems.append(f"Drive {d['slot']}: history unavailable ({e.detail})")
             continue
         for h in history:
             if str(h.get("type")).lower() != "extended":
@@ -271,10 +271,10 @@ def day_rows(data, d):
     info = data["days"].get(d) or EMPTY
     out = []
     for x in info["tests"]:
-        out.append(("status", KIND[x["outcome"]], f"Slot {x['slot']}  {test_text(x)}"))
+        out.append(("status", KIND[x["outcome"]], f"Drive {x['slot']}  {test_text(x)}"))
     for e in info["planned"]:
         out.append(("status", "planned",
-                    f"Slot {e['slot']}  planned {e['start']:%H:%M}-{_hm(e['end'], e['start'].date())}, "
+                    f"Drive {e['slot']}  planned {e['start']:%H:%M}-{_hm(e['end'], e['start'].date())}, "
                     f"{e.get('cause') or 'due'}"))
     if info["skipped"]:
         out.append(("reason", f"{no_test(d, data['today'])}: " + "; ".join(short_reason(r) for r in info["skipped"])))
@@ -283,7 +283,7 @@ def day_rows(data, d):
         out.append(("status", b["kind"], text + (" (done)" if b["past"] else "")))
     for z in data["snoozes"]:
         if z["until"] > d >= data["today"]:
-            out.append((f"Slot {z['slot']} snoozed to {z['until']:%a %d %b}"
+            out.append((f"Drive {z['slot']} snoozed to {z['until']:%a %d %b}"
                         + (f" ({z['note']})" if z["note"] else ""), "label"))
     if not out:
         if data["plan_until"] is not None and d > data["plan_until"]:
@@ -303,7 +303,7 @@ def detail_rows(data, d):
     if info["planned"]:
         out.append(("heading", "Planned (assuming earlier tests pass)"))
         for e in info["planned"]:
-            out.append(("status", "planned", f"Slot {e['slot']}  {e['model']}  {e['serial']}"))
+            out.append(("status", "planned", f"Drive {e['slot']}  {e['model']}  {e['serial']}"))
             out.append(("note", f"starts {e['start']:%H:%M}, ends about {_hm(e['end'], e['start'].date())}"))
             out.append(("note", f"why: {e.get('cause') or 'due'} ({e['reason']})"))
             if e["delayed_by"]:
@@ -312,7 +312,7 @@ def detail_rows(data, d):
     if info["tests"]:
         out.append(("heading", "Test history (UniFi Drive)"))
         for x in info["tests"]:
-            out.append(("status", KIND[x["outcome"]], f"Slot {x['slot']}  {x['model']}  {x['serial']}"))
+            out.append(("status", KIND[x["outcome"]], f"Drive {x['slot']}  {x['model']}  {x['serial']}"))
             out.append(("note", test_text(x)))
         out.append(("",))
     if info["skipped"]:
@@ -327,7 +327,7 @@ def detail_rows(data, d):
     held = [z for z in data["snoozes"] if z["until"] > d >= data["today"]]
     if held:
         out.append(("heading", "Snoozed drives"))
-        out += [("value", f"Slot {z['slot']}  {z['serial']}: {z['text']}") for z in held]
+        out += [("value", f"Drive {z['slot']}  {z['serial']}: {z['text']}") for z in held]
         out.append(("",))
     if data["plan_until"] is not None and d > data["plan_until"]:
         out.append(("label", f"The plan stops on {data['plan_until']:%a %d %b}, once every drive has a planned "

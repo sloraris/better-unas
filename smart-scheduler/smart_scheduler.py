@@ -9,17 +9,17 @@ Commands:
   status   one row per drive: last extended test, next due, and why
   check    self-check only; prints every check and exits non-zero on problems
   heal     restore the timer and cron triggers from the copies in this folder
-  snooze <slot|serial> <YYYY-MM-DD> [--note TEXT]
+  snooze <drive|serial> <YYYY-MM-DD> [--note TEXT]
            don't start a test on that drive before that date; expires on its own
-  unsnooze <slot|serial>
+  unsnooze <drive|serial>
            remove a drive's snooze
-  run-now <slot|serial> [quick|extended] [--override]
+  run-now <drive|serial> [quick|extended] [--override]
            start a test now (extended by default) if nothing stands in the way;
            --override starts it despite a busy drive, a scrub or backup coming up,
            or being outside the start window. A running test or bad pool always blocks.
-  exclude <slot|serial>     never test this drive (EXCLUDE_SERIALS)
-  include <slot|serial>     undo exclude
-  interval <slot|serial> <days|default>
+  exclude <drive|serial>     never test this drive (EXCLUDE_SERIALS)
+  include <drive|serial>     undo exclude
+  interval <drive|serial> <days|default>
            this drive's interval (INTERVAL_OVERRIDES); default removes it
 
 Options:
@@ -583,7 +583,7 @@ def get_history(slot, serial, user_id, current=None):
     is added (once) at the front."""
     status, data = api("GET", f"/storage/disks/{slot}/smart-tests?serial={urllib.parse.quote(serial)}&limit=20", user_id)
     if status != 200 or not isinstance(data, list):
-        raise ApiError("history", f"history for slot {slot} returned HTTP {status}", status)
+        raise ApiError("history", f"history for Drive {slot} returned HTTP {status}", status)
     return with_current(data, current)
 
 
@@ -726,7 +726,7 @@ def evaluate_drives(cfg, storage, user_id, state, alerts, report=True):
                 info["reason"], info["error"] = f"history unavailable: {e.detail}", True
                 _mark_outside_test(info, left)
                 continue
-            alerts.raise_(f"history:{serial}", f"Couldn't read SMART history for slot {slot} ({serial}): {e.detail}")
+            alerts.raise_(f"history:{serial}", f"Couldn't read SMART history for Drive {slot} ({serial}): {e.detail}")
             info["reason"] = "history unavailable"
             info["error"] = True
             _mark_outside_test(info, left)
@@ -751,10 +751,10 @@ def evaluate_drives(cfg, storage, user_id, state, alerts, report=True):
             state["reported_tests"].append(key)
             del state["reported_tests"][:-500]
             if not is_good(h):
-                alerts.raise_(f"test:{key}", f"Extended SMART test on slot {slot} ({serial}, {info['model']}) "
+                alerts.raise_(f"test:{key}", f"Extended SMART test on Drive {slot} ({serial}, {info['model']}) "
                                              f"ended {h.get('status')}/{h.get('result')} at {h.get('finishedAt')}.")
             elif cfg.yes("NOTIFY_SUCCESS"):
-                alerts.info(f"Extended SMART test on slot {slot} ({serial}) passed.")
+                alerts.info(f"Extended SMART test on Drive {slot} ({serial}) passed.")
 
         rose = planner.rise_state(history, attrs, baseline, ds.get("rose"), t)
         if report:
@@ -971,7 +971,7 @@ def cmd_run(cfg, args):
                 log(f"{len(decision.due)} drive(s) due; not starting: {decision.gate}")
         else:
             for d, why in decision.skipped:
-                log(f"slot {d['slot']} ({d['serial']}) due; not starting: {why}")
+                log(f"Drive {d['slot']} ({d['serial']}) due; not starting: {why}")
             if decision.start:
                 start_test(cfg, decision.start, user_id, state, alerts, dry, t)
         if state.pop("version_changed", False):
@@ -989,7 +989,7 @@ def cmd_run(cfg, args):
 
 
 def start_test(cfg, d, user_id, state, alerts, dry, t):
-    label = f"slot {d['slot']} ({d['serial']}, {d['model']})"
+    label = f"Drive {d['slot']} ({d['serial']}, {d['model']})"
     if dry:
         print(f"(dry-run) would start an extended test on {label}: {d['reason']}")
         return
@@ -1040,7 +1040,7 @@ def cmd_status(cfg, args):
             nxt = "due now"
         else:
             nxt = f"{due:%a %d %b %Y}" if due else "unknown"
-        print(f"Slot {d['slot']}  {d['model']}  ({d['serial']})")
+        print(f"Drive {d['slot']}  {d['model']}  ({d['serial']})")
         print(f"  Last test: {f'{last:%a %d %b %Y}' if last else 'never'}")
         print(f"  Next test: {nxt}")
         print(f"  Why:       {d.get('reason', '')}")
@@ -1052,7 +1052,7 @@ def cmd_status(cfg, args):
     plan = planner.plan(storage, drives, state, cfg, t, windows=windows, not_before=not_before(state, t))
     if plan:
         print("Plan (assuming each test passes):")
-        rows = [(e["night"], f"{e['start']:%a %d %b %H:%M}  slot {e['slot']} ({e['serial']})") for e in plan]
+        rows = [(e["night"], f"{e['start']:%a %d %b %H:%M}  Drive {e['slot']} ({e['serial']})") for e in plan]
         rows += [(s["night"], f"{dt.date.fromisoformat(s['night']):%a %d %b}        skipped: "
                   + "; ".join(s["reasons"])) for s in plan.skipped]
         for _, row in sorted(rows, key=lambda r: r[0]):
@@ -1151,20 +1151,20 @@ def cmd_heal(cfg, args):
 
 
 def resolve_drive(target, storage):
-    """(serial, label) for a slot number or serial, or raise ValueError."""
+    """(serial, label) for a drive number or serial, or raise ValueError."""
     disks = (storage or {}).get("disks") or []
     for d in disks:
         if str(d.get("slotId")) == target and d.get("serial"):
-            return d["serial"], f"slot {d['slotId']} ({d['serial']})"
+            return d["serial"], f"Drive {d['slotId']} ({d['serial']})"
     for d in disks:
         if d.get("serial") == target:
-            return target, f"slot {d.get('slotId')} ({target})"
-    raise ValueError(f"no drive with slot or serial {target!r}")
+            return target, f"Drive {d.get('slotId')} ({target})"
+    raise ValueError(f"no drive with number or serial {target!r}")
 
 
 def cmd_snooze(cfg, args):
     if not args.target or not args.date:
-        print("Usage: smart_scheduler.py snooze <slot|serial> <YYYY-MM-DD> [--note TEXT]", file=sys.stderr)
+        print("Usage: smart_scheduler.py snooze <drive|serial> <YYYY-MM-DD> [--note TEXT]", file=sys.stderr)
         return 2
     try:
         until = dt.date.fromisoformat(args.date)
@@ -1186,7 +1186,7 @@ def cmd_snooze(cfg, args):
 
 def cmd_unsnooze(cfg, args):
     if not args.target or args.date:
-        print("Usage: smart_scheduler.py unsnooze <slot|serial>", file=sys.stderr)
+        print("Usage: smart_scheduler.py unsnooze <drive|serial>", file=sys.stderr)
         return 2
     state = load_state()
     try:
@@ -1203,7 +1203,7 @@ def cmd_unsnooze(cfg, args):
 
 
 def drive_for(target, state):
-    """Resolve a slot or serial against the live drive list. A snoozed serial
+    """Resolve a drive number or serial against the live drive list. A snoozed serial
     resolves even when the API is down or the drive is gone, so it can be removed."""
     try:
         return resolve_drive(target, get_storage())
@@ -1218,14 +1218,14 @@ def drive_for(target, state):
 
 
 def resolve_serial(target):
-    """A slot or serial -> (serial, label) for config edits. A target that
-    isn't a current slot is taken as a serial, so a drive that's gone (or an
+    """A drive number or serial -> (serial, label) for config edits. A target that
+    isn't a current drive number is taken as a serial, so a drive that's gone (or an
     API that's down) can still be removed from the config."""
     try:
         return resolve_drive(target, get_storage())
     except (ApiError, ValueError):
         if target.isdigit() and len(target) < 3:
-            raise ValueError(f"no drive in slot {target}")
+            raise ValueError(f"Drive {target} is empty")
         return target, target
 
 
@@ -1233,7 +1233,7 @@ def cmd_run_now(cfg, args):
     import actions
     kind = args.date or "extended"
     if not args.target or kind not in actions.KINDS:
-        print("Usage: smart_scheduler.py run-now <slot|serial> [quick|extended] [--override]", file=sys.stderr)
+        print("Usage: smart_scheduler.py run-now <drive|serial> [quick|extended] [--override]", file=sys.stderr)
         return 2
     try:
         storage = get_storage()
@@ -1253,8 +1253,8 @@ def cmd_run_now(cfg, args):
 
 def cmd_config_edit(cfg, args):
     import actions
-    usage = {"exclude": "exclude <slot|serial>", "include": "include <slot|serial>",
-             "interval": "interval <slot|serial> <days|default>"}[args.command]
+    usage = {"exclude": "exclude <drive|serial>", "include": "include <drive|serial>",
+             "interval": "interval <drive|serial> <days|default>"}[args.command]
     if not args.target or (args.command == "interval") != bool(args.date):
         print(f"Usage: smart_scheduler.py {usage}", file=sys.stderr)
         return 2

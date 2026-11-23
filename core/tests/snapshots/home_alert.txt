@@ -3,13 +3,13 @@
 └──────────────────────────────────────────────────────────────────────────────┘
 
  › ✗ 2 active alerts
-     ! smart-scheduler: Slot 5 reached 52 C during its test.      21 Nov 14:00
-     ✗ smart-scheduler: Extended test on slot 2 failed: read fa…  20 Nov 01:04
+     ! smart-scheduler: Drive 5 reached 52 C during its test.     21 Nov 14:00
+     ✗ smart-scheduler: Extended test on Drive 2 failed: read f…  20 Nov 01:04
 
   ┌─ smart-scheduler 1.2.3 ──────────────────────────────────────── ✗ error ──┐
   │ 7 drives scheduled, 1 failed                                              │
-  │ Next test     Mon 23 Nov 01:00, slot 4                                    │
-  │ Last result   Failed, slot 2, Fri 20 Nov                         › Drives │
+  │ Next test     Mon 23 Nov 01:00, Drive 4                                   │
+  │ Last result   Failed, Drive 2, Fri 20 Nov                        › Drives │
   │ Next scrub    Sun 6 Dec 02:30                                             │
   │ Next backup   Mon 23 Nov 03:00, cloud backup (~1 h)                       │
   └───────────────────────────────────────────────────────────────────────────┘

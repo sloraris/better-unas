@@ -1,6 +1,6 @@
 ┌───────────────────────────────────────────────────────────────────── v0.2.0 ─┐
 │    1 Home     │  2 Calendar   │   3 Drives    │   4 Alerts    │  5 Settings  │
-└─ Slot 4 ─────────────────────────────────────────────────── smart-scheduler ─┘
+└─ Drive 4 ────────────────────────────────────────────────── smart-scheduler ─┘
 
  WDC WD4002FYYZ-01B7CB0   SERIAL4   4 TB                     ✗ last test failed
 
@@ -8,11 +8,11 @@
  │ Last test   ✗ Thu 12 Nov  failed   │  │ Temperature                   48°C │
  │ Next test   ○ Mon 23 Nov 00:00     │  │ Power-on            59,052 h  6.7y │
  │ Why         retry                  │  │                                    │
- │ Interval    60 days  old drive     │  │ Reallocated sectors  none        5 │
- │ Snoozed     no                     │  │ Uncorrectable errors none      187 │
- │ Excluded    no                     │  │ Pending sectors      none      197 │
- │                                    │  │ Offline uncorrectab… none      198 │
- │                                    │  │ Interface CRC errors none      199 │
+ │ Interval    60 days  old drive     │  │ Reallocated sectors  none       S5 │
+ │ Snoozed     no                     │  │ Uncorrectable errors none     S187 │
+ │ Excluded    no                     │  │ Pending sectors      none     S197 │
+ │                                    │  │ Offline uncorrectab… none     S198 │
+ │                                    │  │ Interface CRC errors none     S199 │
  └────────────────────────────────────┘  └────────────────────────────────────┘
 
  Test history (UniFi Drive)
