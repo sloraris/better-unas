@@ -229,7 +229,7 @@ class Schema(unittest.TestCase):
     def test_structure(self):
         self.assertTrue(self.problems({"contract": 2, "groups": []}))
         self.assertIn("schema: K: unknown type 'date' (one of int, float, bool, choice, time_window, "
-                      "text, url, serial_list, int_list, serial_map)",
+                      "text, url, serial_list, int_list, serial_map, checklist)",
                       self.problems(schema_with(field(type="date"))))
         self.assertIn("schema: K: 'choices' isn't allowed on int fields",
                       self.problems(schema_with(field(type="int", default="1", choices=["a"]))))
@@ -242,13 +242,20 @@ class Schema(unittest.TestCase):
         self.assertIn("schema: K: \"default\" is required, as the text written in the config file",
                       self.problems(schema_with(field(type="int", default=3))))
         self.assertTrue(self.problems(schema_with(field(type="text", label="x" * 29))))
+        self.assertIn("schema: K: \"options\" must be a non-empty list of {\"value\", \"label\"} objects",
+                      self.problems(schema_with(field(type="checklist", options=[{"value": "a,b"}]))))
+        self.assertIn("schema: K: \"options\" has duplicate values",
+                      self.problems(schema_with(field(type="checklist", options=[{"value": "a"}, {"value": "a"}]))))
+        self.assertIn("schema: K: 'other' must be a non-empty string",
+                      self.problems(schema_with(field(type="checklist", options=[{"value": "a"}], other=True))))
 
     def test_smart_scheduler_worked_example(self):
         schema = P.load_schema(SS_SCHEMA)
         self.assertEqual(P.check_example(schema, SS_EXAMPLE), [])
         core = P.load_schema(os.path.join(ROOT, "core", "settings.json"))
-        # With the core's Notifications group, every field type has an example.
-        self.assertEqual({f["type"] for f in P.fields(schema) + P.fields(core)}, set(P.TYPE_ATTRS))
+        # With the core's Notifications group, every field type but int_list
+        # (covered in Values) has an example.
+        self.assertEqual({f["type"] for f in P.fields(schema) + P.fields(core)}, set(P.TYPE_ATTRS) - {"int_list"})
         self.assertEqual([f["key"] for f in P.essential_fields(schema)],
                          ["INTERVAL_DAYS", "WARN_INTERVAL_DAYS", "OLD_INTERVAL_DAYS", "START_WINDOW"])
         self.assertEqual([f["key"] for f in P.essential_fields(core)], ["WEBHOOK_URL", "WEBHOOK_FORMAT"])
@@ -294,6 +301,18 @@ class Values(unittest.TestCase):
         self.bad({"type": "bool"}, "maybe", "want yes or no, got 'maybe'")
         self.ok({"type": "choice", "choices": ["a", "b"]}, "b", "b")
         self.bad({"type": "choice", "choices": ["a", "b"]}, "c", "want one of a, b")
+
+    def test_checklist(self):
+        opts = [{"value": "5", "label": "reallocated"}, {"value": "197", "label": "pending"}]
+        attrs = {"type": "checklist", "options": opts, "other": "Other IDs", "min": 1, "max": 255}
+        self.ok(attrs, "197, 5, 12", [5, 197, 12])            # options in schema order, then others
+        self.ok(attrs, "", [])
+        self.assertEqual(P.format_value(attrs, [5, 197, 12]), "5,197,12")
+        self.bad(attrs, "5,300", "each number (300) must be at most 255")
+        self.bad(attrs, "5,5", "5 listed twice")
+        names = {"type": "checklist", "options": [{"value": "a"}, {"value": "b"}]}
+        self.ok(names, "b,a", ["a", "b"])
+        self.bad(names, "c", "want some of a, b")              # no "other": only the options
 
     def test_time_window(self):
         self.ok({"type": "time_window"}, "22:00-04:00", (dt.time(22), dt.time(4)))

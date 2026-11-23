@@ -473,6 +473,10 @@ class FormTests(SnapshotMixin, unittest.TestCase):
         with open(CORE_SCHEMA) as f:
             core = json.load(f)
         self.schema["groups"] += [g for g in core["groups"] if g["id"] == "notifications"]
+        # No shipped field is an int_list since WARN_ATTRIBUTES became a checklist.
+        self.schema["groups"].append({"id": "extra", "title": "Extra", "fields": [
+            {"key": "PORTS", "type": "int_list", "label": "Ports", "min": 1, "max": 65535,
+             "default": "80,443", "help": "Test-only int_list field."}]})
         self.addCleanup(W.reset_editing)
         types = {f["type"] for f in P.fields(self.schema)}
         self.assertEqual(types, set(W.FIELD_TYPES), "the example should cover every field type")
@@ -636,17 +640,57 @@ class FormTests(SnapshotMixin, unittest.TestCase):
 
     def test_int_list_and_float_filters(self):
         form = self.form()
-        self.goto(form, "WARN_ATTRIBUTES")
+        self.goto(form, "PORTS")
         form.key("enter")
         for k in ",9x9":
             form.key(k)
         form.key("enter")
-        self.assertEqual(form.current.text, "5,187,197,198,99")
+        self.assertEqual(form.current.text, "80,443,99")
         self.goto(form, "DURATION_FACTOR")
         form.key("enter")
         for k in ("backspace", "backspace", "backspace", "2", "e", ".", "5", "enter"):
             form.key(k)
         self.assertEqual(form.current.value, 2.5)
+
+    def test_checklist(self):
+        form = self.form()
+        self.goto(form, "WARN_ATTRIBUTES")
+        f = form.current
+        self.assertEqual(f.display(None), ("S5, S187, S197, S198", "normal"))
+        form.key("enter")
+        self.assertTrue(f.editing)
+        self.assertEqual(f.list.items[0], "[x] S5    reallocated sectors")
+        self.assertEqual(f.list.items[4], "[ ] S199  interface CRC (often a cable)")
+        self.assertEqual(f.list.items[5], "Other IDs: (none)")
+        for k in ("down", " ", "down", "down", "down", " "):      # untick S187, tick S199
+            form.key(k)
+        self.assertEqual(f.text, "5,197,198,199")
+        form.key("down")
+        self.assertEqual(f.keys()[0], ("Enter", "edit"))
+        form.key("enter")
+        for k in "12x, 190":                                      # x is filtered out
+            form.key(k)
+        form.key("enter")
+        self.assertEqual(f.list.items[5], "Other IDs: S12, S190")
+        self.assertEqual(f.text, "5,197,198,199,12,190")
+        self.assertEqual(f.value, [5, 197, 198, 199, 12, 190])
+        self.assertSnapshot("form_checklist_popup", self.draw(form).dump())
+        form.key("esc")
+        self.assertFalse(f.editing)
+        self.assertTrue(f.changed)
+        self.assertEqual(f.display(None)[0], "S5, S197, S198, S199, S12, S190")
+
+    def test_checklist_undo_and_bad_text(self):
+        form = self.form({"WARN_ATTRIBUTES": "187,5,300"})
+        self.goto(form, "WARN_ATTRIBUTES")
+        f = form.current
+        self.assertEqual(f.display(None), ("187,5,300", "bad"))
+        self.assertEqual(f.error, "each number (300) must be at most 255")
+        form.key("enter")
+        form.key(" ")                                             # untick S5
+        form.key("u")
+        self.assertEqual(f.text, "5,187,300")
+        form.key("esc")
 
     def test_extra_errors_from_validate(self):
         form = self.form()

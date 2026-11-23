@@ -126,6 +126,11 @@ real NAS.
   the same words beside the days (`30 days  watch`, `14 days  drive`).
 - Design for health-monitor (#18): `docs/health-monitor-design.md`.
 
+- Settings: a `checklist` field type, for named options to tick plus an
+  "Other IDs" line for anything not listed. smart-scheduler's Warning
+  attributes use it: S5, S187, S197 and S198 ticked, S199 offered but off.
+  The config text is unchanged (`5,187,197,198`).
+
 ### smart-scheduler
 
 - Shared planner (`planner.py`): the hourly run and the plan in `status` and

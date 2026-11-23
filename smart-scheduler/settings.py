@@ -28,9 +28,9 @@ SERIAL_RE = r"[A-Za-z0-9._-]+"
 TIME_RE = re.compile(r"([01][0-9]|2[0-3]):([0-5][0-9])\Z")
 TRUE_WORDS = ("yes", "true", "on", "1")
 FALSE_WORDS = ("no", "false", "off", "0")
-EMPTY_OK = {"text", "url", "serial_list", "int_list", "serial_map"}
+EMPTY_OK = {"text", "url", "serial_list", "int_list", "serial_map", "checklist"}
 TYPES = {"int", "float", "bool", "choice", "time_window", "text", "url",
-         "serial_list", "int_list", "serial_map"}
+         "serial_list", "int_list", "serial_map", "checklist"}
 
 # An active setting line: indent, key, "=" with its spacing, value, trailing space.
 LINE_RE = re.compile(r"(\s*)([A-Za-z_][A-Za-z0-9_]*)(\s*=\s*)(.*?)(\s*)\Z")
@@ -128,14 +128,14 @@ def parse_value(f, text):
 
     int -> int, float -> float, bool -> bool, choice/text/url -> str,
     time_window -> (time, time), serial_list -> [str], int_list -> [int],
-    serial_map -> {serial: int}.
+    serial_map -> {serial: int}, checklist -> [str] or [int].
     """
     t = f["type"]
     text = text.strip()
     if not text:
         if t not in EMPTY_OK or f.get("required"):
             raise FieldError("a value is required")
-        return {"serial_list": [], "int_list": [], "serial_map": {}}.get(t, "")
+        return {"serial_list": [], "int_list": [], "serial_map": {}, "checklist": []}.get(t, "")
     if t == "int":
         n = _whole(text)
         _range(f, n)
@@ -194,6 +194,8 @@ def parse_value(f, text):
             _range(f, n, f"each number ({n})")
         _no_dupes(items)
         return items
+    if t == "checklist":
+        return _checklist(f, text)
     if t == "serial_map":
         out = {}
         for item in _split(text):
@@ -208,6 +210,26 @@ def parse_value(f, text):
     raise FieldError(f"unknown type {t}")
 
 
+def _checklist(f, text):
+    """checklist text -> [str]: the ticked options in schema order, then any
+    other values ("other" fields only) in the order given. With "min" or
+    "max", every value is a whole number in range and the list holds ints."""
+    known = [o["value"] for o in f["options"]]
+    numeric = "min" in f or "max" in f
+    picked = []
+    for s in _split(text):
+        if numeric:
+            n = _whole(s)
+            _range(f, n, f"each number ({n})")
+            s = str(n)
+        if s not in known and not f.get("other"):
+            raise FieldError(f"want some of {', '.join(known)}")
+        picked.append(s)
+    _no_dupes(picked)
+    out = [v for v in known if v in picked] + [v for v in picked if v not in known]
+    return [int(v) for v in out] if numeric else out
+
+
 def format_value(f, value):
     """The inverse of parse_value: the text to write to the config file."""
     t = f["type"]
@@ -217,7 +239,7 @@ def format_value(f, value):
         return _num(value)
     if t == "time_window":
         return f"{value[0]:%H:%M}-{value[1]:%H:%M}"
-    if t in ("serial_list", "int_list"):
+    if t in ("serial_list", "int_list", "checklist"):
         return ",".join(str(x) for x in value)
     if t == "serial_map":
         return ",".join(f"{k}:{v}" for k, v in value.items())

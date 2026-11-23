@@ -13,7 +13,7 @@
    Old drive                   60 days
    Old-drive age               43800 power-on hours
    Retry after a failure       7 days
-   Warning attributes          5,187,197,198
+   Warning attributes          S5, S187, S197, S198
    Per-drive intervals         (none)
    Never test                  (none)
                                                                               ↓

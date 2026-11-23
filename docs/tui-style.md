@@ -178,7 +178,7 @@ These are core settings, saved in `better-unas.conf`: webhook URL, format, notif
      └─────────────────────────────────────────────────────────────────────────┘
    ```
 
-2. **Pick, don't type, when the options are knowable.** This covers branches, drives, UniFi accounts and tools (the Branch picker already works this way).
+2. **Pick, don't type, when the options are knowable.** This covers branches, drives, UniFi accounts and tools (the Branch picker already works this way). A setting with a known set of values plus room for more, like the watched SMART attributes, is a checklist: one `[x]`/`[ ]` row per named option and an "Other IDs" row last. Space ticks, Enter on the last row edits the others, `u` undoes, Esc closes. The closed field lists what's ticked (`S5, S187, S197, S198`).
 3. **A setting that reaches outside has a test**, next to it in the action bar.
 4. **Saving does the whole job.** If a change needs a follow-up step to take effect, saving does that step, and the save confirm says so. Help text never asks the user to "reinstall" by hand. Example: turning smart-scheduler's Enabled back on reinstalls its timer when you save (`"on_change": "install"` in the schema, section 9).
 

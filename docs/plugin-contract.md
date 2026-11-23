@@ -191,12 +191,13 @@ widget (#4) edits the text form and validates as you type.
 | `serial_list` | `ZL1,ZL2` | `list[str]` | `required` | list editor; picks from the NAS's drives where a screen provides them |
 | `int_list` | `5,187,197` | `list[int]` | `min`, `max` (per item), `required` | text field |
 | `serial_map` | `ZL1:30,ZL2:120` | `dict[str, int]` | `min`, `max`, `unit` (per value), `required` | two-column list editor (serial, number) |
+| `checklist` | `5,187,197` | `list[str]`, or `list[int]` with `min`/`max` | `options` (list of `{"value", "label"}`), `other`, `prefix`, `min`, `max` (per item), `required` | list of options to tick, plus an `other` row for values the options don't name. Ticked options come first in schema order, then other values. Without `other`, only the options are allowed. `prefix` goes before every value shown (`S` shows `197` as `S197`). |
 
 Rules that apply to several types:
 
 - **Empty values.** For `int`, `float`, `bool`, `choice` and `time_window` an
   empty value is invalid (remove the line to get the default). For `text`,
-  `url`, `serial_list`, `int_list` and `serial_map` empty is valid and means
+  `url`, `serial_list`, `int_list`, `serial_map` and `checklist` empty is valid and means
   "none", unless the field says `"required": true`.
 - **Lists** are comma-separated; spaces around items are ignored and are not
   written back. Duplicates are an error. Serials match `[A-Za-z0-9._-]+`.
@@ -569,7 +570,7 @@ also drives the tool's own config loader and writer from it. Summary:
 | | `OLD_INTERVAL_DAYS` | int | 1-3650 days | yes |
 | | `OLD_DRIVE_HOURS` | int | min 0, power-on hours | |
 | | `RETRY_FAILED_DAYS` | int | 1-365 days | |
-| | `WARN_ATTRIBUTES` | int_list | items 1-255 | |
+| | `WARN_ATTRIBUTES` | checklist | S5, S187, S197, S198, S199 named; other IDs 1-255 | |
 | | `INTERVAL_OVERRIDES` | serial_map | values 1-3650 days | |
 | | `EXCLUDE_SERIALS` | serial_list | | |
 | When tests may start | `START_WINDOW` | time_window | | yes |
