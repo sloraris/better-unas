@@ -100,6 +100,16 @@ def is_good(test):
 RUNNING_STATUSES = {"running", "inprogress", "in_progress", "pending", "queued", "testing"}
 
 
+# Each interval's name (docs/tui-style.md §8): `source` is the short word the
+# Drives page shows beside the days; the name is the plan's reason.
+INTERVAL_NAMES = {"default": "default interval", "old drive": "old-drive interval",
+                  "watch": "watch interval", "drive": "drive interval"}
+
+
+def interval_name(source):
+    return INTERVAL_NAMES.get(source or "default", "default interval")
+
+
 def rise_state(history, attrs, baseline, rose, t):
     """The outstanding rise after this look at a drive: {"at", "ids"} or None.
 
@@ -159,9 +169,9 @@ def assess(cfg, disk, history, attrs, baseline, t, rose=None):
     # for the CLI and the log.
     def pick(signs):
         if serial in cfg.overrides:
-            return cfg.overrides[serial], "set in config", "per drive"
+            return cfg.overrides[serial], "set in config", "drive"
         if signs:
-            return cfg.int("WARN_INTERVAL_DAYS"), "; ".join(signs), "warning signs"
+            return cfg.int("WARN_INTERVAL_DAYS"), "; ".join(signs), "watch"
         if (disk.get("powerOnHours") or 0) >= cfg.int("OLD_DRIVE_HOURS"):
             return cfg.int("OLD_INTERVAL_DAYS"), f"{disk['powerOnHours']:,} power-on hours", "old drive"
         return cfg.int("INTERVAL_DAYS"), "healthy", "default"
@@ -183,7 +193,7 @@ def assess(cfg, disk, history, attrs, baseline, t, rose=None):
     else:
         due = parse_time(last_good["finishedAt"]) + dt.timedelta(days=interval)
         reason = f"every {interval} days ({why})"
-        cause = "per-drive interval" if source == "per drive" else "interval"
+        cause = interval_name(source)
     return {"running": any(is_running(h) for h in history), "interval": interval, "why": why,
             "source": source, "cause": cause, "rose": sorted(increased, key=str), "after_clean": after_clean,
             "due": due, "reason": reason, "last": last_good.get("finishedAt") if last_good else None}
@@ -413,7 +423,7 @@ def plan(storage, drives, state, cfg, now, horizon=None, windows=(), not_before=
                 s.update(s.get("after_clean") or {})     # it passes clean: a rise no longer counts
                 s["due"] = s["busy_until"] + dt.timedelta(days=s["interval"])
                 s["reason"] = f"every {s['interval']} days ({s.get('why', 'after the running test')})"
-                s["cause"] = "per-drive interval" if s.get("source") == "per drive" else "interval"
+                s["cause"] = interval_name(s.get("source"))
         s["running"] = False
         sim.append(s)
     wanted = {s["serial"] for s in sim if not s.get("excluded") and not s.get("error") and s.get("due")}
@@ -462,7 +472,7 @@ def plan(storage, drives, state, cfg, now, horizon=None, windows=(), not_before=
             end = t + test_length(cfg, d.get("minutes"))
             entries.append({"serial": d["serial"], "slot": d["slot"], "model": d.get("model", "?"),
                             "night": nk, "start": t, "end": end, "due": d["due"],
-                            "interval": d["interval"], "reason": d["reason"], "cause": d.get("cause") or "interval",
+                            "interval": d["interval"], "reason": d["reason"], "cause": d.get("cause") or interval_name(d.get("source")),
                             "delayed_by": delays.pop(d["serial"], [])})
             planned.add(d["serial"])
             starts[nk] = starts.get(nk, 0) + 1
@@ -471,7 +481,7 @@ def plan(storage, drives, state, cfg, now, horizon=None, windows=(), not_before=
             d.update(d.get("after_clean") or {})         # it passes clean: a rise no longer counts
             d["due"] = end + dt.timedelta(days=d["interval"])
             d["reason"] = f"every {d['interval']} days ({d.get('why', 'after the planned test')})"
-            d["cause"] = "per-drive interval" if d.get("source") == "per drive" else "due"
+            d["cause"] = interval_name(d.get("source"))
         if not started and reasons:
             skipped.append({"night": nk, "reasons": reasons})
         if horizon is not None and night_bounds(cfg, day, now.tzinfo)[0] > horizon:

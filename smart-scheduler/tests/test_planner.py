@@ -73,17 +73,17 @@ class PlannerTests(unittest.TestCase):
         by = {d["serial"]: d for d in self.drives()}
         self.assertEqual((by["SERIAL1"]["cause"], by["SERIAL1"]["source"]), ("baseline", "default"))
         self.assertEqual(by["SERIAL4"]["source"], "old drive")
-        self.assertEqual(by["SERIAL6"]["source"], "warning signs")
+        self.assertEqual(by["SERIAL6"]["source"], "watch")
         t = (NIGHT - dt.timedelta(days=3)).isoformat()
         self.fake.history["4"] = [ext(1, "failed", "failed", t)]
         self.fake.history["3"] = [ext(2, "successful", "optimal", t)]
         self.cfg = config(INTERVAL_OVERRIDES="SERIAL3:14")
         by = {d["serial"]: d for d in self.drives()}
         self.assertEqual(by["SERIAL4"]["cause"], "retry")
-        self.assertEqual((by["SERIAL3"]["cause"], by["SERIAL3"]["source"]), ("per-drive interval", "per drive"))
+        self.assertEqual((by["SERIAL3"]["cause"], by["SERIAL3"]["source"]), ("drive interval", "drive"))
         self.cfg = config()
         by = {d["serial"]: d for d in self.drives()}
-        self.assertEqual(by["SERIAL3"]["cause"], "interval")   # a regular test, not a sooner one
+        self.assertEqual(by["SERIAL3"]["cause"], "default interval")   # a regular test, not a sooner one
 
     def test_hourly_run_starts_what_the_plan_puts_first(self):
         drives = self.drives()

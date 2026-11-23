@@ -141,8 +141,9 @@ Every action takes the run lock, and with `--dry-run` nothing changes.
   (✓ passed, ✗ failed, ▶ running, ○ planned, ! due now) and interval, with
   the selected drive's serial and where it stands in a panel below. Enter
   opens one drive: a Schedule panel (last and next test, why: `baseline`,
-  `interval`, `retry`, `warning signs`, `snoozed`, `excluded`; the interval and
-  its source: `default`, `old drive`, `warning signs`, `per drive`; snooze
+  `retry`, `warning signs`, `snoozed`, `excluded`, or `default interval`,
+  `old-drive interval`, `watch interval`, `drive interval`; the interval in
+  days and its source: `default`, `old drive`, `watch`, `drive`; snooze
   and exclusion), a Health panel (temperature, power-on hours, attributes
   S5/S187/S197/S198/S199 with a rise since the last test marked `↑N`), and
   UniFi's test history with how long each test took.

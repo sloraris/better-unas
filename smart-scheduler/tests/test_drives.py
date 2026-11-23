@@ -196,7 +196,7 @@ class DrivesScreenTests(DrivesFixture, unittest.TestCase):
         self.assertIn("Last test   ✓ Tue 20 Oct  passed", text)
         self.assertIn("Next test   ○ Mon 23 Nov 00:00", text)
         self.assertIn("Why         warning signs", text)
-        self.assertIn("Interval    30 days  warning signs", text)
+        self.assertIn("Interval    30 days  watch", text)
         self.assertIn("Power-on            59,080 h  6.7y", text)
         # The count comes first, the attribute id dim after it; a rise is marked.
         self.assertRegex(text, r"Pending sectors +3 ↑3 +S197 │")
@@ -216,7 +216,7 @@ class DrivesScreenTests(DrivesFixture, unittest.TestCase):
         self.to_slot(6)
         text = self.app.press("enter")
         self.assertSnapshot("drives_detail_snoozed", text)
-        self.assertIn("Interval    14 days  per drive", text)
+        self.assertIn("Interval    14 days  drive", text)
         self.assertIn("Snoozed     until Wed 25 Nov", text)
         self.assertIn("            ↳ waiting for a spare", text)
         self.assertIn("Why         snoozed", text)

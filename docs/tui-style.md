@@ -216,8 +216,8 @@ A setting's help answers three things, in this order, in at most three short lin
 
 ### smart-scheduler vocabulary
 
-- **Why** (why the next test is when it is): `baseline` (never tested), `interval` (the interval came round), `retry` (last test failed), `warning signs`, `snoozed`, `excluded`, `per-drive interval`.
-- **Interval source**: `default`, `old drive`, `warning signs`, `retry`, `per drive`.
+- **Why** (why the next test is when it is): `baseline` (never tested), `retry` (last test failed), `warning signs` (a rise made it due at once), `snoozed`, `excluded`, or the interval that came round: `default interval`, `old-drive interval`, `watch interval`, `drive interval`.
+- **Interval source** (shown after the days, e.g. `30 days  watch`): `default` (INTERVAL_DAYS), `old drive` (OLD_INTERVAL_DAYS), `watch` (WARN_INTERVAL_DAYS, until a test passes with no further rise), `drive` (INTERVAL_OVERRIDES).
 - **No test tonight** reasons start with what blocks it: `one is already running`, `scrub on pool 2 at 02:30`, `overlaps UniFi Cloud Backup (02:00–04:00)`, `outside the start window`, `all drives are up to date`.
 
 ### Glossary

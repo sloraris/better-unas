@@ -8,7 +8,7 @@
  │ Last test   never                  │  │ Temperature                   48°C │
  │ Next test   ○ Wed 25 Nov 00:00     │  │ Power-on            57,642 h  6.6y │
  │ Why         snoozed                │  │                                    │
- │ Interval    14 days  per drive     │  │ Reallocated sectors  none       S5 │
+ │ Interval    14 days  drive         │  │ Reallocated sectors  none       S5 │
  │ Snoozed     until Wed 25 Nov       │  │ Uncorrectable errors none     S187 │
  │             ↳ waiting for a spare  │  │ Pending sectors      none     S197 │
  │ Excluded    no                     │  │ Offline uncorrectable  14     S198 │

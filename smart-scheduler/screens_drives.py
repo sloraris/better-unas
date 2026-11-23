@@ -173,7 +173,7 @@ def why(d):
         return "unknown"
     if d.get("snooze"):
         return "snoozed"
-    return d.get("cause") or "interval"
+    return d.get("cause") or "default interval"
 
 
 def state(d, today):
@@ -189,7 +189,7 @@ def state(d, today):
         return "failed", "last test failed"
     if d.get("snooze"):
         return None, "snoozed"
-    if d.get("cause") == "warning signs" or d.get("source") == "warning signs":
+    if d.get("cause") == "warning signs" or d.get("source") == "watch":
         return "warning", "warning signs"
     if d.get("due") and d["due"].date() <= today:
         return "warning", "due now"
