@@ -177,6 +177,25 @@ real NAS.
   way to a higher one (pauses, or stops and is planned again), and the
   higher tool nudges it so it happens at once.
 
+- scrub-repair (#19, step 3 of docs/scrub-repair-design.md), a new tool:
+  every 15 minutes it reads the btrfs checksum lines in the kernel log
+  (`/dev/kmsg`, from a saved cursor) and resolves each to a file. It looks
+  for a good copy in UniFi Cloud backup versions, through UniFi Drive's local
+  API, and in folders you list. A copy passes when it is the same size,
+  reads cleanly and matches every block of the damaged file that still
+  reads. It is staged on the same subvolume, then renamed over the damaged
+  file: after you confirm by default (`MODE=stage`), at once with
+  `MODE=auto`, or only alerted with `MODE=alert`. Read-only btrfs scrubs:
+  urgent after new checksum errors or a parity mismatch, manual from the app
+  or CLI, and scheduled (off by default; quarterly, 01:00-07:00, carrying on
+  night after night). All of them go in the busy registry and give way to
+  higher tiers. Damaged files tab, Home card, Calendar scrub nights, one
+  alert per damaged file. Damage to btrfs metadata is an error alert only.
+- Core library: `core/lib/drive.py`, UniFi Drive's local API (including
+  downloads), read-only psql and the console-owner lookup, for tools that
+  read what Drive knows.
+- README: the tools table listed health-monitor twice.
+
 ### smart-scheduler
 
 - Shared planner (`planner.py`): the hourly run and the plan in `status` and

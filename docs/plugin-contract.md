@@ -669,6 +669,7 @@ imports the TUI and is standard library only.
 | `tool` | `Tool(name, script, required=...)`: the tool folder's paths, state file, run lock, install manifest, triggers, self-healing, the checks a run starts with, and the `install` and `uninstall` steps. |
 | `busy` | The busy registry: when each tool's jobs run, so the others stay clear (below). |
 | `util` | Time, logging to syslog under the tool's name, commands, atomic writes. |
+| `drive` | UniFi Drive's local API (`api`, `download`), read-only `psql` and the console owner's id (`owner_id`), for tools that read what Drive knows. Never select a credential column. |
 
 A tool's script finds it from its own folder: the tool sits in
 `<home>/<tool>/` and the core in `<home>/core/`, in a checkout and on the

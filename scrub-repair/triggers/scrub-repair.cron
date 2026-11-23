@@ -1,0 +1,3 @@
+# Installed by scrub-repair. Backup trigger: restores the systemd timer if it goes missing.
+MAILTO=""
+11,41 * * * * root /usr/bin/python3 @BASE@/scrub_repair.py run --source cron >/dev/null 2>&1

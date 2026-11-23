@@ -1,0 +1,45 @@
+# scrub-repair settings. Every line is optional; an empty file uses the
+# defaults shown here. Changes take effect on the next check (every 15 minutes).
+# Check your edits with:  python3 scrub_repair.py status
+
+# "no" removes the timer on the next check. Changing Enabled in Settings does
+# this when you save. After a hand edit back to "yes", run install.sh.
+ENABLED=yes
+
+# When a file is damaged:
+#   stage  alert, find and verify a good copy, then wait for you to restore it
+#   auto   swap in any copy that passes the check, then report
+#   alert  only alert; finding a copy and restoring both wait for you
+MODE=stage
+
+# --- Where copies come from ---------------------------------------------------------
+# Tried in this order, newest copy first. A copy is used only when every block
+# of the damaged file that still reads matches it.
+# UniFi Cloud backup versions, through UniFi Drive (no credential is read).
+USE_UNIFI_BACKUPS=yes
+# Folders on the NAS that hold copies, comma-separated: a USB backup drive, a
+# share a replication task copies into, a mount from another machine. Each is
+# tried as <folder>/<share>/<path> and <folder>/<path>.
+FOLDER_SOURCES=
+
+# --- Scrubs --------------------------------------------------------------------------
+# A read-only btrfs scrub reads every block, so damage turns up before anything
+# else reads it. It never changes data.
+# New checksum errors in the kernel log, or a parity mismatch from UniFi's data
+# scrubbing, start an urgent scrub at once.
+URGENT_SCRUB=yes
+# Scrub on a calendar too, inside the night window, carrying on night after
+# night until it's done.
+SCRUB_SCHEDULE=no
+# monthly, quarterly, half-yearly or yearly. Periods start in January.
+SCRUB_FREQUENCY=quarterly
+# The first night of each period (1-28).
+SCRUB_START_DAY=1
+# Local time. A scheduled scrub runs only inside it.
+SCRUB_WINDOW=01:00-07:00
+
+# --- Heartbeat ----------------------------------------------------------------------
+# Empty: the shared heartbeat URLs in better-unas.conf are used. Set these to
+# give scrub-repair its own check, with a 15-minute period.
+OWN_HEARTBEAT_URL=
+OWN_HEARTBEAT_FAIL_URL=
