@@ -154,7 +154,7 @@ class DrivesScreenTests(DrivesFixture, unittest.TestCase):
         self.drives()
         text = self.to_slot(5)
         self.assertIn("┌─ Drive 5 · WDC WD4002FYYZ-01B7CB0 · SERIAL5 ", text)
-        self.assertIn("○ Next test Mon 23 Nov 00:00 · warning signs · every 30 days", text)
+        self.assertIn("○ Next test Sun 22 Nov 01:00 · warning signs · every 30 days", text)
         text = self.to_slot(2)                                 # 5 + 1 = Drive 6, snoozed
         self.assertIn("Snoozed to Wed 25 Nov (waiting for a spare). Next test Wed 25 Nov.", text)
         self.assertIn(("u", "unsnooze"), self.app.screen.keys())   # only offered on a snoozed drive
@@ -194,7 +194,7 @@ class DrivesScreenTests(DrivesFixture, unittest.TestCase):
         self.assertIn("└─ Drive 5 ─", lines[2])
         self.assertRegex(lines[4], r"^ WDC WD4002FYYZ-01B7CB0   SERIAL5   4 TB +! warning signs$")
         self.assertIn("Last test   ✓ Tue 20 Oct  passed", text)
-        self.assertIn("Next test   ○ Mon 23 Nov 00:00", text)
+        self.assertIn("Next test   ○ Sun 22 Nov 01:00", text)          # warning signs: urgent, starts now
         self.assertIn("Why         warning signs", text)
         self.assertIn("Interval    30 days  watch", text)
         self.assertIn("Power-on            59,080 h  6.7y", text)
@@ -260,7 +260,7 @@ class DrivesScreenTests(DrivesFixture, unittest.TestCase):
     def test_plugin_lists_the_drives_screen(self):
         self.make_app()
         tabs = [s["tab"] for s in self.plugin.screens(self.ctx)]
-        self.assertEqual(tabs, ["Calendar", "Drives"])
+        self.assertEqual(tabs, ["Drives"])          # the Calendar is the core's (calendar hook)
         ss_, actions, _ = self.plugin._env()
         self.assertIs(actions.ss, self.plugin.ss)          # actions follow a swapped-in ss
         self.assertIs(ss_, ss)

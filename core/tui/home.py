@@ -8,8 +8,8 @@ from core.updates.cached_status(home), imported lazily; no module, an error
 or None all mean "no update info yet".
 
 One stop per destination: the update notice (Settings › better-unas), the
-alerts block (Alerts), and each tool's card (its first own tab, or its page
-in Settings). Inside a card, an item is a stop of its own only when it names
+alerts block (Alerts), and each tool's card (the Calendar when it has a
+calendar hook, else its first own tab, or its page in Settings). Inside a card, an item is a stop of its own only when it names
 a target the card doesn't already go to (e.g. "Last result" opening that
 drive's page); its destination is shown dim at the right. up/down move
 between stops, Enter opens, `a` jumps to Alerts, `r` reads everything again.
@@ -105,7 +105,10 @@ class HomeScreen:
         return out
 
     def tool_tab(self, tool_name):
-        """Title of the tool's first own tab, or None."""
+        """The Calendar when the tool has a calendar hook, else the title of
+        its first own tab, or None."""
+        if callable(getattr(self.app.plugins.get(tool_name), "calendar", None)) and self.has_tab("Calendar"):
+            return "Calendar"
         for t in self.app.tabs:
             if any(ctx.tool is not None and ctx.tool.name == tool_name for _, ctx, _ in t.entries):
                 return t.title

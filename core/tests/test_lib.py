@@ -22,6 +22,7 @@ ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
+from core.lib import busy               # noqa: E402
 from core.lib import config as C        # noqa: E402
 from core.lib import settings as S      # noqa: E402
 from core.lib.alerts import RESOLVED_KEEP, Alerts  # noqa: E402
@@ -181,6 +182,92 @@ class Run(ToolFolder):
         self.assertIsNone(self.tool.take_lock(0))
         lock.close()
         self.assertEqual(self.tool.lock_for("status", "timer", ("run",), 60), (None, False))
+
+
+class BusyRegistry(ToolFolder):
+    def other(self, name, windows, updated=T0):
+        d = os.path.join(self.home, name)
+        os.makedirs(d, exist_ok=True)
+        busy.publish(d, name, windows, updated)
+        return d
+
+    def test_tools_read_each_others_windows_not_their_own(self):
+        h = dt.timedelta(hours=1)
+        self.tool.publish_busy([(T0 + h, T0 + 2 * h, "demo-tool job", "planned", "routine")], T0)
+        self.other("scrub-repair", [busy.Busy(T0 + 3 * h, T0 + 9 * h, "scrub-repair scrub", "scrub", "x", "scheduled"),
+                                    (T0 - 2 * h, T0 - h, "ended", "running", "urgent")])
+        got = self.tool.others_busy(T0)
+        self.assertEqual([(w.label, w.kind, w.tool, w.tier) for w in got],
+                         [("scrub-repair scrub", "scrub", "scrub-repair", "scheduled")])
+        mine = busy.read(self.home, T0, exclude="scrub-repair")
+        self.assertEqual([(w.label, w.start) for w in mine], [("demo-tool job", T0 + h)])
+        self.assertEqual(busy.overlapping(got, T0, T0 + 4 * h), got)
+        self.assertEqual(busy.overlapping(got, T0, T0 + 3 * h), [])
+
+    def test_stale_and_broken_files_are_ignored(self):
+        h = dt.timedelta(hours=1)
+        self.other("old-tool", [(T0, T0 + 99 * h, "old", "planned", "routine")], updated=T0 - busy.STALE - h)
+        d = os.path.join(self.home, "broken-tool")
+        os.makedirs(d)
+        with open(os.path.join(d, busy.FILE), "w") as f:
+            f.write("{not json")
+        self.assertEqual(self.tool.others_busy(T0), [])
+        with self.assertRaises(ValueError):
+            busy.publish(d, "broken-tool", [(T0, T0 + h, "x", "lunch", "routine")], T0)
+        with self.assertRaises(ValueError):
+            busy.publish(d, "broken-tool", [(T0, T0 + h, "x", "scrub", "whenever")], T0)
+
+    def test_withdrawn_when_turned_off_or_uninstalled(self):
+        h = dt.timedelta(hours=1)
+        self.tool.publish_busy([(T0 + h, T0 + 2 * h, "job", "planned", "routine")], T0)
+        reader = self.other("reader", [])
+        name = lambda: [w.label for w in busy.read(self.home, T0, exclude="reader")]   # noqa: E731
+        self.assertEqual(name(), ["job"])
+        cfg, state = self.cfg(ENABLED="no"), {}
+        with mock.patch("core.lib.util.now", lambda: T0):
+            self.tool.turned_off(cfg, state, self.alerts(cfg, state), False)
+        self.assertEqual(name(), [])
+        self.assertTrue(os.path.isdir(reader))
+        self.assertIn(busy.FILE, __import__("core.lib.tool", fromlist=["DATA"]).DATA)
+
+    def test_not_in_the_manifest(self):
+        self.tool.write_manifest()
+        self.tool.publish_busy([(T0, T0 + dt.timedelta(hours=1), "job", "running", "manual")], T0)
+        self.assertEqual(self.tool.verify_manifest(), [])
+
+    def w(self, start, hours, kind, tier, tool="other-tool"):
+        h = dt.timedelta(hours=1)
+        return busy.Busy(T0 + start * h, T0 + (start + hours) * h, f"{tool} {tier}", kind, tool, tier)
+
+    def test_tiers_block_their_own_level_and_below(self):
+        ws = [self.w(0, 1, "planned", t) for t in busy.TIERS]
+        self.assertEqual([w.tier for w in busy.blocking(ws, "routine")], list(busy.TIERS))
+        self.assertEqual([w.tier for w in busy.blocking(ws, "urgent")], ["urgent", "manual", "fixed"])
+        self.assertEqual([w.tier for w in busy.blocking(ws, "manual")], ["manual", "fixed"])
+        own = (T0, T0, "a tool's own window", "scrub")              # no tier: it always blocks
+        self.assertEqual(busy.blocking([own], "manual"), [own])
+
+    def test_who_gives_way(self):
+        mine = [self.w(-2, 6, "running", "routine", "demo-tool")]
+        self.assertEqual(busy.must_yield(mine, [self.w(0, 3, "planned", "scheduled")], T0)[0][1].tier, "scheduled")
+        self.assertEqual(busy.must_yield(mine, [self.w(0, 3, "planned", "routine")], T0), [])      # equal: no
+        self.assertEqual(busy.must_yield(mine, [self.w(2, 3, "planned", "manual")], T0), [])       # not yet
+        self.assertTrue(busy.must_yield(mine, [self.w(0.2, 3, "planned", "manual")], T0))          # within SOON
+        self.assertEqual(busy.must_yield(mine, [self.w(5, 3, "planned", "fixed")], T0), [])        # after mine ends
+        others = [self.w(-1, 4, "running", "routine", "a-tool"), self.w(-1, 4, "running", "urgent", "b-tool"),
+                  self.w(-1, 4, "planned", "routine", "c-tool"), self.w(9, 1, "running", "routine", "d-tool")]
+        self.assertEqual(busy.in_the_way(others, T0, T0 + dt.timedelta(hours=2), "urgent"), ["a-tool"])
+        self.assertEqual(busy.in_the_way(others, T0, T0 + dt.timedelta(hours=2), "manual"), ["a-tool", "b-tool"])
+
+    def test_nudge_starts_the_other_tools_services(self):
+        calls = []
+        self.tool.sh = lambda *cmd, **k: (calls.append(cmd), (0, ""))[1]
+        self.assertEqual(self.tool.nudge(["scrub-repair", "demo-tool", "bad name; rm"]), ["scrub-repair"])
+        self.assertEqual(calls, [("systemctl", "start", "--no-block", "scrub-repair.service")])
+        with redirect_stdout(io.StringIO()) as out:
+            self.tool.nudge(["scrub-repair"], dry=True)
+        self.assertIn("would start scrub-repair.service", out.getvalue())
+        self.assertEqual(len(calls), 1)
 
 
 class Install(ToolFolder):

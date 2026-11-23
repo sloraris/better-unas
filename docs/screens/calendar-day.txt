@@ -1,15 +1,15 @@
 ┌───────────────────────────────────────────────────────────────────── v0.2.0 ─┐
 │    1 Home     │  2 Calendar   │   3 Drives    │   4 Alerts    │  5 Settings  │
-└─ Sun 22 Nov 2026 ────────────────────────────────────────── smart-scheduler ─┘
+└─ Sun 22 Nov 2026 ────────────────────────────────────────────────────────────┘
+
+ Planned (assuming earlier tests pass)
+ ○ Drive 4  WDC WD4002FYYZ-01B7CB0  SERIAL4
+   ↳ starts 01:00, ends about 15:16
+   ↳ why: retry (retrying: last test ended failed/failed)
 
  Test history (UniFi Drive)
  ▶ Drive 1  ST4000VN006-3CW104  SERIAL1
    ↳ extended test running, started 00:10
-
- No test tonight
- ! one is already running
-
-
 
 
 

@@ -53,7 +53,7 @@ import planner  # noqa: E402  (lives next to this file)
 import backups  # noqa: E402
 from core.lib import alerts as lib_alerts  # noqa: E402
 from core.lib import config as lib_config  # noqa: E402
-from core.lib import notify, settings, util  # noqa: E402
+from core.lib import busy, notify, settings, util  # noqa: E402
 from core.lib.tool import Tool  # noqa: E402
 if __name__ == "__main__":
     # actions.py imports this module by name; give it this copy, not a second one.
@@ -416,7 +416,9 @@ def evaluate_drives(cfg, storage, user_id, state, alerts, report=True):
             _mark_outside_test(info, left)
             continue
         try:
-            history = get_history(slot, serial, user_id, d.get("smartTest"))
+            yielded = yielded_ids(state, serial)
+            history = [h for h in get_history(slot, serial, user_id, d.get("smartTest"))
+                       if str(h.get("id")) not in yielded]
             alerts.clear(f"history:{serial}")
         except ApiError as e:
             if not report:
@@ -542,6 +544,103 @@ def backup_windows(cfg, t, until, alerts=None):
     return backups.windows(cfg, info["tasks"], info["runs"], t, until), info
 
 
+def busy_windows(t):
+    """The other tools' busy windows (core/lib/busy.py) as planner.Windows, so
+    tests stay clear of them like they do of backups."""
+    return [planner.Window(w.start, w.end, w.label, w.kind, w.tier) for w in TOOL.others_busy(t)]
+
+
+def horizon_of(t):
+    """How far ahead the plan, the calendar and `status` look for backups."""
+    return t + dt.timedelta(days=planner.MAX_NIGHTS + 2)
+
+
+# How far ahead the hourly run reads backups and publishes its windows.
+BUSY_AHEAD = dt.timedelta(days=31)
+
+
+def running_tier(state, d):
+    """The tier of the test running on drive d: what this tool recorded when
+    it started it, else manual (started in UniFi Drive or with smartctl)."""
+    return (state.get("drives", {}).get(d["serial"]) or {}).get("running_tier") or "manual"
+
+
+def running_windows(cfg, state, drives, t):
+    """This tool's running tests as busy windows."""
+    return [busy.Busy(t, planner.running_until(cfg, d, t), f"{NAME} test on Drive {d['slot']}", "running",
+                      NAME, running_tier(state, d)) for d in drives if d.get("running")]
+
+
+def publish_busy(cfg, storage, drives, state, t, windows, dry, started=None):
+    """Put this tool's windows in the busy registry: running and planned tests,
+    and UniFi's scrubs and backups as this tool reads them (with its margins,
+    tier "fixed"), so other tools needn't read UniFi themselves. `windows` is
+    what the run planned with (backups and the other tools' windows);
+    `started` is a drive this run just started, which doesn't report running yet."""
+    out = running_windows(cfg, state, drives, t)
+    if started is not None:
+        out.append((t, t + planner.test_length(cfg, started.get("minutes")),
+                    f"{NAME} test on Drive {started['slot']}", "running", planner.tier_of(started)))
+        drives = [dict(d, running=True) if d is started else d for d in drives]
+    plan = planner.plan(storage, drives, state, cfg, t, windows=windows, not_before=not_before(state, t))
+    until = t + BUSY_AHEAD
+    out += [(e["start"], e["end"], f"{NAME} test on Drive {e['slot']}", "planned", e["tier"])
+            for e in plan if e["start"] < until]
+    out += [(w.start, w.end, f"UniFi {w.label}", w.kind, "fixed")
+            for w in planner.scrub_windows(cfg, storage, until) + list(windows)
+            if w.kind in ("scrub", "backup") and w.tier == "fixed" and w.start < until]
+    return TOOL.publish_busy(out, t, dry)
+
+
+def abort_test(d, dry):
+    """Stop the extended test running on drive d (smartctl -X). None if it
+    stopped, else why not. A SMART test can't pause, so it's planned again."""
+    dev = serial_to_device().get(d["serial"])
+    if not dev:
+        return "its device wasn't found"
+    if dry:
+        print(f"(dry-run) would stop the test on Drive {d['slot']}: smartctl -X {dev}")
+        return None
+    rc, out = sh("smartctl", "-X", dev, timeout=30)
+    return None if rc == 0 else f"smartctl -X returned {rc}: {out[:200]}"
+
+
+def give_way(cfg, state, drives, t, others, alerts, dry):
+    """Stop each running test another tool's higher-tier job needs the disks
+    for now (core/lib/busy.py must_yield). Its UniFi record is then left out
+    of the history, so the drive stays due and is planned again."""
+    stopped = []
+    for d in drives:
+        if not d.get("running"):
+            continue
+        clash = busy.must_yield(running_windows(cfg, state, [d], t), others, t)
+        if not clash:
+            continue
+        w, o = clash[0]
+        why = abort_test(d, dry)
+        if why:
+            alerts.raise_(f"yield:{d['serial']}", f"Couldn't stop the {w.tier} test on Drive {d['slot']} for "
+                                                  f"{o.label} ({o.tier}): {why}", "warning")
+            continue
+        alerts.clear(f"yield:{d['serial']}")
+        alerts.info(f"Stopped the {w.tier} test on Drive {d['slot']} ({d['serial']}) to make way for "
+                    f"{o.label} ({o.tier}); it will be planned again.")
+        if not dry:
+            ds = state.setdefault("drives", {}).setdefault(d["serial"], {})
+            test = d.get("current_test") if isinstance(d.get("current_test"), dict) else {}
+            if test.get("id") is not None:
+                ds["yielded"] = (ds.get("yielded", []) + [str(test["id"])])[-20:]
+            ds.pop("running_tier", None)
+            d["running"] = False
+        stopped.append(d)
+    return stopped
+
+
+def yielded_ids(state, serial):
+    """UniFi history ids of tests this tool stopped to make way: not failures."""
+    return set((state.get("drives", {}).get(serial) or {}).get("yielded", []))
+
+
 def scrub_conflict(cfg, storage, minutes, t):
     """Return a reason if a test of this length would run into a scheduled scrub."""
     until = t + planner.test_length(cfg, minutes)
@@ -621,18 +720,29 @@ def cmd_run(cfg, args):
     storage, user_id = self_check(cfg, state, alerts, dry)
     if storage is not None and user_id:
         drives = evaluate_drives(cfg, storage, user_id, state, alerts)
-        longest = max((planner.test_length(cfg, d.get("minutes")) for d in drives), default=dt.timedelta(0))
-        windows, _ = backup_windows(cfg, t, t + longest, alerts)
+        for d in drives:
+            if not d.get("running"):
+                state.get("drives", {}).get(d["serial"], {}).pop("running_tier", None)
+        others = TOOL.others_busy(t)
+        give_way(cfg, state, drives, t, others, alerts, dry)
+        windows, _ = backup_windows(cfg, t, t + BUSY_AHEAD, alerts)
+        windows += busy_windows(t)
         decision = planner.decide(cfg, storage, drives, state, t, windows=windows,
                                   not_before=not_before(state, t))
+        started = None
         if decision.gate:
             if decision.due and decision.gate != "outside start window":
                 log(f"{len(decision.due)} drive(s) due; not starting: {decision.gate}")
         else:
             for d, why in decision.skipped:
-                log(f"Drive {d['slot']} ({d['serial']}) due; not starting: {why}")
-            if decision.start:
-                start_test(cfg, decision.start, user_id, state, alerts, dry, t)
+                if why != "outside start window":
+                    log(f"Drive {d['slot']} ({d['serial']}) due; not starting: {why}")
+            if decision.start and start_test(cfg, decision.start, user_id, state, alerts, dry, t):
+                started = decision.start
+                tier = planner.tier_of(started)
+                end = t + planner.test_length(cfg, started.get("minutes"))
+                TOOL.nudge(busy.in_the_way(others, t, end, tier), dry)
+        publish_busy(cfg, storage, drives, state, t, windows, dry, started=started)
         if state.pop("version_changed", False):
             alerts.info("Self-check after the update passed: API, identity and triggers all OK."
                         if not alerts.has_errors() else "Self-check after the update found problems (see alerts).")
@@ -644,25 +754,33 @@ def cmd_run(cfg, args):
 
 
 def start_test(cfg, d, user_id, state, alerts, dry, t):
+    """Start the extended test the run picked. True if it started (or would, dry)."""
     label = f"Drive {d['slot']} ({d['serial']}, {d['model']})"
+    tier = planner.tier_of(d)
     if dry:
-        print(f"(dry-run) would start an extended test on {label}: {d['reason']}")
-        return
+        print(f"(dry-run) would start an extended test on {label}: {d['reason']}"
+              + (" (urgent)" if tier == "urgent" else ""))
+        return True
     try:
         status, body = api("POST", f"/storage/disks/{d['slot']}/smart-tests", user_id, {"type": "extended"})
     except ApiError as e:
         alerts.raise_("api:start", f"Couldn't start a test on {label}: {e.detail}")
-        return
+        return False
     if status in (200, 201, 202):
         alerts.clear("api:start")
-        log(f"started extended test on {label}: {d['reason']}")
+        log(f"started extended test on {label}: {d['reason']}" + (" (urgent)" if tier == "urgent" else ""))
         nk = night_key(cfg, t)
-        state["starts"] = {nk: state.get("starts", {}).get(nk, 0) + 1}
-        state.setdefault("drives", {}).setdefault(d["serial"], {})["attrs_at_last_test"] = d.get("attrs", {})
-    elif status == 409:
+        if tier != "urgent":           # urgent starts don't use up the night's count
+            state["starts"] = {nk: state.get("starts", {}).get(nk, 0) + 1}
+        ds = state.setdefault("drives", {}).setdefault(d["serial"], {})
+        ds["attrs_at_last_test"] = d.get("attrs", {})
+        ds["running_tier"] = tier
+        return True
+    if status == 409:
         log(f"{label}: a test is already running (409); skipping")
     else:
         alerts.raise_("api:start", f"Starting a test on {label} returned HTTP {status}: {json.dumps(body)[:200]}")
+    return False
 
 
 def cmd_status(cfg, args):
@@ -702,8 +820,8 @@ def cmd_status(cfg, args):
         if d["serial"] in snoozes:
             print(f"  Snoozed:   {snooze_text(snoozes[d['serial']])[8:]}")
         print()
-    horizon = t + dt.timedelta(days=planner.MAX_NIGHTS + 2)
-    windows, backup_info = backup_windows(cfg, t, horizon)
+    windows, backup_info = backup_windows(cfg, t, horizon_of(t))
+    windows += busy_windows(t)
     plan = planner.plan(storage, drives, state, cfg, t, windows=windows, not_before=not_before(state, t))
     if plan:
         print("Plan (assuming each test passes):")

@@ -1,6 +1,6 @@
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │    1 Home     │  2 Calendar   │   3 Drives    │   4 Alerts    │  5 Settings  │
-└─ Mon 23 Nov 2026 ────────────────────────────────────────── smart-scheduler ─┘
+└─ Mon 23 Nov 2026 ────────────────────────────────────────────────────────────┘
 
  Planned (assuming earlier tests pass)
  ○ Drive 4  WDC WD4002FYYZ-01B7CB0  SERIAL4

@@ -327,33 +327,38 @@ The mockups below show layout only. Tones and chips are described under each one
 
 ### Calendar
 
+The Calendar is the core's (docs/plugin-contract.md §4, `calendar(ctx)`): one month drawn from every tool that has the hook.
+
 ```
- Calendar ───────────────────────────────────────────────────── smart-scheduler
- ‹ November 2026 ›                                    planned through Sun 21 Feb
-    Mon        Tue        Wed        Thu        Fri        Sat        Sun
-                                                                       1
-    2          3          4 ↻        5          6          7          8
-               ✓3
-    9         10         11         12         13         14         15
-                                     ✗4
-   16         17         18         19         20         21         22 today
-                                                                     ▶1
-   23         24         25         26         27         28         29
-   ○6         ○4         ○7         ○2
-   30 ↻
- ── ○ planned  ✓ passed  ✗ failed  ▶ running  ↻ scrub  ⇡ backup ───────────────
- Sunday 22 November  today
-   ▶ Drive 1  extended test running, 80%, started 00:10
-   ! No new test tonight: one is already running
- [Enter] open  [t] today  [r] recalculate        ←→↑↓ day  PgUp/Dn month
+ ‹ November 2026 ›                              planned through Sun 21 Feb 2027
+ ┌─ Mon ────┬─ Tue ────┬─ Wed ────┬─ Thu ────┬─ Fri ────┬─ Sat ────┬─ Sun ────┐
+ │          │          │          │          │          │          │  1       │
+ │          │          │          │          │          │          │          │
+ ├──────────┼──────────┼──────────┼──────────┼──────────┼──────────┼──────────┤
+ │  2       │  3       │  4 ↻     │  5       │  6       │  7       │  8       │
+ │          │ ✓3       │          │          │          │          │          │
+ ├──────────┼──────────┼──────────┼──────────┼──────────┼──────────┼──────────┤
+ │  9       │ 10       │ 11       │ 12       │ 13       │ 14       │ 15       │
+ │          │          │          │ ✗4       │          │          │          │
+ ├──────────┼──────────┼──────────┼──────────┼──────────┼──────────┼──────────┤
+ │ 16       │ 17       │ 18       │ 19       │ 20       │ 21       ┃ 22 today ┃
+ │          │          │          │          │          │          ┃ ▶1       ┃
+ ├──────────┼──────────┼──────────┼──────────┼──────────┼──────────┼──────────┤
+ │ 23       │ 24       │ 25       │ 26       │ 27       │ 28       │ 29       │
+ │ ○6       │ ○4       │ ○7       │ ○2       │          │          │          │
+ ├──────────┼──────────┼──────────┼──────────┼──────────┼──────────┼──────────┤
+ │ 30 ↻     │          │          │          │          │          │          │
+ │          │          │          │          │          │          │          │
+ └─ ○ planned ─ ✓ passed ─ ✗ failed ─ ▶ running ─ ↻ scrub ─ ⇡ backup ─────────┘
 ```
 
-- Each cell's first line has the day number, then scrub/backup glyphs in accent. The second line holds drive chips: a glyph plus the drive number, in the status tone. Up to three fit, then `+2`.
-- Today: the day number is reversed, and `today` is a tag. The selected day gets brackets around its number (`[22]`).
-- The legend sits in the rule above the day panel, always visible and dim.
-- Day panel: the date as a heading, then status rows and `!` reasons indented under it. It shows as many rows as fit, then `N more: Enter for day details`.
-- Day details (Enter): headed sections (Planned, Test history, No test this night, Scrubs and backups, Snoozed drives) with status rows and `↳` notes; long rows wrap.
-- A night with no test and a reason gets `!` on its chip line. The header's "planned through" date carries the year when it isn't this one.
+- A full box grid: a line between every day and every week, all dim, so a busy day's chips never run into the next day's. The weekday names sit in the top border and the legend in the bottom one.
+- Each cell's first line has the day number, then its marks (scrub and backup glyphs) in their status tone. The second line holds chips: a glyph plus a short label (a drive's slot), in the status tone, as many as fit, then `+2`. Past chips are dim, except a failure.
+- Today: the day number is reversed, and `today` follows it when the cell has room. The selected day gets heavy side bars (`┃`, `#` in ASCII).
+- A six-week month fills the 20-row body. A shorter month leaves rows under the grid for the selected day: the date as a heading, then status rows and `!` reasons, as many as fit, then `N more: Enter for day details`.
+- Day details (Enter): headed sections from each tool (smart-scheduler's are Planned, Test history, No test this night, Scrubs and backups, Snoozed drives) with status rows and `↳` notes, then any Problems; long rows wrap.
+- A future night with no chips and a reason gets `!` on its chip line. The header's "planned through" date carries the year when it isn't this one, and `! N problems` sits before it when a tool reported any.
+- Wider terminals widen the cells; taller ones give the day panel more rows.
 
 ### Settings › smart-scheduler
 
@@ -405,5 +410,5 @@ Each step is one PR, and each leaves the app working:
 4. **Inputs:** the full-width editor and `on_change: install` (fixes Enabled).
 5. **Home:** cards as single stops, item targets, and the contract change.
 6. **Drives and Drive:** the layouts and smart-scheduler's vocabulary.
-7. **Calendar:** cells, legend rule and day panel.
+7. **Calendar:** cells, legend rule and day panel. Later moved into the core as a full box grid (the busy-registry PR).
 8. **Wording pass and lint:** all help text against section 8, plus `test_wording.py`.

@@ -1,9 +1,9 @@
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │    1 Home     │  2 Calendar   │   3 Drives    │   4 Alerts    │  5 Settings  │
-└─ Mon 30 Nov 2026 ────────────────────────────────────────── smart-scheduler ─┘
+└─ Mon 30 Nov 2026 ────────────────────────────────────────────────────────────┘
 
  No test this night
- ! scrub on pool 2 at 02:30
+ ! Scrub on pool 2 at 02:30
 
  Scrubs and backups
  ↻ Pool 2 data scrub starts 02:30. No test may be running from 00:30 (2 h

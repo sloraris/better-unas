@@ -23,6 +23,8 @@ import calendar
 import datetime as dt
 from collections import namedtuple
 
+from core.lib import busy
+
 # How far plan() looks ahead at most, whatever the horizon rule says.
 MAX_NIGHTS = 400
 # The extended test length assumed when smartctl doesn't report one.
@@ -31,8 +33,17 @@ DEFAULT_MINUTES = 720
 TICK = dt.timedelta(hours=1)
 
 
-# A period during which no SMART test may be running.
-Window = namedtuple("Window", "start end label kind")
+# How far ahead plan() looks for the first hour an urgent test can start.
+URGENT_LOOKAHEAD = dt.timedelta(days=7)
+# Causes that make a due test urgent (core/lib/busy.py tiers): it starts at
+# once, outside the night window, and other tools' routine jobs give way.
+URGENT_CAUSES = ("warning signs", "retry")
+
+
+# A period during which no SMART test may be running. `tier` (core/lib/busy.py)
+# says which tests must avoid it: those of its tier and below. UniFi's own
+# scrubs and backups are "fixed", above everything.
+Window = namedtuple("Window", "start end label kind tier", defaults=("fixed",))
 # The run's answer for one moment. `start` is the drive to start (or None),
 # `gate` why nothing may start at all (or None), `due` every due drive in
 # priority order, `skipped` [(drive, reason)] for due drives passed over.
@@ -199,9 +210,14 @@ def assess(cfg, disk, history, attrs, baseline, t, rose=None):
             "due": due, "reason": reason, "last": last_good.get("finishedAt") if last_good else None}
 
 
+def tier_of(d):
+    """A due drive's busy-registry tier: urgent for a rise or a retry, else routine."""
+    return "urgent" if d.get("cause") in URGENT_CAUSES else "routine"
+
+
 def priority(d):
-    """Shorter interval first (drives with warning signs), then the longest overdue."""
-    return d["interval"], d["due"]
+    """Urgent first, then shorter interval (drives with warning signs), then the longest overdue."""
+    return -busy.rank(tier_of(d)), d["interval"], d["due"]
 
 
 # --------------------------------------------------------------------------- blocking windows
@@ -269,10 +285,20 @@ def scrub_windows(cfg, storage, until, whole_night=False):
     return out
 
 
-def conflict(cfg, windows, minutes, t):
-    """The first window a test of this length started at `t` would run into, as a reason."""
+def running_until(cfg, d, now):
+    """When a running test on drive d should end: its estimated length, scaled
+    by what the drive says is left."""
+    length = test_length(cfg, d.get("minutes"))
+    if isinstance(d.get("remaining_percent"), int):
+        length = length * max(d["remaining_percent"], 10) / 100
+    return now + length
+
+
+def conflict(cfg, windows, minutes, t, tier="routine"):
+    """The first window a `tier` test of this length started at `t` would run
+    into, as a reason. Windows below its tier don't count."""
     end = t + test_length(cfg, minutes)
-    for w in sorted(windows, key=lambda w: w.start):
+    for w in sorted(busy.blocking(windows, tier), key=lambda w: w.start):
         if t < w.end and end > w.start:
             return f"would overlap {w.label}"
     return None
@@ -313,6 +339,17 @@ def gate(cfg, storage, running, starts_tonight, t):
     return None
 
 
+def urgent_gate(cfg, storage):
+    """The gate for an urgent test: only a pause in config or a pool problem
+    (UniFi's rebuilds and scrubs are above everything) holds it back. The
+    start window, the nightly count and MAX_CONCURRENT don't."""
+    if cfg["MAX_STARTS_PER_NIGHT"] == 0:
+        return "paused (MAX_STARTS_PER_NIGHT=0 in config)"
+    if storage is not None:
+        return pool_problem(storage)
+    return None
+
+
 def start_gate(cfg, storage, drives, state, t):
     """The run's gate: None if a test may start now, otherwise the reason it may not."""
     return gate(cfg, storage, sum(1 for d in drives if d.get("running")),
@@ -341,11 +378,18 @@ def _tick(cfg, drives, t, *, storage, running, starts_tonight, windows, not_befo
     only known for right now (drive busy); `storage` None skips pool checks."""
     due = _due(drives, t)
     g = gate(cfg, storage, running, starts_tonight, t)
-    if g:
+    if g and not any(tier_of(d) == "urgent" for d in due):
         return Decision(None, g, due, [])
+    hold = urgent_gate(cfg, storage) if g else None
+    if hold:
+        return Decision(None, hold, due, [])
     skipped = []
-    busy = cfg["BUSY_KBPS"]
+    busy_kbps = cfg["BUSY_KBPS"]
     for d in due:
+        tier = tier_of(d)
+        if g and tier != "urgent":
+            skipped.append((d, g))
+            continue
         if d.get("running"):
             skipped.append((d, "its test is still running"))
             continue
@@ -353,10 +397,10 @@ def _tick(cfg, drives, t, *, storage, running, starts_tonight, windows, not_befo
         if until is not None and t < until:
             skipped.append((d, why))
             continue
-        if live and busy and d.get("kbps", 0) > busy:
+        if live and busy_kbps and d.get("kbps", 0) > busy_kbps:
             skipped.append((d, f"drive busy ({d['kbps']} KB/s)"))
             continue
-        c = conflict(cfg, windows, d.get("minutes"), t)
+        c = conflict(cfg, windows, d.get("minutes"), t, tier)
         if c:
             skipped.append((d, c))
             continue
@@ -402,8 +446,10 @@ def plan(storage, drives, state, cfg, now, horizon=None, windows=(), not_before=
 
     horizon: None plans until every drive that can be planned (not excluded,
     history readable) has one test; a datetime plans every night up to it.
-    Returns a Plan: entries {serial, slot, model, night, start, end, due,
-    interval, reason, delayed_by: [reasons]} plus `.skipped` nights.
+    Urgent tests (tier_of) are planned first, hour by hour from now, outside
+    the night window. Returns a Plan: entries {serial, slot, model, night,
+    start, end, due, tier, interval, reason, delayed_by: [reasons]} plus
+    `.skipped` nights.
     """
     if cfg["MAX_STARTS_PER_NIGHT"] == 0:
         return Plan(skipped=[{"night": night_key(cfg, now), "reasons": ["paused (MAX_STARTS_PER_NIGHT=0 in config)"]}])
@@ -415,10 +461,7 @@ def plan(storage, drives, state, cfg, now, horizon=None, windows=(), not_before=
             # Assume the running test passes and ends after its estimated length
             # (scaled by what the drive says is left). It blocks other starts even
             # on an excluded drive or one whose history couldn't be read.
-            length = test_length(cfg, s.get("minutes"))
-            if isinstance(s.get("remaining_percent"), int):
-                length = length * max(s["remaining_percent"], 10) / 100
-            s["busy_until"] = now + length
+            s["busy_until"] = running_until(cfg, s, now)
             if not s.get("excluded") and not s.get("error") and s.get("interval"):
                 s.update(s.get("after_clean") or {})     # it passes clean: a rise no longer counts
                 s["due"] = s["busy_until"] + dt.timedelta(days=s["interval"])
@@ -439,13 +482,48 @@ def plan(storage, drives, state, cfg, now, horizon=None, windows=(), not_before=
     starts = dict(state.get("starts", {}))
     tonight = night_key(cfg, now)
     max_starts = cfg["MAX_STARTS_PER_NIGHT"]
+
+    def book(d, t, nk):
+        end = t + test_length(cfg, d.get("minutes"))
+        entries.append({"serial": d["serial"], "slot": d["slot"], "model": d.get("model", "?"),
+                        "night": nk, "start": t, "end": end, "due": d["due"], "tier": tier_of(d),
+                        "interval": d["interval"], "reason": d["reason"],
+                        "cause": d.get("cause") or interval_name(d.get("source")),
+                        "delayed_by": delays.pop(d["serial"], [])})
+        planned.add(d["serial"])
+        d["busy_until"] = end
+        d.update(d.get("after_clean") or {})         # it passes clean: a rise no longer counts
+        d["due"] = end + dt.timedelta(days=d["interval"])
+        d["reason"] = f"every {d['interval']} days ({d.get('why', 'after the planned test')})"
+        d["cause"] = interval_name(d.get("source"))
+
+    # Urgent tests don't wait for the night: hour by hour from now, they start
+    # at the first hour nothing at their tier or above is in the way.
+    def urgent_left():
+        return [s for s in sim if tier_of(s) == "urgent" and not s.get("excluded") and not s.get("error")
+                and s.get("due") and s["serial"] not in planned]
+    t = now
+    while t <= min(until, now + URGENT_LOOKAHEAD) and urgent_left():
+        for s in sim:
+            s["running"] = bool(s.get("busy_until") and s["busy_until"] > t)
+        live = t == now
+        dec = _tick(cfg, urgent_left(), t, storage=storage if live else None, running=0, starts_tonight=0,
+                    windows=live_blocks, not_before=not_before, live=live)
+        for d, why in dec.skipped + [(d, dec.gate) for d in dec.due if dec.gate]:
+            if why not in delays.setdefault(d["serial"], []):
+                delays[d["serial"]].append(why)
+        if dec.start:
+            book(dec.start, t, night_key(cfg, t))
+        t += TICK
+
     day = dt.date.fromisoformat(tonight)
     while day <= last_night:
         if horizon is None and wanted <= planned:
             break
         nk = day.isoformat()
         live = nk == tonight
-        started, reasons = 0, []
+        started = sum(1 for e in entries if e["night"] == nk)     # urgent tests booked above
+        reasons = []
         for t in _ticks(cfg, day, now.tzinfo, now):
             if t > until:
                 break
@@ -469,19 +547,10 @@ def plan(storage, drives, state, cfg, now, horizon=None, windows=(), not_before=
             d = dec.start
             if d is None:
                 continue
-            end = t + test_length(cfg, d.get("minutes"))
-            entries.append({"serial": d["serial"], "slot": d["slot"], "model": d.get("model", "?"),
-                            "night": nk, "start": t, "end": end, "due": d["due"],
-                            "interval": d["interval"], "reason": d["reason"], "cause": d.get("cause") or interval_name(d.get("source")),
-                            "delayed_by": delays.pop(d["serial"], [])})
-            planned.add(d["serial"])
-            starts[nk] = starts.get(nk, 0) + 1
+            if tier_of(d) != "urgent":           # urgent starts don't use up the night's count
+                starts[nk] = starts.get(nk, 0) + 1
             started += 1
-            d["busy_until"] = end
-            d.update(d.get("after_clean") or {})         # it passes clean: a rise no longer counts
-            d["due"] = end + dt.timedelta(days=d["interval"])
-            d["reason"] = f"every {d['interval']} days ({d.get('why', 'after the planned test')})"
-            d["cause"] = interval_name(d.get("source"))
+            book(d, t, nk)
         if not started and reasons:
             skipped.append({"night": nk, "reasons": reasons})
         if horizon is not None and night_bounds(cfg, day, now.tzinfo)[0] > horizon:

@@ -29,6 +29,7 @@ from .. import configfile
 from .. import notify as N
 from .. import plugins as P
 from .. import updates as U
+from . import calendar as cal
 from . import widgets as W
 
 
@@ -390,7 +391,8 @@ class SettingsScreen:
 
 class FormScreen:
     """One tool's settings: a SettingsForm saving with save_config(), a status
-    line, `p` to preview the effect (the plugin's optional preview(ctx, values))
+    line, `p` to preview the effect (the plugin's optional preview(ctx, values), or
+    its Calendar planned with the unsaved values when it has a calendar hook)
     and a discard question when leaving with unsaved edits."""
 
     def __init__(self, ctx, plugin=None, pickers=None, schema=None, tester=None):
@@ -420,7 +422,8 @@ class FormScreen:
 
     @property
     def can_preview(self):
-        return self.plugin is not None and callable(getattr(self.plugin, "preview", None))
+        return self.plugin is not None and any(callable(getattr(self.plugin, n, None))
+                                               for n in ("preview", "calendar"))
 
     @property
     def can_test(self):
@@ -471,7 +474,11 @@ class FormScreen:
             self.ctx.message(f"Fix {label} first: {msg}.", "bad")
             self.sform.select_first_error()
             return
-        screen = self.plugin.preview(self.ctx, self.sform.values())
+        values = self.sform.values()
+        if callable(getattr(self.plugin, "preview", None)):
+            screen = self.plugin.preview(self.ctx, values)
+        else:      # a tool with a calendar hook: its month planned with the unsaved values
+            screen = cal.preview(self.ctx.with_values(values), self.plugin)
         if screen is not None:
             self.ctx.push(screen)
 

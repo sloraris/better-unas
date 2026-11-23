@@ -159,6 +159,23 @@ real NAS.
   and the manifest covers every file in the tool's folder. Tools install
   with the suite only. No change in what the tools do; the next update
   rewrites each tool's manifest when it re-runs `install.sh`.
+- Calendar in the core and the busy registry (step 2 of
+  docs/scrub-repair-design.md). The Calendar tab is now the core's: it draws
+  one month from every tool with a `calendar(ctx)` plugin hook, as a full box
+  grid with a line between every day and every week, so a busy day's chips
+  no longer run into the next. Weekday names sit in the top border and the
+  legend in the bottom one; the selected day gets heavy side bars. A
+  six-week month fills the body and the day's rows open with Enter; a
+  shorter month keeps a day panel under the grid. A tool with the hook gets
+  `p` (the Calendar planned with unsaved settings) on its Settings page
+  without writing its own preview. The busy registry (`core/lib/busy.py`)
+  lets tools keep their disk-heavy jobs apart: each tool publishes its
+  windows to its own `busy.json` and its planner stays clear of the
+  others'. Every window has a tier, highest first: `fixed` (UniFi's own
+  jobs), `manual`, `urgent`, `scheduled`, `routine`. A job avoids its own
+  tier and above and ignores lower ones; a lower job already running gives
+  way to a higher one (pauses, or stops and is planned again), and the
+  higher tool nudges it so it happens at once.
 
 ### smart-scheduler
 
@@ -172,7 +189,17 @@ real NAS.
 - Drive actions: `run-now` (quick or extended, with checks and `--override`),
   `exclude` / `include`, `interval` (#8).
 - Calendar tab: month grid of past and planned tests, scrub and backup days,
-  day details (#10).
+  day details (#10). Now drawn by the core from smart-scheduler's
+  `calendar(ctx)` hook.
+- Publishes its running and planned tests, and UniFi's scrub and backup
+  windows, to the busy registry, and plans around other tools' windows by
+  tier: the hourly run, `status`, the Calendar and `run-now`'s checks all see
+  them. A running test that another tool's higher-tier job needs the disks
+  for is stopped (`smartctl -X`) and planned again, without counting as a
+  failure.
+- Urgent tests: a rise in a watched SMART count or a failed test's retry
+  starts on the next hourly run, outside `START_WINDOW`, without using up the
+  night's start or waiting for `MAX_CONCURRENT`.
 - Drives tab: per-drive schedule, SMART values and UniFi test history, with
   run now, snooze, exclude and interval (#11).
 

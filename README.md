@@ -95,13 +95,14 @@ the words always say the same thing, and `NO_COLOR` is respected.
 | Tab | What's on it | Capture |
 |---|---|---|
 | Home | An update notice when there is one, active alerts, and a card per tool. Each card is one stop that opens the tool; an item that leads elsewhere, like the last failed test's drive, is a stop of its own. | [home](docs/screens/home.txt) |
-| Calendar | smart-scheduler's month grid: past tests, planned tests, scrub and backup days. Enter shows why a night has or hasn't got a test. | [month](docs/screens/calendar.txt), [day](docs/screens/calendar-day.txt) |
+| Calendar | One month from every tool with a calendar: smart-scheduler's past and planned tests, scrub and backup days. Enter shows why a night has or hasn't got a test. | [month](docs/screens/calendar.txt), [day](docs/screens/calendar-day.txt) |
 | Drives | Every drive's last and next test, temperature and interval, with the selected drive explained under the list. Enter opens one drive (schedule, health counts, UniFi test history); `t` runs a test now, `z` snoozes, `x` excludes, `i` sets its interval. | [list](docs/screens/drives.txt), [drive](docs/screens/drive.txt) |
 | Alerts | Active and recent alerts, and where they're sent. | [alerts](docs/screens/alerts.txt) |
 | Settings | **better-unas**: version, update (`u`), check (`c`), developer mode, remove (`R`). **Notifications**: the webhook and heartbeat every tool shares; `t` sends a test. **Each tool**, installed or not: its settings as a form, checked as you type (`s` saves, Esc offers to discard, `p` previews the calendar), plus install (`i`) and uninstall (`x`). | [list](docs/screens/settings-list.txt), [better-unas](docs/screens/settings-better-unas.txt), [notifications](docs/screens/settings-notifications.txt), [smart-scheduler](docs/screens/settings.txt) |
 
-Calendar and Drives come from smart-scheduler's plugin; a tool without
-screens just gets a Home card and a Settings section. The captures are the
+The Calendar is the core's, drawn from each tool's calendar hook; Drives
+comes from smart-scheduler's plugin. A tool without either just gets a Home
+card and a Settings section. The captures are the
 real app at 80x28 against the test fixtures (`python3 docs/screens/make.py`
 regenerates them).
 

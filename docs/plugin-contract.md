@@ -252,6 +252,7 @@ def validate(values): ... # optional
 def screens(ctx): ...     # optional
 def send_test(ctx, key, values): ...  # optional
 def preview(ctx, values): ...  # optional
+def calendar(ctx): ...    # optional
 ```
 
 Every function except `validate` gets the context described in section 6. They must not write
@@ -374,23 +375,71 @@ function there's no `t`. The shared webhook and heartbeat aren't a tool's
 unsaved edits applied (every field must be valid first), and pushes the screen
 it returns; Esc comes back to the form with the edits intact. Return `None`
 to show nothing. The screen must read settings only from `values` (or a
-context whose `config()` returns them) and write nothing. Without the
-function there is no `p`. smart-scheduler returns its Calendar planned with
-the values (`preview_calendar`).
+context whose `config()` returns them) and write nothing. A tool with a
+`calendar` hook and no `preview` gets one from the core: `p` opens the
+Calendar with only that tool's days, read through a context whose
+`config()` returns the unsaved values (`ctx.with_values(values)`). Without
+either function there is no `p`. smart-scheduler relies on the core's.
+
+### `calendar(ctx)`: the tool's days on the core Calendar (optional)
+
+The Calendar tab belongs to the core. It appears after Home when any tool has
+this hook, and draws one month from all of them (docs/tui-style.md §10). The
+core calls it each time the Calendar opens and on `r`, inside `run_slow`, so
+it may read live. A tool's Home card opens the Calendar when it has the hook.
+
+```python
+def calendar(ctx):
+    return {
+        "today": date(2026, 11, 22),     # optional: the tool's "today" (a night key); default the clock's date
+        "until": date(2027, 2, 21),      # optional: the last planned day, or None
+        "until_note": "The plan stops ...",   # optional: day details text after `until`
+        "legend": [("planned", "planned"), ("ok", "passed")],   # (status kind, label)
+        "problems": ["Couldn't read the backup tasks"],
+        "days": {date(2026, 11, 23): [
+            {"status": "planned", "place": "chip", "chip": "6",
+             "text": "Drive 6  planned 01:00-09:30, warning signs",
+             "section": "Planned (assuming earlier tests pass)",
+             "detail": "Drive 6  ST4000VN006  SERIAL6",
+             "notes": ["starts 01:00, ends about 09:30"], "past": False},
+        ]},
+    }
+```
+
+Or `{"error": "UniFi Drive API problem: ..."}` when there is nothing to show.
+
+Each entry:
+
+- `status`: a status kind (the glyph and tone), or `None` for a plain line.
+- `place`: where it shows in the day's cell. `chip` puts the glyph and
+  `chip` (1 to 3 characters, like a drive slot) on the cell's second line;
+  `mark` puts the glyph beside the day number (scrubs, backups); `flag`
+  shows `!` on the second line of a future day with no chips (a skipped
+  night); `list` (the default) shows only in the day's rows.
+- `text`: the row under the grid and, without `detail`, in the day details.
+- `section`: the heading it goes under in the day details; `detail` replaces
+  `text` there and `notes` are lines under it.
+- `past`: drawn dim (a failed chip stays red).
+
+The core merges every tool's days in tool order and lists each tool's
+problems, prefixed with its name when more than one tool has the hook. A
+hook that raises, returns `error`, or fails `P.check_calendar` costs only
+that tool's days, shown as a problem; the error fills the screen only when
+no tool has days to show.
 
 ### `screens(ctx)`: the tool's own screens (optional)
 
 ```python
 def screens(ctx):
     return [
-        {"id": "calendar", "tab": "Calendar", "make": CalendarScreen},
-        {"id": "drives",   "tab": "Drives",   "make": DrivesScreen},
+        {"id": "drives", "tab": "Drives", "make": DrivesScreen},
     ]
 ```
 
 - `id`: lowercase, unique within the tool.
-- `tab`: the tab title. The core's own tabs are Home, Alerts and Settings; a
-  tool can't use those. Tool tabs go between Home and Alerts, in the order
+- `tab`: the tab title. The core's own tabs are Home, Calendar, Alerts and
+  Settings; a tool can't use those (the Calendar comes from `calendar`).
+  Tool tabs go between the Calendar and Alerts, in the order
   tools are listed, then the order returned here. So with smart-scheduler
   installed the bar reads Home, Calendar, Drives, Alerts, Settings, as in
   [tui-style.md](tui-style.md) §6. If two tools return the same tab title, that
@@ -618,6 +667,7 @@ imports the TUI and is standard library only.
 | `alerts` | `Alerts`: deduplicated alerts with an outbox, kept in the tool's state (`alerts`, `resolved`, `outbox`). |
 | `notify` | Webhook messages in every `WEBHOOK_FORMAT`, heartbeat pings, `heartbeat_urls(cfg)` for the own-or-shared pair. |
 | `tool` | `Tool(name, script, required=...)`: the tool folder's paths, state file, run lock, install manifest, triggers, self-healing, the checks a run starts with, and the `install` and `uninstall` steps. |
+| `busy` | The busy registry: when each tool's jobs run, so the others stay clear (below). |
 | `util` | Time, logging to syslog under the tool's name, commands, atomic writes. |
 
 A tool's script finds it from its own folder: the tool sits in
@@ -648,12 +698,48 @@ exec python3 "$(dirname "$0")/space_watch.py" install
 
 `install` creates `config` from `config.example`, removes the triggers and
 stops when `ENABLED=no`, writes `manifest.sha256` (every file in the folder
-except `config`, `state.json`, `.lock` and caches), heals the triggers, runs
+except `config`, `state.json`, `.lock`, `busy.json` and caches), heals the triggers, runs
 the tool's self-check and prints what the tool asks for. Self-healing
 rewrites triggers only while the folder matches that manifest.
 
 Tools are installed with the suite only: `bootstrap.sh` and every update put
 the core in place first, then each tool, then run each tool's `install.sh`.
+
+**The busy registry** keeps tools' disk-heavy jobs apart. Each tool writes
+its own `busy.json` with `TOOL.publish_busy(windows, now)`, where a window is
+`(start, end, label, kind, tier)`, and reads everyone else's with
+`TOOL.others_busy(now)`, which returns `Busy(start, end, label, kind, tool,
+tier)` tuples that haven't ended. `label` is said in reasons ("would overlap
+scrub-repair scrub"), so it reads on its own. `kind` is `running`,
+`planned`, `scrub` or `backup`.
+
+`tier` says how much a job matters, highest first:
+
+| Tier | Jobs |
+|---|---|
+| `fixed` | UniFi's own scrubs, backups and rebuilds. Nothing here can move them, so nothing runs into them. |
+| `manual` | Started by hand: `run-now`, a scrub you start. |
+| `urgent` | Trouble: a watched SMART count rose, a failed test's retry, a scrub after checksum errors or parity mismatches. Starts at once, outside the night window. |
+| `scheduled` | Work on a calendar: scrub-repair's quarterly scrub. |
+| `routine` | Interval work: a SMART test that is simply due. |
+
+- A job stays clear of every window at its own tier or above
+  (`busy.blocking(windows, tier)`) and ignores lower ones. Equal tiers plan
+  around each other, first come first served.
+- A lower job already running when a higher one needs the disks (it has
+  started or starts within 15 minutes, `busy.must_yield`) gives way: it
+  pauses if it can (a scrub), else stops and is planned again (a SMART test),
+  and the tool says so in an info alert.
+- A tool starting a job nudges the tools whose lower-tier running jobs are in
+  the way (`busy.in_the_way`, then `TOOL.nudge(tools)`, which starts their
+  services), so they give way at once instead of at their next timer run.
+- A file not rewritten for two days is ignored. Turning a tool off and
+  uninstalling it withdraw its windows; updates keep the file.
+- smart-scheduler publishes its running and planned tests (urgent for a rise
+  or a retry, routine otherwise; a test started by hand or outside it counts
+  as manual), and UniFi's scrubs and backup windows as it reads them (with
+  its margins, labelled "UniFi ...", tier `fixed`), for 31 days ahead. A tool
+  that runs beside it needn't read UniFi itself.
 
 ## Where each part was built
 

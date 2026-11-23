@@ -25,7 +25,7 @@ def _load(name, filename):
 
 
 ss = _load("better_unas_smart_scheduler", "smart_scheduler.py")
-calendar_screen = _load("better_unas_smart_scheduler_calendar", "screens_calendar.py")
+calendar_data = _load("better_unas_smart_scheduler_calendar", "calendar_data.py")
 drives_screen = _load("better_unas_smart_scheduler_drives", "screens_drives.py")
 
 
@@ -76,8 +76,8 @@ def summary(ctx):
     if not ctx.config()["ENABLED"]:
         return {"state": "off", "headline": "Turned off (ENABLED=no)", "items": []}
     try:
-        data = calendar_screen.gather(ss, ctx)
-    except calendar_screen.CalendarError as e:
+        data = calendar_data.gather(ss, ctx)
+    except calendar_data.CalendarError as e:
         return {"state": "error", "headline": str(e)[:60], "items": []}
     t = data["now"]
     drives = [d for d in data["drives"] if not d.get("excluded") and not d.get("error")]
@@ -143,17 +143,24 @@ def validate(values):
     return out
 
 
-# ------------------------------------------------------------------ screens
+# ------------------------------------------------------------------ calendar and screens
 
-def _calendar(ctx):
-    # `ss` is looked up each time the screen reads, so tests can swap in a faked module.
-    return calendar_screen.CalendarScreen(ctx, lambda: calendar_screen.gather(ss, ctx))
+def calendar(ctx):
+    """The contract's calendar hook (docs/plugin-contract.md §4): drive tests,
+    past and planned, with scrubs, backups and snoozes. The core draws it in
+    the Calendar tab, and `p` on the Settings screen shows it planned with
+    the unsaved values (ctx.config() answers with them)."""
+    try:
+        data = calendar_data.gather(ss, ctx)
+    except calendar_data.CalendarError as e:
+        return {"error": str(e)}
+    return calendar_data.to_calendar(data)
 
 
 def _env():
     # Looked up on each use, so tests can swap in a faked `ss` or `actions`.
     actions.ss = ss
-    return ss, actions, calendar_screen
+    return ss, actions, calendar_data
 
 
 def _drives(ctx):
@@ -161,38 +168,4 @@ def _drives(ctx):
 
 
 def screens(ctx):
-    return [{"id": "calendar", "tab": "Calendar", "make": _calendar},
-            {"id": "drives", "tab": "Drives", "make": _drives}]
-
-
-class _PreviewContext:
-    """The tool's context with config() answering from unsaved values."""
-
-    def __init__(self, ctx, values):
-        self._ctx, self._values = ctx, dict(values)
-
-    def config(self):
-        return dict(self._values)
-
-    def __getattr__(self, name):
-        return getattr(self._ctx, name)
-
-
-def preview_calendar(ctx, values):
-    """A Calendar screen that plans with unsaved settings, for the Settings screen:
-
-        ctx.push(plugin.preview_calendar(ctx, values))
-
-    `values` is {KEY: typed value} with the user's edits applied (what
-    ctx.config() would return after saving). Every read, including `r`
-    (recalculate), uses them; nothing is written.
-    """
-    screen = _calendar(_PreviewContext(ctx, values))
-    screen.title = "Calendar preview (unsaved settings)"
-    return screen
-
-
-def preview(ctx, values):
-    """The contract's optional preview hook (docs/plugin-contract.md section 4):
-    `p` on the Settings screen opens the calendar planned with the unsaved values."""
-    return preview_calendar(ctx, values)
+    return [{"id": "drives", "tab": "Drives", "make": _drives}]

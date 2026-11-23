@@ -33,7 +33,7 @@ ENTRY = "better-unas"
 RELEASE_DIR = ".release"
 UNINSTALLED = "tool.conf.uninstalled"
 # Always kept when a tool's files are replaced (plus its manifest CONFIG and LOCK).
-KEEP = ("config", "state.json", ".lock", UNINSTALLED)
+KEEP = ("config", "state.json", ".lock", "busy.json", UNINSTALLED)
 # Suite files copied from a release into the home. The entry point is handled apart.
 CORE_ITEMS = ("core", "VERSION", "README.md")
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
