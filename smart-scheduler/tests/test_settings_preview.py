@@ -38,7 +38,7 @@ class SettingsScreenTests(CalendarFixture, unittest.TestCase):
             return f.read()
 
     def tonight(self):
-        return [e["serial"] for e in self.app.screen.data["days"][dt.date(2026, 11, 22)]["planned"]]
+        return [e["serial"] for e in self.data["days"][dt.date(2026, 11, 22)]["planned"]]
 
     def test_form_at_80x28(self):
         self.write_config(EXAMPLE)

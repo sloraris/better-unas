@@ -47,6 +47,7 @@ The most urgent due drive gets a test only when all of these hold:
 - the test, at the drive's own estimated length × 1.5, would end at least 2 hours before the next scheduled scrub
 - the test would stay clear of UniFi Drive's scheduled backup and replication tasks (see below)
 - the drive isn't busy (more than 20 MB/s of reads and writes)
+- the test would stay clear of other better-unas tools' jobs (the busy registry, below)
 
 `python3 smart_scheduler.py status` shows each drive's last test, its next due
 date and why, then the plan: the night each drive's next test will start,
@@ -54,6 +55,16 @@ assuming every test passes, and any night skipped because of a scrub or a
 backup task, followed by the backup tasks it avoids. The plan
 comes from `planner.py`, the same code the hourly run uses to decide whether to
 start a test, so the two always agree as long as nothing on the NAS changes.
+
+### Other tools' jobs: the busy registry
+
+Each run publishes this tool's windows to `busy.json` in its folder: the
+running test, the planned tests and, for the next 31 days, UniFi's scrubs and
+backup windows as this tool reads them (labelled "UniFi ..."). It reads the
+other tools' `busy.json` files the same way and plans around their windows
+like a backup task, so a night another tool has booked shows as skipped with
+its reason (`would overlap scrub-repair scrub`). Turning the tool off or
+uninstalling it withdraws its windows (docs/plugin-contract.md section 11).
 
 ### Backups and replication
 
@@ -130,10 +141,11 @@ Every action takes the run lock, and with `--dry-run` nothing changes.
 - **Home:** a card with tests running, the next planned test, the last
   result, the next scrub, and snoozed drives. Enter on the card opens the
   Calendar; the running test and the last result open that drive.
-- **Calendar:** a month grid. Each night shows the drive(s) tested or
+- **Calendar:** the core's month grid, filled from this tool's calendar
+  hook (`calendar_data.py`). Each night shows the drive(s) tested or
   planned as a glyph and the drive number (`○6` planned, `✓6` passed, `✗6` failed,
   `▶6` running), `↻` marks a scrub and `⇡` a UniFi backup, with the legend
-  under the grid. Arrows move days, PgUp/PgDn months, `t`
+  in the grid's bottom border. Arrows move days, PgUp/PgDn months, `t`
   goes to today, `r` recalculates, and Enter explains a day: each test, why
   it's planned, and why a night was skipped. The plan runs forward until
   every drive has one test. ([capture](../docs/screens/calendar.txt))

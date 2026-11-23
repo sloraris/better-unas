@@ -22,6 +22,7 @@ ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
+from core.lib import busy               # noqa: E402
 from core.lib import config as C        # noqa: E402
 from core.lib import settings as S      # noqa: E402
 from core.lib.alerts import RESOLVED_KEEP, Alerts  # noqa: E402
@@ -181,6 +182,55 @@ class Run(ToolFolder):
         self.assertIsNone(self.tool.take_lock(0))
         lock.close()
         self.assertEqual(self.tool.lock_for("status", "timer", ("run",), 60), (None, False))
+
+
+class BusyRegistry(ToolFolder):
+    def other(self, name, windows, updated=T0):
+        d = os.path.join(self.home, name)
+        os.makedirs(d, exist_ok=True)
+        busy.publish(d, name, windows, updated)
+        return d
+
+    def test_tools_read_each_others_windows_not_their_own(self):
+        h = dt.timedelta(hours=1)
+        self.tool.publish_busy([(T0 + h, T0 + 2 * h, "demo-tool job", "planned")], T0)
+        self.other("scrub-repair", [busy.Busy(T0 + 3 * h, T0 + 9 * h, "scrub-repair scrub", "scrub", "x"),
+                                    (T0 - 2 * h, T0 - h, "ended", "running")])
+        got = self.tool.others_busy(T0)
+        self.assertEqual([(w.label, w.kind, w.tool) for w in got], [("scrub-repair scrub", "scrub", "scrub-repair")])
+        mine = busy.read(self.home, T0, exclude="scrub-repair")
+        self.assertEqual([(w.label, w.start) for w in mine], [("demo-tool job", T0 + h)])
+        self.assertEqual(busy.overlapping(got, T0, T0 + 4 * h), got)
+        self.assertEqual(busy.overlapping(got, T0, T0 + 3 * h), [])
+
+    def test_stale_and_broken_files_are_ignored(self):
+        h = dt.timedelta(hours=1)
+        self.other("old-tool", [(T0, T0 + 99 * h, "old", "planned")], updated=T0 - busy.STALE - h)
+        d = os.path.join(self.home, "broken-tool")
+        os.makedirs(d)
+        with open(os.path.join(d, busy.FILE), "w") as f:
+            f.write("{not json")
+        self.assertEqual(self.tool.others_busy(T0), [])
+        with self.assertRaises(ValueError):
+            busy.publish(d, "broken-tool", [(T0, T0 + h, "x", "lunch")], T0)
+
+    def test_withdrawn_when_turned_off_or_uninstalled(self):
+        h = dt.timedelta(hours=1)
+        self.tool.publish_busy([(T0 + h, T0 + 2 * h, "job", "planned")], T0)
+        reader = self.other("reader", [])
+        name = lambda: [w.label for w in busy.read(self.home, T0, exclude="reader")]   # noqa: E731
+        self.assertEqual(name(), ["job"])
+        cfg, state = self.cfg(ENABLED="no"), {}
+        with mock.patch("core.lib.util.now", lambda: T0):
+            self.tool.turned_off(cfg, state, self.alerts(cfg, state), False)
+        self.assertEqual(name(), [])
+        self.assertTrue(os.path.isdir(reader))
+        self.assertIn(busy.FILE, __import__("core.lib.tool", fromlist=["DATA"]).DATA)
+
+    def test_not_in_the_manifest(self):
+        self.tool.write_manifest()
+        self.tool.publish_busy([(T0, T0 + dt.timedelta(hours=1), "job", "running")], T0)
+        self.assertEqual(self.tool.verify_manifest(), [])
 
 
 class Install(ToolFolder):

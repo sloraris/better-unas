@@ -24,13 +24,13 @@ import shutil
 import syslog
 import time
 
-from core.lib import notify, util
+from core.lib import busy, notify, util
 from core.lib import settings as S
 from core.lib.alerts import Alerts
 from core.lib.config import Config
 
 # Files in a tool's folder that are its own data, not code: never in the manifest.
-DATA = ("config", "state.json", ".lock", "manifest.sha256", "tool.conf.uninstalled")
+DATA = ("config", "state.json", ".lock", "manifest.sha256", "tool.conf.uninstalled", busy.FILE)
 
 
 class Tool:
@@ -44,7 +44,8 @@ class Tool:
         self.required = tuple(required)
         self.config_file = os.path.join(self.base, "config")
         self.example_file = os.path.join(self.base, "config.example")
-        self.core_config_file = os.path.join(os.path.dirname(self.base), "better-unas.conf")
+        self.home = os.path.dirname(self.base)       # the suite folder, beside the other tools
+        self.core_config_file = os.path.join(self.home, "better-unas.conf")
         self.state_file = os.path.join(self.base, "state.json")
         self.manifest_file = os.path.join(self.base, "manifest.sha256")
         self.lock_file = os.path.join(self.base, ".lock")
@@ -253,10 +254,19 @@ class Tool:
             return False
         if not state.get("disabled"):
             removed = self.remove_triggers(dry)
+            busy.withdraw(self.base, self.name, util.now(), dry)
             alerts.info(f"Turned off (ENABLED=no): removed {what} (" + (", ".join(removed) or "none")
                         + "). Turn Enabled back on in Settings to restart it.")
             state["disabled"] = True
         return True
+
+    def publish_busy(self, windows, t, dry=False):
+        """Replace this tool's windows in the busy registry (core/lib/busy.py)."""
+        return busy.publish(self.base, self.name, windows, t, dry)
+
+    def others_busy(self, t):
+        """The other tools' busy windows that haven't ended by t."""
+        return busy.read(self.home, t, exclude=self.name)
 
     def cron_can_skip(self, state, t, within):
         """The cron line is only a backup: True when the timer ran within
@@ -328,6 +338,7 @@ class Tool:
             print("Run as root.")
             return 1
         self.remove_triggers(False)
+        busy.withdraw(self.base, self.name, util.now())
         print("Removed the timer, service and cron line." + (f" {note}" if note else ""))
         if purge:
             if os.path.basename(self.base) == self.name:

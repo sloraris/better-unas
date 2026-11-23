@@ -23,6 +23,7 @@ import traceback
 from .. import plugins as P
 from . import screens as core
 from .alerts import AlertsScreen
+from . import calendar as cal
 from .home import HomeScreen
 from .settings import SettingsScreen
 from . import widgets
@@ -95,6 +96,13 @@ class Context:
         self.app.log(f"[{self.tool.name if self.tool else 'core'}] {text}")
 
     # --- core business
+    def with_values(self, values):
+        """A copy whose config() always returns these values: a screen built
+        on it keeps planning with unsaved settings (the Settings preview)."""
+        ctx = Context(self.app, self.tool)
+        ctx._preview = dict(values)
+        return ctx
+
     @contextlib.contextmanager
     def preview(self, values):
         """While active, config() returns these values (the Settings preview)."""
@@ -156,6 +164,11 @@ class App:
             for s in specs:
                 tool_tabs.append((s["tab"], f"{tool.name}: {s['id']}", ctx, s["make"]))
 
+        # The Calendar is the core's, drawn from every tool with a calendar hook.
+        sources = cal.sources_for(self.plugins, self.contexts)
+        if sources:
+            tool_tabs.insert(0, ("Calendar", "Calendar", self.core_ctx,
+                                 lambda ctx: cal.CalendarScreen(ctx, sources)))
         grouped = {}
         for title, label, ctx, make in tool_tabs:
             grouped.setdefault(title, []).append((label, ctx, make))

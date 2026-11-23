@@ -3,6 +3,7 @@
 */state.json
 */manifest.sha256
 */.lock
+*/busy.json
 
 __pycache__/
 .DS_Store

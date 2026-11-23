@@ -328,6 +328,43 @@ class PlannerTests(unittest.TestCase):
         ss.cmd_run(self.cfg, Args)
         self.assertEqual(len(sent), 1)
 
+    def test_run_stays_clear_of_other_tools_windows(self):
+        from core.lib import busy
+        self.fake.attrs["SERIAL6"] = {}
+        sent = []
+        patch(self, "start_test", lambda cfg, d, *a: sent.append(d["serial"]))
+        patch(self, "self_check", lambda *a, **k: (self.fake.storage, "uid"))
+        patch(self, "load_state", lambda: {})
+        monday = at(2026, 11, 23, 1)
+        scrub = busy.Busy(at(2026, 11, 23, 0), at(2026, 11, 23, 7), "scrub-repair scrub", "scrub", "scrub-repair")
+        self.addCleanup(setattr, ss.TOOL, "others_busy", ss.TOOL.others_busy)
+        ss.TOOL.others_busy = lambda t: [scrub]
+
+        class Args:
+            dry_run, source = True, "manual"
+        ss.now = lambda: monday               # free of UniFi's backups, but not of the other tool
+        ss.cmd_run(self.cfg, Args)
+        self.assertEqual(sent, [])
+        ss.TOOL.others_busy = lambda t: []
+        ss.cmd_run(self.cfg, Args)
+        self.assertEqual(len(sent), 1)
+
+    def test_published_windows(self):
+        ss.now = lambda: NIGHT
+        drives = self.drives()
+        drives[0]["running"], drives[0]["minutes"] = True, 600
+        windows, _ = ss.backup_windows(self.cfg, NIGHT, NIGHT + ss.BUSY_AHEAD)
+        out = ss.publish_busy(self.cfg, self.fake.storage, drives, {}, NIGHT, windows, dry=True)
+        kinds = [w["kind"] for w in out]
+        self.assertEqual(set(kinds), {"running", "planned", "backup", "scrub"})
+        first = {w["kind"]: w for w in reversed(out)}
+        self.assertEqual(first["running"]["label"], f"smart-scheduler test on Drive {drives[0]['slot']}")
+        self.assertEqual(first["running"]["start"], NIGHT.isoformat())
+        self.assertTrue(first["backup"]["label"].startswith("UniFi "))
+        self.assertIn("scrub", first["scrub"]["label"])
+        self.assertTrue(all(w["start"] < (NIGHT + ss.BUSY_AHEAD).isoformat() for w in out))
+        self.assertEqual(out, sorted(out, key=lambda w: w["start"]))
+
     def test_status_lists_tasks_and_skipped_nights(self):
         patch(self, "get_storage", lambda: self.fake.storage)
         patch(self, "resolve_identity", lambda cfg: ("uid", "the console owner", None))

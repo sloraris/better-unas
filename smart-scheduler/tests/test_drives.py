@@ -260,7 +260,7 @@ class DrivesScreenTests(DrivesFixture, unittest.TestCase):
     def test_plugin_lists_the_drives_screen(self):
         self.make_app()
         tabs = [s["tab"] for s in self.plugin.screens(self.ctx)]
-        self.assertEqual(tabs, ["Calendar", "Drives"])
+        self.assertEqual(tabs, ["Drives"])          # the Calendar is the core's (calendar hook)
         ss_, actions, _ = self.plugin._env()
         self.assertIs(actions.ss, self.plugin.ss)          # actions follow a swapped-in ss
         self.assertIs(ss_, ss)

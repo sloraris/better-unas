@@ -10,6 +10,8 @@ from .theme import ROLES, STATUS, TONES
 
 UNICODE = {
     "h": "─", "v": "│", "tl": "┌", "tr": "┐", "bl": "└", "br": "┘",
+    # grid joints (top, bottom, left and right tees, cross) and a heavy side
+    "tt": "┬", "bt": "┴", "lt": "├", "rt": "┤", "x": "┼", "vh": "┃",
     "up": "↑", "down": "↓", "more": "…", "marker": "›", "dot": "•",
     "left": "‹", "right": "›", "sep": "│",
     # status glyphs (docs/tui-style.md §3)
@@ -19,6 +21,7 @@ UNICODE = {
 }
 ASCII = {
     "h": "-", "v": "|", "tl": "+", "tr": "+", "bl": "+", "br": "+",
+    "tt": "+", "bt": "+", "lt": "+", "rt": "+", "x": "+", "vh": "#",
     "up": "^", "down": "v", "more": "~", "marker": ">", "dot": "*",
     "left": "<", "right": ">", "sep": "|",
     "ok": "+", "failed": "x", "warning": "!", "running": ">", "planned": "o",

@@ -67,7 +67,7 @@ TYPE_ATTRS = {
 EMPTY_OK = S.EMPTY_OK
 
 PLUGIN_REQUIRED = ("summary", "alerts", "status")
-PLUGIN_OPTIONAL = ("screens", "validate", "send_test", "preview")
+PLUGIN_OPTIONAL = ("screens", "validate", "send_test", "preview", "calendar")
 # Settings every tool shares, kept in <home>/better-unas.conf (core/notify.py).
 # A tool reads them from there with its own config as a fallback, so they may
 # still sit in a tool's config; that is never an "unknown setting".
@@ -481,7 +481,58 @@ def check_screens(specs):
     return p
 
 
-CORE_TABS = ("Home", "Alerts", "Settings")
+CORE_TABS = ("Home", "Calendar", "Alerts", "Settings")
+CALENDAR_PLACES = ("chip", "mark", "flag", "list")
+
+
+def check_calendar(c):
+    """Problems with a calendar(ctx) return value (docs/plugin-contract.md §4)."""
+    if not isinstance(c, dict):
+        return ["calendar: must return a dict"]
+    if "error" in c:
+        return [] if isinstance(c["error"], str) and c["error"] else ["calendar: error must be a non-empty string"]
+    p = []
+    for k in ("today", "until"):
+        if c.get(k) is not None and not isinstance(c[k], dt.date):
+            p.append(f"calendar: {k} must be a date")
+    for k in ("until_note",):
+        if k in c and not isinstance(c[k], str):
+            p.append(f"calendar: {k} must be a string")
+    if not (isinstance(c.get("problems", []), list) and all(isinstance(x, str) for x in c.get("problems", []))):
+        p.append("calendar: problems must be a list of strings")
+    legend = c.get("legend", [])
+    if not (isinstance(legend, list) and all(isinstance(x, (list, tuple)) and len(x) == 2
+                                             and x[0] in STATUS_KINDS and isinstance(x[1], str) for x in legend)):
+        p.append("calendar: legend must be a list of (status kind, label) pairs")
+    days = c.get("days")
+    if not isinstance(days, dict):
+        return p + ["calendar: days must be a dict of date -> entries"]
+    for d, entries in days.items():
+        if not isinstance(d, dt.date) or isinstance(d, dt.datetime):
+            p.append(f"calendar: day {d!r} must be a date")
+            continue
+        if not isinstance(entries, list):
+            p.append(f"calendar: {d}: entries must be a list")
+            continue
+        for i, e in enumerate(entries):
+            where = f"calendar: {d} entry {i + 1}"
+            if not (isinstance(e, dict) and isinstance(e.get("text"), str) and e["text"]):
+                p.append(f"{where}: needs text")
+                continue
+            if e.get("status") is not None and e["status"] not in STATUS_KINDS:
+                p.append(f"{where}: status must be one of {', '.join(STATUS_KINDS)} or None")
+            if e.get("place", "list") not in CALENDAR_PLACES:
+                p.append(f"{where}: place must be one of {', '.join(CALENDAR_PLACES)}")
+            if e.get("place") in ("chip", "mark", "flag") and e.get("status") is None:
+                p.append(f"{where}: a {e['place']} needs a status")
+            if e.get("place") == "chip" and not (isinstance(e.get("chip"), str) and 0 < len(e["chip"]) <= 3):
+                p.append(f"{where}: a chip needs chip, 1 to 3 characters")
+            for k in ("section", "detail"):
+                if k in e and not isinstance(e[k], str):
+                    p.append(f"{where}: {k} must be a string")
+            if not (isinstance(e.get("notes", []), list) and all(isinstance(x, str) for x in e.get("notes", []))):
+                p.append(f"{where}: notes must be a list of strings")
+    return p
 
 
 def _iso(v):

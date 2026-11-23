@@ -1,13 +1,13 @@
 ┌───────────────────────────────────────────────────────────────────── v0.2.0 ─┐
 │    1 Home     │  2 Calendar   │   3 Drives    │   4 Alerts    │  5 Settings  │
-└─ Sun 22 Nov 2026 ────────────────────────────────────────── smart-scheduler ─┘
+└─ Sun 22 Nov 2026 ────────────────────────────────────────────────────────────┘
 
  Test history (UniFi Drive)
  ▶ Drive 1  ST4000VN006-3CW104  SERIAL1
    ↳ extended test running, started 00:10
 
  No test tonight
- ! one is already running
+ ! One is already running
 
 
 

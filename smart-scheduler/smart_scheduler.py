@@ -542,6 +542,38 @@ def backup_windows(cfg, t, until, alerts=None):
     return backups.windows(cfg, info["tasks"], info["runs"], t, until), info
 
 
+def busy_windows(t):
+    """The other tools' busy windows (core/lib/busy.py) as planner.Windows, so
+    tests stay clear of them like they do of backups."""
+    return [planner.Window(w.start, w.end, w.label, w.kind) for w in TOOL.others_busy(t)]
+
+
+def horizon_of(t):
+    """How far ahead the plan, the calendar and `status` look for backups."""
+    return t + dt.timedelta(days=planner.MAX_NIGHTS + 2)
+
+
+# How far ahead the hourly run reads backups and publishes its windows.
+BUSY_AHEAD = dt.timedelta(days=31)
+
+
+def publish_busy(cfg, storage, drives, state, t, windows, dry):
+    """Put this tool's windows in the busy registry: running and planned tests,
+    and UniFi's scrubs and backups as this tool reads them (with its margins),
+    so other tools needn't read UniFi themselves. `windows` is what the run
+    planned with (backups and the other tools' windows)."""
+    out = [(t, planner.running_until(cfg, d, t), f"{NAME} test on Drive {d['slot']}", "running")
+           for d in drives if d.get("running")]
+    plan = planner.plan(storage, drives, state, cfg, t, windows=windows, not_before=not_before(state, t))
+    until = t + BUSY_AHEAD
+    out += [(e["start"], e["end"], f"{NAME} test on Drive {e['slot']}", "planned")
+            for e in plan if e["start"] < until]
+    out += [(w.start, w.end, f"UniFi {w.label}", w.kind)
+            for w in planner.scrub_windows(cfg, storage, until) + list(windows)
+            if w.kind in ("scrub", "backup") and w.start < until]
+    return TOOL.publish_busy(out, t, dry)
+
+
 def scrub_conflict(cfg, storage, minutes, t):
     """Return a reason if a test of this length would run into a scheduled scrub."""
     until = t + planner.test_length(cfg, minutes)
@@ -621,8 +653,8 @@ def cmd_run(cfg, args):
     storage, user_id = self_check(cfg, state, alerts, dry)
     if storage is not None and user_id:
         drives = evaluate_drives(cfg, storage, user_id, state, alerts)
-        longest = max((planner.test_length(cfg, d.get("minutes")) for d in drives), default=dt.timedelta(0))
-        windows, _ = backup_windows(cfg, t, t + longest, alerts)
+        windows, _ = backup_windows(cfg, t, t + BUSY_AHEAD, alerts)
+        windows += busy_windows(t)
         decision = planner.decide(cfg, storage, drives, state, t, windows=windows,
                                   not_before=not_before(state, t))
         if decision.gate:
@@ -633,6 +665,10 @@ def cmd_run(cfg, args):
                 log(f"Drive {d['slot']} ({d['serial']}) due; not starting: {why}")
             if decision.start:
                 start_test(cfg, decision.start, user_id, state, alerts, dry, t)
+        if not (decision.start and not dry):
+            # After a start the drive only reports it running from the next
+            # run on; publishing now would leave the new test out.
+            publish_busy(cfg, storage, drives, state, t, windows, dry)
         if state.pop("version_changed", False):
             alerts.info("Self-check after the update passed: API, identity and triggers all OK."
                         if not alerts.has_errors() else "Self-check after the update found problems (see alerts).")
@@ -702,8 +738,8 @@ def cmd_status(cfg, args):
         if d["serial"] in snoozes:
             print(f"  Snoozed:   {snooze_text(snoozes[d['serial']])[8:]}")
         print()
-    horizon = t + dt.timedelta(days=planner.MAX_NIGHTS + 2)
-    windows, backup_info = backup_windows(cfg, t, horizon)
+    windows, backup_info = backup_windows(cfg, t, horizon_of(t))
+    windows += busy_windows(t)
     plan = planner.plan(storage, drives, state, cfg, t, windows=windows, not_before=not_before(state, t))
     if plan:
         print("Plan (assuming each test passes):")

@@ -269,6 +269,15 @@ def scrub_windows(cfg, storage, until, whole_night=False):
     return out
 
 
+def running_until(cfg, d, now):
+    """When a running test on drive d should end: its estimated length, scaled
+    by what the drive says is left."""
+    length = test_length(cfg, d.get("minutes"))
+    if isinstance(d.get("remaining_percent"), int):
+        length = length * max(d["remaining_percent"], 10) / 100
+    return now + length
+
+
 def conflict(cfg, windows, minutes, t):
     """The first window a test of this length started at `t` would run into, as a reason."""
     end = t + test_length(cfg, minutes)
@@ -415,10 +424,7 @@ def plan(storage, drives, state, cfg, now, horizon=None, windows=(), not_before=
             # Assume the running test passes and ends after its estimated length
             # (scaled by what the drive says is left). It blocks other starts even
             # on an excluded drive or one whose history couldn't be read.
-            length = test_length(cfg, s.get("minutes"))
-            if isinstance(s.get("remaining_percent"), int):
-                length = length * max(s["remaining_percent"], 10) / 100
-            s["busy_until"] = now + length
+            s["busy_until"] = running_until(cfg, s, now)
             if not s.get("excluded") and not s.get("error") and s.get("interval"):
                 s.update(s.get("after_clean") or {})     # it passes clean: a rise no longer counts
                 s["due"] = s["busy_until"] + dt.timedelta(days=s["interval"])

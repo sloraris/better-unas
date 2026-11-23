@@ -60,9 +60,11 @@ class Placeholder:
     def key(self, k):
         return False
 
+def calendar(ctx):
+    return {"days": {}}
+
 def screens(ctx):
-    return [{"id": "calendar", "tab": "Calendar", "make": lambda c: Placeholder(c, "Calendar")},
-            {"id": "drives", "tab": "Drives", "make": lambda c: Placeholder(c, "Drives")}]
+    return [{"id": "drives", "tab": "Drives", "make": lambda c: Placeholder(c, "Drives")}]
 '''
 
 OK_STATUS = {"enabled": True, "state": "ok", "problems": [], "detail": []}

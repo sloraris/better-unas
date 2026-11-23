@@ -1,6 +1,6 @@
 # scrub-repair design
 
-Agreed design for scrub-repair (#19). It also covers two pieces of core work that come first: a shared core library and a core Calendar. Nothing here is built yet.
+Agreed design for scrub-repair (#19). It also covers two pieces of core work that come first: a shared core library and a core Calendar. Steps 1 and 2 are built (docs/plugin-contract.md §4 and §11); scrub-repair itself isn't yet.
 
 ## What it is
 
@@ -79,7 +79,7 @@ Each tool keeps only its own logic, `plugin.py` and `settings.json`. The copied 
 
 ### 2. Calendar in core, and the busy registry
 
-- **Busy registry:** each tool lists its planned jobs and busy windows in one shared registry in the core library. Each tool's own planner reads the others' windows and stays clear of them. smart-scheduler keeps its per-drive planner. UniFi's scrubs and backup tasks are listed there too, read once for every tool.
+- **Busy registry:** each tool lists its planned jobs and busy windows in one shared registry in the core library. Each tool's own planner reads the others' windows and stays clear of them. smart-scheduler keeps its per-drive planner. UniFi's scrubs and backup tasks are listed there too, read once for every tool: smart-scheduler publishes them as it reads them. scrub-repair's scrub nights are firm windows, so it avoids the others' firm windows and may ignore smart-scheduler's planned tests, which then move out of its way.
 - **Calendar:** core draws the month from the registry. It uses a full box grid: lines between every day and every week, two lines per day (the day number with its scrub and backup glyphs, then chips). The selected day gets heavy side bars. The grid takes the whole body, and day details open on Enter.
 
 ### 3. scrub-repair

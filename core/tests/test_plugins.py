@@ -369,7 +369,24 @@ class PluginLoading(unittest.TestCase):
         self.assertTrue(P.check_alerts([{"id": "a", "level": "error", "message": "m",
                                          "active": True, "since": "yesterday"}]))
         self.assertTrue(P.check_screens([{"id": "h", "tab": "Home", "make": object}]))
-        self.assertEqual(P.check_screens([{"id": "cal", "tab": "Calendar", "make": object}]), [])
+        self.assertTrue(P.check_screens([{"id": "cal", "tab": "Calendar", "make": object}]))
+        self.assertEqual(P.check_screens([{"id": "drives", "tab": "Drives", "make": object}]), [])
+
+    def test_calendar_checks(self):
+        d = dt.date(2026, 11, 22)
+        good = {"today": d, "until": None, "legend": [("planned", "planned")], "problems": ["p"],
+                "days": {d: [{"status": "planned", "place": "chip", "chip": "3", "text": "Drive 3",
+                              "section": "Planned", "notes": ["n"]},
+                             {"status": None, "text": "a note"},
+                             {"status": "scrub", "place": "mark", "text": "scrub", "past": True}]}}
+        self.assertEqual(P.check_calendar(good), [])
+        self.assertEqual(P.check_calendar({"error": "no API"}), [])
+        self.assertTrue(P.check_calendar([]))
+        self.assertTrue(P.check_calendar({"days": {"2026-11-22": []}}))
+        for bad in ({"status": "great", "text": "x"}, {"status": "ok", "place": "chip", "text": "x"},
+                    {"status": None, "place": "mark", "text": "x"}, {"status": "ok"},
+                    {"status": "ok", "place": "corner", "text": "x"}, {"text": "x", "notes": "n"}):
+            self.assertTrue(P.check_calendar({"days": {d: [bad]}}), bad)
 
 
 if __name__ == "__main__":

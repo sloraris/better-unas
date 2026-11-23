@@ -194,6 +194,9 @@ def _gather(slot, kind, cfg, t, state):
         checks.append(_soft("backup", c))
     for _, msg in (info or {}).get("problems", ()):
         checks.append(_soft("backup", f"can't tell when backups run: {msg}"))
+    c = ss.planner.conflict(cfg, ss.busy_windows(t), minutes, t)
+    if c:
+        checks.append(_soft("others", c))
     return checks, ctx
 
 
