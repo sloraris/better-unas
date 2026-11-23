@@ -108,6 +108,11 @@ the user sets them once in Settings › Notifications:
 | `HEARTBEAT_URL` | url | pinged each time a tool's scheduled check ends without errors |
 | `HEARTBEAT_FAIL_URL` | url | pinged instead when a tool's scheduled check ends with errors |
 
+A tool may offer its own heartbeat pair in its schema (smart-scheduler and
+health-monitor use `OWN_HEARTBEAT_URL` and `OWN_HEARTBEAT_FAIL_URL`). When
+its own URL is set the tool pings its own pair, whole, instead of the shared
+one, so each tool can have a check with its own period.
+
 A tool doesn't import the core, so it reads these from
 `<home>/better-unas.conf` itself (a plain `KEY=VALUE` file, the folder above
 the tool's): a key set there wins, a key that isn't falls back to the same

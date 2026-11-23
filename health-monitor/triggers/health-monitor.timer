@@ -1,0 +1,12 @@
+# Installed by health-monitor. Restored automatically if removed or changed.
+[Unit]
+Description=health-monitor check every 15 minutes
+
+[Timer]
+OnBootSec=5min
+OnCalendar=*:0/15
+RandomizedDelaySec=60
+Persistent=true
+
+[Install]
+WantedBy=timers.target

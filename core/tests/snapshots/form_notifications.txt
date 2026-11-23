@@ -1,15 +1,15 @@
-  Start window                00:00 to 05:00                                   ↑
-  Tests at once               1
-  Starts per night            1
-  Scrub margin                2 hours
-  Duration factor             1.5
-  Busy drive above            20000 KB/s
+  Busy drive above            20000 KB/s                                       ↑
 
 UniFi backups and replication
   Avoid backup tasks          [x] yes
   Backup margin               1 hours
   Default backup length       4 hours
   Upload speed                0 Mbit/s
+
+Heartbeat
+  Empty: the shared heartbeat URLs in Notifications are used.
+  Own heartbeat URL           (none)
+  Own heartbeat URL on failu… (none)
 
 Notifications
   Webhook URL                 ••••••••                                         ↓

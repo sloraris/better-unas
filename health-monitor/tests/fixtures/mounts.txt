@@ -1,0 +1,4 @@
+/dev/mmcblk0p6 / ext4 rw,relatime 0 0
+/dev/mapper/vgdata-lvdata /volume/VOLUME-ID btrfs rw,noatime,subvol=/@unifi 0 0
+/dev/mapper/vgdata-lvdata /srv/share btrfs rw,noatime,subvol=/@share 0 0
+/dev/sde1 /mnt/backup1 ext4 rw,relatime 0 0

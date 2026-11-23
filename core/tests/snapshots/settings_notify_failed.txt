@@ -19,8 +19,8 @@
 
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │ Pinged each time a tool's scheduled check ends without errors, so a monitor  │
-│ such as healthchecks.io or Uptime Kuma notices when the pings stop.          │
-│                                                                              │
+│ such as healthchecks.io notices when the pings stop. A tool with its own     │
+│ heartbeat URL pings that instead.                                            │
 └──────────────────────────────────────────────────────────────────────────────┘
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │ ✗ Heartbeat URL: test failed: HTTP 404 Not Found                             │

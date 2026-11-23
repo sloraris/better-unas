@@ -1,0 +1,3 @@
+# Installed by health-monitor. Backup trigger: restores the systemd timer if it goes missing.
+MAILTO=""
+7,37 * * * * root /usr/bin/python3 @BASE@/health_monitor.py run --source cron >/dev/null 2>&1

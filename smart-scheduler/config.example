@@ -26,7 +26,7 @@ OLD_DRIVE_HOURS=43800
 RETRY_FAILED_DAYS=7
 # SMART attributes to watch. A count that rises since the last test makes that
 # drive due on the next eligible night; a count that stays the same is ignored.
-# 5 reallocated, 187 reported uncorrectable, 197 pending, 198 offline uncorrectable
+# S5 reallocated, S187 reported uncorrectable, S197 pending, S198 offline uncorrectable
 WARN_ATTRIBUTES=5,187,197,198
 
 # Per-drive intervals, by serial number:  SERIAL:DAYS,SERIAL:DAYS
@@ -62,6 +62,12 @@ BACKUP_DEFAULT_HOURS=4
 # Upload speed to the backup provider in Mbit/s, used with no run history when
 # the task has no bandwidth limit. 0 = unknown (BACKUP_DEFAULT_HOURS applies).
 BACKUP_UPLOAD_MBPS=0
+
+# --- Heartbeat --------------------------------------------------------------------
+# Empty: the shared heartbeat URLs in better-unas.conf are used. Set these to
+# give smart-scheduler its own check, with an hourly period.
+OWN_HEARTBEAT_URL=
+OWN_HEARTBEAT_FAIL_URL=
 
 # Notifications (webhook, heartbeat, alert repeat) are shared by every tool:
 # set them in Settings › Notifications, saved in better-unas.conf next to this

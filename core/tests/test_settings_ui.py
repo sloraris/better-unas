@@ -333,7 +333,7 @@ class SettingsFormTests(unittest.TestCase):
         P.check_schema(sub)
         sub = S.schema_subset(self.schema, keys=["MAX_CONCURRENT", "ENABLED"])
         self.assertEqual([f["key"] for f in P.fields(sub)], ["ENABLED", "MAX_CONCURRENT"])
-        self.assertEqual(len(P.fields(self.schema)), 20)     # the original is untouched
+        self.assertEqual(len(P.fields(self.schema)), 22)     # the original is untouched
 
     def test_on_save_gets_changed_texts_and_errors_map_to_fields(self):
         ctx = self.Ctx()

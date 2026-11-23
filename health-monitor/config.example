@@ -1,0 +1,41 @@
+# health-monitor settings. Every line is optional; an empty file uses the
+# defaults shown here. Changes take effect on the next check (every 15 minutes).
+# Check your edits with:  python3 health_monitor.py status
+
+# "no" removes the timer on the next check. Changing Enabled in Settings does
+# this when you save. After a hand edit back to "yes", run install.sh.
+ENABLED=yes
+
+# --- SMART counters -------------------------------------------------------------
+# Every drive in a bay. A rise in one of these is a warning:
+# S5 reallocated, S187 reported uncorrectable, S197 pending, S198 offline
+# uncorrectable, S199 interface CRC (often a cable).
+WATCH_ATTRIBUTES=5,187,197,198
+# A rise this big in one reading is an error at once. So is a counter that
+# rises again before its alert clears.
+RISE_ERROR_JUMP=10
+# A SMART or btrfs alert clears after this many days with no further rise.
+QUIET_DAYS=7
+# Drives to leave out, by serial number, comma-separated.
+EXCLUDE_SERIALS=
+
+# --- Close to failing, checked at install ------------------------------------------
+# The first check warns only about drives already near these limits: a
+# normalized value within PREFAIL_MARGIN of the manufacturer's threshold, or a
+# raw count at or above its limit.
+PREFAIL_MARGIN=10
+PREFAIL_S5=100
+PREFAIL_S187=10
+PREFAIL_S197=10
+PREFAIL_S198=100
+
+# --- Arrays -------------------------------------------------------------------------
+# A parity check that finds mismatches is always a warning. UNAS already alerts
+# when an array degrades; "yes" makes health-monitor do it too (data arrays only).
+MD_STATE_ALERTS=no
+
+# --- Heartbeat ----------------------------------------------------------------------
+# Empty: the shared heartbeat URLs in better-unas.conf are used. Set these to
+# give health-monitor its own check, with a 15-minute period.
+OWN_HEARTBEAT_URL=
+OWN_HEARTBEAT_FAIL_URL=

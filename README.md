@@ -19,7 +19,8 @@ plain commands for scripts.
 | Tool | What it does | Status |
 |---|---|---|
 | [smart-scheduler](smart-scheduler/) | Schedules UniFi Drive's own extended SMART tests: per-drive intervals that shorten on warning signs, avoids scrubs, UniFi backups, rebuilds and busy drives | Built and tested against fixtures; not yet run on a NAS |
-| health-monitor | Custom thresholds on SMART attribute changes (5/187/197/198/199) and btrfs error counters, alerting via webhook | Idea |
+| [health-monitor](health-monitor/) | Early warning when a drive or filesystem error count rises: watched SMART counters on every drive in a bay, btrfs device errors and parity-check mismatches, every 15 minutes | Built and tested against fixtures; not yet run on a NAS |
+| [health-monitor](health-monitor/) | Early warning when a drive or filesystem error count rises: watched SMART counters on every drive in a bay, btrfs device errors and parity-check mismatches, every 15 minutes | Built and tested against fixtures; not yet run on a NAS |
 | scrub-repair | When a scrub finds a corrupt file, find it and restore it from a backup copy, with your confirmation | Idea |
 
 ## Install
