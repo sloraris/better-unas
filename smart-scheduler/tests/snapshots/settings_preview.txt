@@ -18,8 +18,8 @@
 
  ── ○ planned  ✓ passed  ✗ failed  ▶ running  ↻ scrub  ⇡ backup ───────────────
  Sunday 22 November   today
-   ○ Slot 6  planned 01:00-15:16, baseline
-   ○ Slot 4  planned 02:00-16:16, baseline
+   ○ Drive 6  planned 01:00-15:16, baseline
+   ○ Drive 4  planned 02:00-16:16, baseline
 
 
 ┌──────────────────────────────────────────────────────────────────────────────┐

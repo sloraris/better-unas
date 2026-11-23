@@ -49,7 +49,7 @@ class DrivesPlaceholder:
 
     def __init__(self, ctx):
         self.ctx = ctx
-        self.table = W.Table([("Slot", 4, "right"), ("Serial", 10), ("Size", 6), ("Last test", 20),
+        self.table = W.Table([("Drive", 5, "right"), ("Serial", 10), ("Size", 6), ("Last test", 20),
                               ("Next", 11), ("Temp", 5, "right")])
         self.loaded = False
 
@@ -70,7 +70,7 @@ class DrivesPlaceholder:
         row = self.table.current
         if k == "enter" and row:
             d = next(d for d in DRIVES if d[1] == row[1])
-            self.ctx.push(core.DetailScreen(f"Slot {d[0]}", [
+            self.ctx.push(core.DetailScreen(f"Drive {d[0]}", [
                 (f"{d[1]}, {d[2]}", "normal"), "",
                 (f"Last test:    {d[3]}", d[4]),
                 (f"Next planned: {d[5]}", "warn"),
@@ -78,7 +78,7 @@ class DrivesPlaceholder:
                 ("Demo: the real Drives tab shows SMART values and test history.", "dim")]))
             return True
         if k == "t" and row:
-            ok = self.ctx.confirm(f"Start an extended test on slot {row[0]} ({row[1]})?",
+            ok = self.ctx.confirm(f"Start an extended test on Drive {row[0]} ({row[1]})?",
                                   ["It takes about 20 hours and slows the drive while it runs.",
                                    "Demo: the drive is busy right now."],
                                   second="The drive is busy. Start anyway?")

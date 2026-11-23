@@ -4,8 +4,8 @@ A list of the SMART-capable drives, and Enter on one for its details:
 
   - schedule: last passed extended test, next planned test, interval and why,
     snooze and exclusion
-  - key SMART values: temperature, power-on hours and attributes 5, 187, 197,
-    198 and 199, with a rise since the last test marked
+  - key SMART values: temperature, power-on hours and attributes S5, S187, S197,
+    S198 and S199, with a rise since the last test marked
   - UniFi Drive's own test history (quick and extended)
 
 Actions, on the list and in the details:
@@ -173,7 +173,7 @@ def why(d):
         return "unknown"
     if d.get("snooze"):
         return "snoozed"
-    return d.get("cause") or "due"
+    return d.get("cause") or "interval"
 
 
 def state(d, today):
@@ -444,13 +444,13 @@ class Actions:
             field.render(c.sub(y, x, 1, max(1, c.width - x - 1)))
         elif self.picking:
             c.fill(y, 0, 1, c.width)
-            c.text(y, 1, f"Run which test on slot {self.picking['slot']}?  e extended  k quick  Esc cancel",
+            c.text(y, 1, f"Run which test on Drive {self.picking['slot']}?  e extended  k quick  Esc cancel",
                    bold=True)
 
     # ------------------------------------------------------------ helpers
 
     def label(self, d):
-        return f"slot {d['slot']} ({d['serial']})"
+        return f"Drive {d['slot']} ({d['serial']})"
 
     def config_path(self):
         return self.ctx.tool.file("CONFIG")
@@ -609,7 +609,7 @@ def _cap(s):
 class DrivesScreen:
     title = "Drives"
 
-    COLUMNS = [("Slot", 4, "right"), ("Model", None), ("Temp", 5, "right"), ("Last test", 17),
+    COLUMNS = [("Drive", 5, "right"), ("Model", None), ("Temp", 5, "right"), ("Last test", 17),
                ("Next test", 17), ("Every", 5, "right")]
     PANEL_H = 3
 
@@ -709,7 +709,7 @@ class DrivesScreen:
             y += 1
         if d:
             mid = f" {c.symbols['mid']} "
-            title = mid.join(x for x in (f"Slot {d['slot']}", d.get("model"), d["serial"]) if x)
+            title = mid.join(x for x in (f"Drive {d['slot']}", d.get("model"), d["serial"]) if x)
             inner = W.panel(c, panel_top, 0, self.PANEL_H, c.width, title)
             kind, text, tone = panel_line(self.env()[0], d, self.data["now"], c.symbols["mid"])
             x = inner.status(0, 0, kind) + 1 if kind else 0
@@ -754,7 +754,7 @@ class DriveScreen:
         except DrivesError as e:
             self.drive, self.extra, self.error = None, None, str(e)
         if self.drive:
-            self.title = f"Slot {self.drive['slot']}"
+            self.title = f"Drive {self.drive['slot']}"
         ss = self.env()[0]
         hist = (self.extra or {}).get("history")
         self.history.set_rows(history_rows(ss, hist, self.now.tzinfo, self.now) if hist else [])
@@ -829,7 +829,7 @@ class DriveScreen:
         for i, (name, value, tone, rise, a) in enumerate(attrs):
             y = 3 + i
             c.styled(y, 0, W.fit(name, max(1, w - 10 - len(value))), "label")
-            right(y, str(a), "id")
+            right(y, f"S{a}", "id")
             if rise:
                 c.text(y, w - 8, f"{c.symbols['up']}{rise}", "dim")
                 c.text(y, w - 9 - len(value), value, "bad", bold=True)

@@ -2,24 +2,24 @@
 │    1 Home     │  2 Calendar   │   3 Drives    │   4 Alerts    │  5 Settings  │
 └──────────────────────────────────────────────────────────── smart-scheduler ─┘
 
-   Slot Model                   Temp Last test         Next test         Every
-      1 ST4000VN006-3CW104      41°C never             ○ Thu 26 Nov        90d
- ›    2 ST4000VN006-3CW104      42°C never             ○ Fri 27 Nov        90d
-      3 WDC WD40EFRX-68N32N0    38°C never             ○ Sat 28 Nov        90d
-      4 WDC W┌─ Confirm ──────────────────────────────────────────┐        60d
-      5 WDC W│                                                    │        60d
-      6 WDC W│ Start an extended test on slot 2 (SERIAL2) anyway? │        30d
-      7 WDC W│                                                    │        60d
-             │ These checks fail:                                 │
-             │ can override  drive busy (160128 KB/s)             │
-             │ can override  would overlap pool 2's data scrub    │
-             │                                                    │
-             │                  [ Yes ]   [ No ]                  │
-             │                                                    │
-             └────────────────────────────────────────────────────┘
+   Drive Model                  Temp Last test         Next test         Every
+       1 ST4000VN006-3CW104     41°C never             ○ Thu 26 Nov        90d
+ ›     2 ST4000VN006-3CW104     42°C never             ○ Fri 27 Nov        90d
+       3 WDC WD40EFRX-68N32N0   38°C never             ○ Sat 28 Nov        90d
+       4 WDC┌─ Confirm ───────────────────────────────────────────┐        60d
+       5 WDC│                                                     │        60d
+       6 WDC│ Start an extended test on Drive 2 (SERIAL2) anyway? │        30d
+       7 WDC│                                                     │        60d
+            │ These checks fail:                                  │
+            │ can override  drive busy (160128 KB/s)              │
+            │ can override  would overlap pool 2's data scrub     │
+            │                                                     │
+            │                  [ Yes ]   [ No ]                   │
+            │                                                     │
+            └─────────────────────────────────────────────────────┘
 
 
- ┌─ Slot 2 · ST4000VN006-3CW104 · SERIAL2 ────────────────────────────────────┐
+ ┌─ Drive 2 · ST4000VN006-3CW104 · SERIAL2 ───────────────────────────────────┐
  │ ○ Next test Fri 27 Nov 00:00 · baseline · every 90 days                    │
  └────────────────────────────────────────────────────────────────────────────┘
 ┌──────────────────────────────────────────────────────────────────────────────┐

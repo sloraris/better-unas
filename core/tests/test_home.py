@@ -70,7 +70,7 @@ OK_STATUS = {"enabled": True, "state": "ok", "problems": [], "detail": []}
 FRESH = {
     "status": OK_STATUS,
     "summary": {"state": "ok", "headline": "7 drives scheduled, no tests run yet", "items": [
-        {"label": "Next test", "value": "Sun 22 Nov 01:00, slot 1", "tone": "warn", "tab": "Calendar"},
+        {"label": "Next test", "value": "Sun 22 Nov 01:00, Drive 1", "tone": "warn", "tab": "Calendar"},
         {"label": "Last result", "value": "None yet", "tone": "dim", "tab": "Drives"},
         {"label": "Next scrub", "value": "Sun 6 Dec 02:30", "tab": "Calendar"},
         {"label": "Next backup", "value": "Mon 23 Nov 03:00, cloud backup (~1 h)", "tab": "Calendar"}]},
@@ -80,25 +80,25 @@ FRESH = {
 ALERT = {
     "status": {"enabled": True, "state": "error", "problems": [], "detail": []},
     "summary": {"state": "error", "headline": "7 drives scheduled, 1 failed", "items": [
-        {"label": "Next test", "value": "Mon 23 Nov 01:00, slot 4", "tone": "warn", "tab": "Calendar"},
-        {"label": "Last result", "value": "Failed, slot 2, Fri 20 Nov", "tone": "bad", "tab": "Drives"},
+        {"label": "Next test", "value": "Mon 23 Nov 01:00, Drive 4", "tone": "warn", "tab": "Calendar"},
+        {"label": "Last result", "value": "Failed, Drive 2, Fri 20 Nov", "tone": "bad", "tab": "Drives"},
         {"label": "Next scrub", "value": "Sun 6 Dec 02:30", "tab": "Calendar"},
         {"label": "Next backup", "value": "Mon 23 Nov 03:00, cloud backup (~1 h)", "tab": "Calendar"}]},
     "alerts": [
         {"id": "test:slot2", "level": "error", "active": True, "since": "2026-11-20T01:04:00-07:00",
-         "message": "Extended test on slot 2 failed: read failure."},
+         "message": "Extended test on Drive 2 failed: read failure."},
         {"id": "temp:slot5", "level": "warn", "active": True, "since": "2026-11-21T14:00:00-07:00",
-         "message": "Slot 5 reached 52 C during its test."},
+         "message": "Drive 5 reached 52 C during its test."},
         {"id": "hb", "level": "warn", "active": False, "since": "2026-11-18T03:00:00-07:00",
          "message": "Heartbeat URL did not answer."}],
 }
 
 RUNNING = {
     "status": {"enabled": True, "state": "ok", "problems": [], "detail": []},
-    "summary": {"state": "warn", "headline": "Extended test running on slot 3 (41%)", "items": [
-        {"label": "Running", "value": "Slot 3, started 01:00, ~6 h left", "tone": "warn", "tab": "Drives"},
-        {"label": "Next test", "value": "Tue 24 Nov 01:00, slot 6", "tone": "warn", "tab": "Calendar"},
-        {"label": "Last result", "value": "Passed, slot 5, Thu 19 Nov", "tone": "good", "tab": "Drives"},
+    "summary": {"state": "warn", "headline": "Extended test running on Drive 3 (41%)", "items": [
+        {"label": "Running", "value": "Drive 3, started 01:00, ~6 h left", "tone": "warn", "tab": "Drives"},
+        {"label": "Next test", "value": "Tue 24 Nov 01:00, Drive 6", "tone": "warn", "tab": "Calendar"},
+        {"label": "Last result", "value": "Passed, Drive 5, Thu 19 Nov", "tone": "good", "tab": "Drives"},
         {"label": "Next scrub", "value": "Sun 6 Dec 02:30", "tab": "Calendar"},
         {"label": "Next backup", "value": "Mon 23 Nov 03:00, cloud backup (~1 h)", "tab": "Calendar"}]},
     "alerts": [],
@@ -183,16 +183,16 @@ class HomeSnapshotTests(HomeFixture, unittest.TestCase):
         app = self.make_app(updates=CURRENT)
         text = self.term.text()
         self.assertIn("✗ 2 active alerts", text)
-        self.assertIn("✗ smart-scheduler: Extended test on slot 2 failed", text)
+        self.assertIn("✗ smart-scheduler: Extended test on Drive 2 failed", text)
         self.assertIn("20 Nov 01:04", text)
         self.assertNotIn("Heartbeat", text)                   # resolved ones stay on the Alerts tab
-        self.assertLess(text.index("Slot 5 reached"), text.index("slot 2 failed"))   # newest first
+        self.assertLess(text.index("Drive 5 reached"), text.index("Drive 2 failed"))   # newest first
         self.check("alert", app)
 
     def test_test_running(self):
         self.tool(RUNNING)
         app = self.make_app(updates=CURRENT)
-        self.assertIn("Extended test running on slot 3 (41%)", self.term.text())
+        self.assertIn("Extended test running on Drive 3 (41%)", self.term.text())
         self.check("running", app)
 
     def test_no_tools(self):
@@ -267,14 +267,14 @@ class HomeBehaviourTests(HomeFixture, unittest.TestCase):
     def test_item_targets(self):
         items = [{"label": "Odd", "value": "x", "target": "Nowhere"},          # no such tab: not a stop
                  {"label": "Same", "value": "y", "target": "Calendar"},        # the card's own: not a stop
-                 {"label": "Slot", "value": "z", "status": "failed",
-                  "target": "Drives:SERIAL4", "target_label": "slot 4"}]
+                 {"label": "Drive", "value": "z", "status": "failed",
+                  "target": "Drives:SERIAL4", "target_label": "Drive 4"}]
         self.tool(dict(FRESH, summary=dict(FRESH["summary"], items=items)))
         app = self.make_app()
         self.assertEqual(self.targets(app), ["Alerts", "Calendar", "Drives:SERIAL4"])
         text = self.term.text()
         self.assertIn("✗ z", text)
-        self.assertIn("› slot 4", text)
+        self.assertIn("› Drive 4", text)
         opened = []
         drives = next(t for t in app.tabs if t.title == "Drives")
         app.press("3")
@@ -289,8 +289,8 @@ class HomeBehaviourTests(HomeFixture, unittest.TestCase):
         import json
         with open(os.path.join(d, "fake.json"), "w") as f:
             json.dump(RUNNING, f)
-        self.assertNotIn("running on slot 3", self.term.text())
-        self.assertIn("running on slot 3", app.press("r"))
+        self.assertNotIn("running on Drive 3", self.term.text())
+        self.assertIn("running on Drive 3", app.press("r"))
         self.assertEqual(app.screen.selected.target, "Calendar")
         self.assertEqual(len(self.updates.calls), 2)
 
@@ -349,7 +349,7 @@ class HomeBehaviourTests(HomeFixture, unittest.TestCase):
         app.press("end")
         lines = self.term.text().splitlines()
         self.assertTrue(any("tool-3" in line for line in lines))
-        self.assertTrue(any(line.startswith(" ›") and "Slot 3, started" in line for line in lines))
+        self.assertTrue(any(line.startswith(" ›") and "Drive 3, started" in line for line in lines))
         self.assertNotIn("No active alerts", "\n".join(lines))
 
     def test_home_is_resolved_from_the_tools_folder(self):

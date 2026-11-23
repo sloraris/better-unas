@@ -29,7 +29,7 @@ or moved drives are handled automatically.
 | No extended test on record | Now (baseline) |
 | Healthy | 90 days after the last good one |
 | Older than ~5 years of power-on time | 60 days |
-| A watched attribute (5/187/197/198) rose since its last test | Next eligible night, then 30 days until a test passes with no further rise |
+| A watched attribute (S5/S187/S197/S198) rose since its last test | Next eligible night, then 30 days until a test passes with no further rise |
 | A UniFi risk reason, or a state other than optimal | 30 days |
 | Last test failed or aborted | 7 days later, and you get an alert |
 
@@ -83,7 +83,7 @@ backups until it is fixed.
 
 ### Snoozing a drive
 
-`snooze <slot|serial> <YYYY-MM-DD>` keeps a drive from starting a test before
+`snooze <drive|serial> <YYYY-MM-DD>` keeps a drive from starting a test before
 that date (from midnight, NAS time), for example while a replacement is on its
 way. The snooze is kept in `state.json`, not `config`. It ends on its own once
 the date comes, and `unsnooze` removes it early. `status` shows each active
@@ -92,15 +92,15 @@ take the same lock as the hourly run, so they never collide with it.
 
 ### Drive actions
 
-`run-now <slot|serial> [quick|extended]` starts a test straight away (extended
+`run-now <drive|serial> [quick|extended]` starts a test straight away (extended
 unless you say quick), as the same account the hourly run uses. It first lists
 anything in the way. A busy drive, a scrub or UniFi backup the test would run
 into, or being outside `START_WINDOW` stops it unless you add `--override`. A
 test already running on any drive, an unhealthy or resyncing pool, a drive that
 can't run SMART tests, or Drive refusing the account always stops it.
 
-`exclude` / `include <slot|serial>` add or remove a drive in `EXCLUDE_SERIALS`,
-and `interval <slot|serial> <days|default>` sets or clears its entry in
+`exclude` / `include <drive|serial>` add or remove a drive in `EXCLUDE_SERIALS`,
+and `interval <drive|serial> <days|default>` sets or clears its entry in
 `INTERVAL_OVERRIDES`. They edit `config` in place, keeping your comments. All
 of these take the run lock, and `--dry-run` changes nothing.
 
@@ -131,20 +131,20 @@ Every action takes the run lock, and with `--dry-run` nothing changes.
   result, the next scrub, and snoozed drives. Enter on the card opens the
   Calendar; the running test and the last result open that drive.
 - **Calendar:** a month grid. Each night shows the drive(s) tested or
-  planned as a glyph and the slot (`○6` planned, `✓6` passed, `✗6` failed,
+  planned as a glyph and the drive number (`○6` planned, `✓6` passed, `✗6` failed,
   `▶6` running), `↻` marks a scrub and `⇡` a UniFi backup, with the legend
   under the grid. Arrows move days, PgUp/PgDn months, `t`
   goes to today, `r` recalculates, and Enter explains a day: each test, why
   it's planned, and why a night was skipped. The plan runs forward until
   every drive has one test. ([capture](../docs/screens/calendar.txt))
-- **Drives:** every drive's slot, model, temperature, last and next test
+- **Drives:** every drive's number, model, temperature, last and next test
   (✓ passed, ✗ failed, ▶ running, ○ planned, ! due now) and interval, with
   the selected drive's serial and where it stands in a panel below. Enter
   opens one drive: a Schedule panel (last and next test, why: `baseline`,
-  `due`, `retry`, `warning signs`, `snoozed`, `excluded`; the interval and
+  `interval`, `retry`, `warning signs`, `snoozed`, `excluded`; the interval and
   its source: `default`, `old drive`, `warning signs`, `per drive`; snooze
   and exclusion), a Health panel (temperature, power-on hours, attributes
-  5/187/197/198/199 with a rise since the last test marked `↑N`), and
+  S5/S187/S197/S198/S199 with a rise since the last test marked `↑N`), and
   UniFi's test history with how long each test took.
   ([list](../docs/screens/drives.txt), [drive](../docs/screens/drive.txt))
   On the list or a drive:
@@ -241,7 +241,7 @@ better-unas smart-scheduler run --dry-run     # what a run would do right now, c
 better-unas smart-scheduler check             # self-check only
 better-unas smart-scheduler heal              # restore triggers now
 better-unas smart-scheduler snooze 3 2026-12-15 --note "waiting for a spare"
-better-unas smart-scheduler unsnooze 3        # slot number or serial
+better-unas smart-scheduler unsnooze 3        # drive number or serial
 better-unas smart-scheduler run-now 3 quick   # add --override past a busy drive, scrub, backup or window
 better-unas smart-scheduler exclude 3         # include 3 undoes it
 better-unas smart-scheduler interval 3 30     # interval 3 default undoes it

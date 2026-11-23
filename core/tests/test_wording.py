@@ -44,7 +44,9 @@ NOT_WORDS = [
     (r"\bthe job\b", "the hourly check"),
     (r"\bdisks?\b", "drive"),
     (r"\bdevices?\b", "drive"),
-    (r"\bsd[a-z]\b", "slot or drive"),
+    (r"\bsd[a-z]\b", "Drive N"),
+    (r"\bslots?\b", "Drive N"),
+    (r"\b(attributes?|ids?) \d{1,3}\b", "S197"),
     (r"\bupgrad(e|es|ed|ing)\b", "update"),
     (r"\bpull\b(?! request)", "update"),
     (r"\breinstall(ing)? (better-unas|the suite)\b", "update"),
@@ -118,6 +120,10 @@ class SchemaWordingTests(unittest.TestCase):
         self.assertEqual([u for _, u in not_words("Pauses the next run on that disk.")],
                          ["the hourly check", "drive", "snooze, or stop"])
         self.assertEqual(not_words("Run now. The hourly check starts tests. MAX_STARTS_PER_NIGHT"), [])
+
+    def test_drive_and_attribute_names(self):
+        self.assertEqual([u for _, u in not_words("Slot 4: attribute 197 rose")], ["Drive N", "S197"])
+        self.assertEqual(not_words("Drive 4 - S197 0->3"), [])
         self.assertEqual(not_words("a pull request's branch"), [])
         self.assertEqual(not_words("Enabled  [x] yes   i reinstall"), [])
         self.assertEqual([u for _, u in not_words("Reinstall better-unas to upgrade")], ["update", "update"])
@@ -140,7 +146,7 @@ class ScreenWordingTests(CalendarFixture, unittest.TestCase):
         out.append(("Calendar next day", app.press("right")))
         out.append(("Drives", app.press("3")))
         for slot in range(1, 8):
-            out.append((f"Drive slot {slot}", app.press("enter")))
+            out.append((f"Drive {slot}", app.press("enter")))
             app.press("esc", "down")
         out.append(("Alerts", app.press("4")))
         out.append(("Settings", app.press("5")))

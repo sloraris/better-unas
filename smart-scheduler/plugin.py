@@ -89,12 +89,12 @@ def summary(ctx):
     running = [x for v in data["days"].values() for x in v["tests"] if x["outcome"] == "running"]
     if running:
         r = running[0]
-        items.append({"label": "Running", "value": f"slot {r['slot']} ({r['serial']})", "tone": "normal",
-                      "status": "running", "target": f"Drives:{r['serial']}", "target_label": f"slot {r['slot']}"})
+        items.append({"label": "Running", "value": f"Drive {r['slot']} ({r['serial']})", "tone": "normal",
+                      "status": "running", "target": f"Drives:{r['serial']}", "target_label": f"Drive {r['slot']}"})
     planned = sorted((e for v in data["days"].values() for e in v["planned"]), key=lambda e: e["start"])
     if planned:
         e = planned[0]
-        items.append({"label": "Next test", "value": f"{e['start']:%a %d %b}, slot {e['slot']} ({e['serial']})",
+        items.append({"label": "Next test", "value": f"{e['start']:%a %d %b}, Drive {e['slot']} ({e['serial']})",
                       "tone": "normal", "status": "planned"})
     done = sorted((x for v in data["days"].values() for x in v["tests"] if x["outcome"] != "running"),
                   key=lambda x: x["end"] or x["start"])
@@ -102,9 +102,9 @@ def summary(ctx):
         x = done[-1]
         passed = x["outcome"] == "passed"
         items.append({"label": "Last result",
-                      "value": f"{x['outcome']}, slot {x['slot']}, {(x['end'] or x['start']):%a %d %b}",
+                      "value": f"{x['outcome']}, Drive {x['slot']}, {(x['end'] or x['start']):%a %d %b}",
                       "tone": "good" if passed else "bad", "status": "ok" if passed else "failed",
-                      "target": f"Drives:{x['serial']}", "target_label": f"slot {x['slot']}"})
+                      "target": f"Drives:{x['serial']}", "target_label": f"Drive {x['slot']}"})
     scrubs = sorted((d, b) for d, v in data["days"].items() for b in v["blocks"]
                     if b["kind"] == "scrub" and not b["past"] and d >= t.date())
     if scrubs:
@@ -114,7 +114,7 @@ def summary(ctx):
     if data["snoozes"]:
         z = data["snoozes"][0]
         more = f" (+{len(data['snoozes']) - 1})" if len(data["snoozes"]) > 1 else ""
-        items.append({"label": "Snoozed", "value": f"slot {z['slot']} until {z['until']:%a %d %b}{more}",
+        items.append({"label": "Snoozed", "value": f"Drive {z['slot']} until {z['until']:%a %d %b}{more}",
                       "tone": "normal"})
     level = "warn" if data["problems"] or any(x["outcome"] == "failed" for x in done[-1:]) else "ok"
     return {"state": level, "headline": headline, "items": items[:6]}

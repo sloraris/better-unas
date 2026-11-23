@@ -279,10 +279,10 @@ caches the result until the Home screen is opened again or refreshed.
   "state": "warn",                                 # as in status
   "headline": "7 drives scheduled, 1 overdue",     # at most 60 characters
   "items": [                                       # at most 6 rows
-    {"label": "Next test", "value": "Sat 23 Nov, slot 3", "tone": "warn",
+    {"label": "Next test", "value": "Sat 23 Nov, Drive 3", "tone": "warn",
      "status": "planned"},
-    {"label": "Last result", "value": "passed, slot 5, Tue 19 Nov", "tone": "good",
-     "status": "ok", "target": "Drives:<serial>", "target_label": "slot 5"},
+    {"label": "Last result", "value": "passed, Drive 5, Tue 19 Nov", "tone": "good",
+     "status": "ok", "target": "Drives:<serial>", "target_label": "Drive 5"},
     {"label": "Next scrub", "value": "Sun 30 Nov 02:30", "status": "scrub"},
   ],
 }
@@ -299,7 +299,7 @@ Optional item keys:
   the older name and still works). With an argument, the core switches to
   the tab, goes back to its root screen and calls that screen's `open(arg)`
   (section 5); smart-scheduler uses `"Drives:<serial>"` to open one drive.
-- `target_label`: the short hint shown dim at the row's right (`› slot 5`);
+- `target_label`: the short hint shown dim at the row's right (`› Drive 5`);
   the tab name by default.
 
 **One stop per destination** (docs/tui-style.md §5). The card itself is one
@@ -317,7 +317,7 @@ next scrub and next backup window.
   {
     "id": "test:ZL2ABC",       # stable; the same problem keeps the same id
     "level": "error",          # error | warn | info
-    "message": "Extended test on slot 3 (ZL2ABC) failed: read failure.",
+    "message": "Extended test on Drive 3 (ZL2ABC) failed: read failure.",
     "active": True,            # False for recently resolved ones
     "since": "2026-11-20T01:04:00-07:00",   # ISO 8601 with offset
     "last": "2026-11-21T01:00:00-07:00",    # optional: last time it was raised

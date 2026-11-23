@@ -1,5 +1,5 @@
-  Slot Serial     Result
-     1 ZL1        passed
-›   12 ZL2        failed: read failure…
-     3 ZL3        planned
+  Drive Serial     Result
+      1 ZL1        passed
+›    12 ZL2        failed: read failur…
+      3 ZL3        planned
 

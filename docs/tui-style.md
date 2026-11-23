@@ -18,7 +18,7 @@ Where this came from: the first hardware run showed screens that worked but read
 ```
  0  nav box     ┌──────────────────────────────────────────────── v0.2.1 ─┐
  1              │  1 Home  │ 2 Calendar │  3 Drives  │  4 Alerts │ 5 Set… │
- 2              └─ Slot 4 ─────────────────────────────── smart-scheduler ─┘
+ 2              └─ Drive 4 ────────────────────────────── smart-scheduler ─┘
  3  (blank)
  4  body        (rows 4-23: 20 rows; see section 4)
 19  info box    ┌─────────────────────────────────────────────────────────┐
@@ -31,7 +31,7 @@ Where this came from: the first hardware run showed screens that worked but read
 ```
 
 - **Nav box:** the tabs share the full width equally, and the current one is reversed across its whole share. The installed version sits in the top edge at the right, dim. When an update is available it becomes `▲ v0.2.2` in the warn tone, on every screen; DRY RUN goes to its left. Enter isn't involved: the update itself lives in Settings › better-unas (section 6).
-- **Breadcrumb:** in the nav box's bottom edge at the left, accent and bold. It lists the screens below the tab (`Slot 4`, `space-watch › Preview`). The tab itself isn't repeated, because the highlighted tab right above already says it. Top-level screens show no breadcrumb. The tool that owns the screen sits at the right of that edge, dim.
+- **Breadcrumb:** in the nav box's bottom edge at the left, accent and bold. It lists the screens below the tab (`Drive 4`, `space-watch › Preview`). The tab itself isn't repeated, because the highlighted tab right above already says it. Top-level screens show no breadcrumb. The tool that owns the screen sits at the right of that edge, dim.
 - **Info box:** shown only on screens with a form (Settings and the setup wizard). It spans the full width just above the action box and holds the selected field's help. The body loses its 5 rows.
 - **Action bar** (inside the action box): only this screen's own keys. Each key is drawn as a **chip**, the key letter in reverse video with a space on each side, followed by its label in normal text. Movement hints (`↑↓ history`, `←→ change`) go at the right end in dim, without chips. If the keys don't fit, the bar ends with `[?] more`. There's no `───` rule on this row any more, so it can't be mistaken for a title.
 - **Nav bar:** dim, no chips. Back and tabs on the left; help and quit on the right. It looks the same on every screen, which teaches people to stop reading it.
@@ -71,7 +71,7 @@ Every piece of text on a screen has exactly one role. Widgets take the role, not
 | note | `↳` | `-` | dim |
 | update available | `▲` | `^` | warn |
 
-A glyph always goes before the thing it describes (`✗ failed`, `▶ slot 1`), and a status is never shown by color alone.
+A glyph always goes before the thing it describes (`✗ failed`, `▶ Drive 1`), and a status is never shown by color alone.
 
 This fixes:
 - `No test: would overlap UniFi Cloud Backup` blending into the date above it. It's now a `!` reason in warn, indented under a bold heading.
@@ -98,7 +98,7 @@ This fixes: SMART and schedule details bunched at the top with half the screen e
 3. **Non-stops aren't drawn as selectable.** They get no `›` and no hover. Arrow keys skip them.
 4. **Esc goes back one level, always.** It never discards anything without asking.
 
-On Home, each tool card is one stop that opens the tool's first tab. A card item becomes a stop only when it names a target different from the card's own (contract change, section 9). For example, smart-scheduler's "Last result: ✗ failed, slot 4" opens that drive's page.
+On Home, each tool card is one stop that opens the tool's first tab. A card item becomes a stop only when it names a target different from the card's own (contract change, section 9). For example, smart-scheduler's "Last result: ✗ failed, Drive 4" opens that drive's page.
 
 This fixes: Home's smart-scheduler lines each being selectable, yet all going to the calendar.
 
@@ -216,7 +216,7 @@ A setting's help answers three things, in this order, in at most three short lin
 
 ### smart-scheduler vocabulary
 
-- **Why** (why the next test is when it is): `baseline` (never tested), `due` (interval reached), `retry` (last test failed), `warning signs`, `snoozed`, `excluded`, `per-drive interval`.
+- **Why** (why the next test is when it is): `baseline` (never tested), `interval` (the interval came round), `retry` (last test failed), `warning signs`, `snoozed`, `excluded`, `per-drive interval`.
 - **Interval source**: `default`, `old drive`, `warning signs`, `retry`, `per drive`.
 - **No test tonight** reasons start with what blocks it: `one is already running`, `scrub on pool 2 at 02:30`, `overlaps UniFi Cloud Backup (02:00–04:00)`, `outside the start window`, `all drives are up to date`.
 
@@ -226,7 +226,8 @@ A setting's help answers three things, in this order, in at most three short lin
 |---|---|
 | test (an extended or quick SMART test) | scan, check, run |
 | the hourly check (smart-scheduler's timer) | the next run, the run, the job |
-| slot (bay number) / drive | disk, device, sdX (except in logs) |
+| Drive N (a drive by its bay number) / drive | Slot N, slot, bay, disk, device, sdX (except in logs) |
+| S197 (a SMART attribute: S plus its id) | attribute 197, ID 197, a bare 197 |
 | update (better-unas to a new version) | upgrade, pull, reinstall |
 | install / uninstall (a tool) | enable / disable |
 | snooze (skip a drive until a date) | pause, mute |
@@ -235,7 +236,7 @@ A setting's help answers three things, in this order, in at most three short lin
 
 These go into [plugin-contract.md](plugin-contract.md) when they're built:
 
-1. **Summary items (built, plugin-contract.md `summary`):** an item's `tab` (or a new `target`, which can name a tab plus a screen argument such as a slot) is set only when it differs from the card's default. The core makes only those items stops.
+1. **Summary items (built, plugin-contract.md `summary`):** an item's `tab` (or a new `target`, which can name a tab plus a screen argument such as a drive) is set only when it differs from the card's default. The core makes only those items stops.
 2. **Schema `on_change` (built):** `"install"` makes the core run the tool's installer after a save that changed this field. The confirm says so.
 3. **Notifications move to the core (built, plugin-contract.md "Shared settings"):** `WEBHOOK_URL`, `WEBHOOK_FORMAT`, `NOTIFY_SUCCESS`, `ALERT_REPEAT_HOURS`, `HEARTBEAT_URL` and `HEARTBEAT_FAIL_URL` go in `better-unas.conf`. Tools still don't import the core: they read those keys from `<home>/better-unas.conf`, a plain key=value file, with their own config as a fallback. The update moves smart-scheduler's existing values across, once.
 4. **Roles, not tones:** widgets take a role (section 3) where they now take a tone. Plugins keep passing tones for status, and the core maps those to status roles.
@@ -253,26 +254,26 @@ The mockups below show layout only. Tones and chips are described under each one
  › ▲ Update available: v0.2.2                             Settings › better-unas
 
    ! 1 active alert
-     ✗ Extended SMART test failed on slot 4                         12 Nov 03:15
+     ✗ Extended SMART test failed on Drive 4                        12 Nov 03:15
 
  ┌ smart-scheduler ───────────────────────────────────────────────── ! warning ┐
- │ Running       ▶ slot 1   extended, 80%                                      │
- │ Next test     Mon 23 Nov   slot 6                                           │
- │ Last result   ✗ failed   slot 4, Thu 12 Nov                        › slot 4 │
+ │ Running       ▶ Drive 1   extended, 80%                                     │
+ │ Next test     Mon 23 Nov   Drive 6                                          │
+ │ Last result   ✗ failed   Drive 4, Thu 12 Nov                      › Drive 4 │
  │ Next scrub    ↻ Mon 30 Nov 02:30   pool 2                                   │
  └─────────────────────────────────────────────────────────────────────────────┘
 
  [Enter] open Settings › better-unas  [r] refresh                    ↑↓ move
 ```
 
-- Stops: the update notice, the alerts block (opens Alerts) and the card (opens Calendar). Inside the card, only "Last result" is a stop, because it opens slot 4's page. Its target is shown as a dim `› slot 4` at the right.
+- Stops: the update notice, the alerts block (opens Alerts) and the card (opens Calendar). Inside the card, only "Last result" is a stop, because it opens Drive 4's page. Its target is shown as a dim `› Drive 4` at the right.
 - Selecting the card draws its border in accent and reverses its title.
 
 ### Drives
 
 ```
  Drives ─────────────────────────────────────────────────────── smart-scheduler
-  Slot  Model             Temp   Last test        Next test       Every
+  Drive Model             Temp   Last test        Next test       Every
  ›  1   ST4000VN006       41°C   ▶ running 80%    Sun 21 Feb        90d
     2   ST4000VN006       42°C   never            ! due now         90d
     3   ST4000VN006       38°C   ✓ Tue 03 Nov     Tue 02 Feb        90d
@@ -285,7 +286,7 @@ The mockups below show layout only. Tones and chips are described under each one
 
 
 
- ┌ Slot 1 · ST4000VN006-3CW104 · SERIAL1 ──────────────────────────────────────┐
+ ┌ Drive 1 · ST4000VN006-3CW104 · SERIAL1 ─────────────────────────────────────┐
  │ ▶ Extended test running, 80%, started Sun 00:10. Next after it: Sun 21 Feb. │
  └─────────────────────────────────────────────────────────────────────────────┘
  [Enter] open  [t] test  [z] snooze  [x] exclude  [i] interval        ↑↓ move
@@ -297,18 +298,18 @@ The mockups below show layout only. Tones and chips are described under each one
 ### Drive
 
 ```
- Drives › Slot 4 ────────────────────────────────────────────── smart-scheduler
+ Drives › Drive 4 ───────────────────────────────────────────── smart-scheduler
  WDC WD4002FYYZ-01B7CB0   SERIAL4   4 TB                    ✗ last test failed
 
  ┌ Schedule ──────────────────────────┐  ┌ Health ─────────────────────────────┐
  │ Last test   Thu 12 Nov  ✗ failed   │  │ Temperature                   48°C  │
  │ Next test   Tue 24 Nov  ○ planned  │  │ Power-on             59,052 h  6.7y │
  │ Why         retry                  │  │                                     │
- │ Interval    60 days  old drive      │  │ Reallocated sectors         0    5  │
- │ Snoozed     no                     │  │ Uncorrectable errors        0  187  │
- │ Excluded    no                     │  │ Pending sectors             0  197  │
- │                                    │  │ Offline uncorrectable       0  198  │
- │                                    │  │ Interface CRC errors        0  199  │
+ │ Interval    60 days  old drive      │  │ Reallocated sectors         0   S5  │
+ │ Snoozed     no                     │  │ Uncorrectable errors        0 S187  │
+ │ Excluded    no                     │  │ Pending sectors             0 S197  │
+ │                                    │  │ Offline uncorrectable       0 S198  │
+ │                                    │  │ Interface CRC errors        0 S199  │
  └────────────────────────────────────┘  └─────────────────────────────────────┘
 
  Test history (UniFi Drive)
@@ -342,12 +343,12 @@ The mockups below show layout only. Tones and chips are described under each one
    30 ↻
  ── ○ planned  ✓ passed  ✗ failed  ▶ running  ↻ scrub  ⇡ backup ───────────────
  Sunday 22 November  today
-   ▶ Slot 1  extended test running, 80%, started 00:10
+   ▶ Drive 1  extended test running, 80%, started 00:10
    ! No new test tonight: one is already running
  [Enter] open  [t] today  [r] recalculate        ←→↑↓ day  PgUp/Dn month
 ```
 
-- Each cell's first line has the day number, then scrub/backup glyphs in accent. The second line holds drive chips: a glyph plus the slot number, in the status tone. Up to three fit, then `+2`.
+- Each cell's first line has the day number, then scrub/backup glyphs in accent. The second line holds drive chips: a glyph plus the drive number, in the status tone. Up to three fit, then `+2`.
 - Today: the day number is reversed, and `today` is a tag. The selected day gets brackets around its number (`[22]`).
 - The legend sits in the rule above the day panel, always visible and dim.
 - Day panel: the date as a heading, then status rows and `!` reasons indented under it. It shows as many rows as fit, then `N more: Enter for day details`.

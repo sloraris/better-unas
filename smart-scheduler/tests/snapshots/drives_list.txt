@@ -2,14 +2,14 @@
 │    1 Home     │  2 Calendar   │   3 Drives    │   4 Alerts    │  5 Settings  │
 └──────────────────────────────────────────────────────────── smart-scheduler ─┘
 
-   Slot Model                   Temp Last test         Next test         Every
- ›    1 ST4000VN006-3CW104      41°C ▶ running         Sun 21 Feb 2027     90d
-      2 ST4000VN006-3CW104      42°C never             ○ Fri 27 Nov        90d
-      3 WDC WD40EFRX-68N32N0    38°C ✓ Tue 03 Nov      ○ Tue 02 Feb 2027   90d
-      4 WDC WD4002FYYZ-01B7CB0  48°C ✗ Thu 12 Nov      ○ Tue 24 Nov        60d
-      5 WDC WD4002FYYZ-01B7CB0  48°C ✓ Tue 20 Oct      ○ Mon 23 Nov        30d
-      6 WDC WD4002FYYZ-01B7CB0  48°C never             ○ Wed 25 Nov        30d
-      7 WDC WD4002FYYZ-01B7CB0  45°C never             ○ Thu 26 Nov        60d
+   Drive Model                  Temp Last test         Next test         Every
+ ›     1 ST4000VN006-3CW104     41°C ▶ running         Sun 21 Feb 2027     90d
+       2 ST4000VN006-3CW104     42°C never             ○ Fri 27 Nov        90d
+       3 WDC WD40EFRX-68N32N0   38°C ✓ Tue 03 Nov      ○ Tue 02 Feb 2027   90d
+       4 WDC WD4002FYYZ-01B7C…  48°C ✗ Thu 12 Nov      ○ Tue 24 Nov        60d
+       5 WDC WD4002FYYZ-01B7C…  48°C ✓ Tue 20 Oct      ○ Mon 23 Nov        30d
+       6 WDC WD4002FYYZ-01B7C…  48°C never             ○ Wed 25 Nov        30d
+       7 WDC WD4002FYYZ-01B7C…  45°C never             ○ Thu 26 Nov        60d
 
 
 
@@ -19,7 +19,7 @@
 
 
 
- ┌─ Slot 1 · ST4000VN006-3CW104 · SERIAL1 ────────────────────────────────────┐
+ ┌─ Drive 1 · ST4000VN006-3CW104 · SERIAL1 ───────────────────────────────────┐
  │ ▶ Extended test running, started Sun 00:10. Next: Sun 21 Feb 2027.         │
  └────────────────────────────────────────────────────────────────────────────┘
 ┌──────────────────────────────────────────────────────────────────────────────┐

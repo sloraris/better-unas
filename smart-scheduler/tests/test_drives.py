@@ -23,7 +23,7 @@ from test_scheduling import ss
 import actions as real_actions  # noqa: E402  (smart_scheduler.py put its folder on sys.path)
 
 Check = real_actions.Check
-RUNNING = Check("running", "a SMART test is already running on slot 1", False)
+RUNNING = Check("running", "a SMART test is already running on Drive 1", False)
 BUSY = Check("busy", "drive busy (160128 KB/s)", True)
 SCRUB = Check("scrub", "would overlap pool 2's data scrub", True)
 
@@ -51,7 +51,7 @@ class FakeActions:
             return real_actions.Result(False, self.checks, "Can't start.")
         word = "(dry-run) would start" if dry_run else "Started"
         article = "an" if kind == "extended" else "a"
-        return real_actions.Result(True, self.checks, f"{word} {article} {kind} test on slot {slot}.")
+        return real_actions.Result(True, self.checks, f"{word} {article} {kind} test on Drive {slot}.")
 
     def exclude(self, serial, on, path=None, dry_run=False, lock=True, wait=10):
         self.calls.append(("exclude", serial, on, os.path.basename(path), dry_run, lock))
@@ -145,7 +145,7 @@ class DrivesScreenTests(DrivesFixture, unittest.TestCase):
         self.assertIn("○ Wed 25 Nov", rows["6"])               # next planned: after the snooze
         self.assertIn("Sun 21 Feb 2027", rows["1"])            # after the running test; year shown
         self.assertIn("48°C", rows["4"])
-        self.assertIn("┌─ Slot 1 · ST4000VN006-3CW104 · SERIAL1 ", text)
+        self.assertIn("┌─ Drive 1 · ST4000VN006-3CW104 · SERIAL1 ", text)
         self.assertIn("▶ Extended test running, started Sun 00:10. Next: Sun 21 Feb 2027.", text)
         self.assertIn("Enter open ", text)
 
@@ -153,9 +153,9 @@ class DrivesScreenTests(DrivesFixture, unittest.TestCase):
         rich(self)
         self.drives()
         text = self.to_slot(5)
-        self.assertIn("┌─ Slot 5 · WDC WD4002FYYZ-01B7CB0 · SERIAL5 ", text)
+        self.assertIn("┌─ Drive 5 · WDC WD4002FYYZ-01B7CB0 · SERIAL5 ", text)
         self.assertIn("○ Next test Mon 23 Nov 00:00 · warning signs · every 30 days", text)
-        text = self.to_slot(2)                                 # 5 + 1 = slot 6, snoozed
+        text = self.to_slot(2)                                 # 5 + 1 = Drive 6, snoozed
         self.assertIn("Snoozed to Wed 25 Nov (waiting for a spare). Next test Wed 25 Nov.", text)
         self.assertIn(("u", "unsnooze"), self.app.screen.keys())   # only offered on a snoozed drive
         self.app.press("up")
@@ -167,7 +167,7 @@ class DrivesScreenTests(DrivesFixture, unittest.TestCase):
         self.term.ascii = self.term.surface.ascii = True
         text = self.app.press("3")
         self.assertIn("41C", text)
-        self.assertIn("+- Slot 1 - ST4000VN006-3CW104 - SERIAL1 ", text)
+        self.assertIn("+- Drive 1 - ST4000VN006-3CW104 - SERIAL1 ", text)
         self.assertIn("> running", text)
 
     def test_excluded_drive(self):
@@ -191,7 +191,7 @@ class DrivesScreenTests(DrivesFixture, unittest.TestCase):
         self.assertSnapshot("drives_detail", text)
         self.assertSnapshot("drives_detail_tones", self.term.tones())
         lines = text.splitlines()
-        self.assertIn("└─ Slot 5 ─", lines[2])
+        self.assertIn("└─ Drive 5 ─", lines[2])
         self.assertRegex(lines[4], r"^ WDC WD4002FYYZ-01B7CB0   SERIAL5   4 TB +! warning signs$")
         self.assertIn("Last test   ✓ Tue 20 Oct  passed", text)
         self.assertIn("Next test   ○ Mon 23 Nov 00:00", text)
@@ -199,8 +199,8 @@ class DrivesScreenTests(DrivesFixture, unittest.TestCase):
         self.assertIn("Interval    30 days  warning signs", text)
         self.assertIn("Power-on            59,080 h  6.7y", text)
         # The count comes first, the attribute id dim after it; a rise is marked.
-        self.assertRegex(text, r"Pending sectors +3 ↑3 +197 │")
-        self.assertRegex(text, r"Interface CRC errors +2 +199 │")      # no baseline for 199
+        self.assertRegex(text, r"Pending sectors +3 ↑3 +S197 │")
+        self.assertRegex(text, r"Interface CRC errors +2 +S199 │")      # no baseline for 199
         self.assertNotIn("↑2", text)
         self.assertIn("quick     Sat 21 Nov 09:00  2m      ✓ passed", text)
         self.assertIn("extended  Tue 20 Oct 01:00  10h 00m ✓ passed", text)
@@ -275,7 +275,7 @@ class RunNowTests(DrivesFixture, unittest.TestCase):
         self.to_slot(5)
         text = self.app.press("t", "e")
         self.assertSnapshot("drives_run_blocked", text)
-        self.assertIn("BLOCKS        a SMART test is already running on slot 1", text)
+        self.assertIn("BLOCKS        a SMART test is already running on Drive 1", text)
         self.assertIn("can override  drive busy", text)
         self.assertEqual(self.actions.calls, [("check", "5", "extended")])   # never run_now
         self.assertEqual(type(self.app.screen).__name__, "ChecksScreen")
@@ -301,7 +301,7 @@ class RunNowTests(DrivesFixture, unittest.TestCase):
         first, second = shots
         self.assertSnapshot("drives_run_override_first", first)
         self.assertSnapshot("drives_run_override_second", second)
-        self.assertIn("Start an extended test on slot 2 (SERIAL2) anyway?", first)
+        self.assertIn("Start an extended test on Drive 2 (SERIAL2) anyway?", first)
         self.assertIn("can override  drive busy (160128 KB/s)", first)
         self.assertIn("can override  would overlap pool 2's data scrub", first)
         self.assertIn("Second confirm", second)
@@ -309,14 +309,14 @@ class RunNowTests(DrivesFixture, unittest.TestCase):
         # Yes twice: started with override, without taking the lock a second time.
         self.app.press("t", "e", "y", "y")
         self.assertEqual(self.actions.calls[-1], ("run", "2", "extended", True, False, False))
-        self.assertEqual(self.toast, "Started an extended test on slot 2.")
+        self.assertEqual(self.toast, "Started an extended test on Drive 2.")
 
     def test_no_failed_checks_needs_one_confirm(self):
         self.drives()
         self.to_slot(3)
         self.app.press("t", "k", "y")
         self.assertEqual(self.actions.calls, [("check", "3", "quick"), ("run", "3", "quick", False, False, False)])
-        self.assertIn("Started a quick test on slot 3.", self.toast)
+        self.assertIn("Started a quick test on Drive 3.", self.toast)
 
     def test_declining_starts_nothing(self):
         self.drives()
@@ -340,12 +340,12 @@ class RunNowTests(DrivesFixture, unittest.TestCase):
         self.assertIn("(dry-run) would start", self.toast)
 
     def test_real_actions_block_on_a_running_test(self):
-        # The real check_run_now, with the fixture's running test on slot 1.
+        # The real check_run_now, with the fixture's running test on Drive 1.
         with_history(self.fake)
         self.drives(fake_actions=False)
         self.to_slot(3)
         text = self.app.press("t", "e")
-        self.assertIn("BLOCKS        a SMART test is already running on slot 1", text)
+        self.assertIn("BLOCKS        a SMART test is already running on Drive 1", text)
         self.assertFalse([c for c in self.fake.calls if c[0] == "POST"])
 
 
@@ -362,7 +362,7 @@ class SnoozeTests(DrivesFixture, unittest.TestCase):
         self.assertFalse(dry)
         self.assertEqual(state["snoozes"]["SERIAL5"]["until"], "2026-12-01")
         self.assertEqual(state["snoozes"]["SERIAL5"]["note"], "waiting for a spare")
-        self.assertIn("Snoozed slot 5 (SERIAL5): no test before Tue 01 Dec 2026", self.toast)
+        self.assertIn("Snoozed Drive 5 (SERIAL5): no test before Tue 01 Dec 2026", self.toast)
 
     def test_snooze_in_days(self):
         self.drives()
@@ -411,9 +411,9 @@ class SnoozeTests(DrivesFixture, unittest.TestCase):
         self.app.press("u", "y")
         (state, _), = self.saved
         self.assertNotIn("snoozes", state)
-        self.assertEqual(self.toast, "Removed the snooze on slot 6 (SERIAL6).")
+        self.assertEqual(self.toast, "Removed the snooze on Drive 6 (SERIAL6).")
         self.app.press("up", "u")
-        self.assertEqual(self.toast, "Slot 5 (SERIAL5) isn't snoozed.")
+        self.assertEqual(self.toast, "Drive 5 (SERIAL5) isn't snoozed.")
 
     def test_dry_run_writes_nothing(self):
         self.state["snoozes"] = {"SERIAL6": {"until": "2026-11-25", "set": "2026-11-21T10:00:00-07:00"}}
@@ -421,11 +421,11 @@ class SnoozeTests(DrivesFixture, unittest.TestCase):
         self.app.press("z")
         self.type("2026-12-01")
         self.assertEqual(self.saved, [])
-        self.assertIn("(dry-run) would snooze slot 1 (SERIAL1): no test before Tue 01 Dec 2026", self.toast)
+        self.assertIn("(dry-run) would snooze Drive 1 (SERIAL1): no test before Tue 01 Dec 2026", self.toast)
         self.to_slot(6)
         self.app.press("u", "y")
         self.assertEqual(self.saved, [])
-        self.assertEqual(self.toast, "(dry-run) would remove the snooze on slot 6 (SERIAL6).")
+        self.assertEqual(self.toast, "(dry-run) would remove the snooze on Drive 6 (SERIAL6).")
 
 
 class ConfigEditTests(DrivesFixture, unittest.TestCase):
@@ -434,7 +434,7 @@ class ConfigEditTests(DrivesFixture, unittest.TestCase):
         self.to_slot(5)
         self.app.press("x", "y")
         self.assertEqual(self.actions.calls, [("exclude", "SERIAL5", True, "config", False, False)])
-        self.assertEqual(self.toast, "Excluded slot 5 (SERIAL5).")
+        self.assertEqual(self.toast, "Excluded Drive 5 (SERIAL5).")
         self.write_config("EXCLUDE_SERIALS=SERIAL5\n")
         self.app.press("r", "x", "y")
         self.assertEqual(self.actions.calls[-1], ("exclude", "SERIAL5", False, "config", False, False))
@@ -450,7 +450,7 @@ class ConfigEditTests(DrivesFixture, unittest.TestCase):
         self.assertIn("Interval in days (empty: the normal rules):", text)
         self.type("14")
         self.assertEqual(self.actions.calls, [("interval", "SERIAL2", 14, "config", False, False)])
-        self.assertEqual(self.toast, "Slot 2 (SERIAL2) now uses every 14 days.")
+        self.assertEqual(self.toast, "Drive 2 (SERIAL2) now uses every 14 days.")
         self.app.press("i")
         self.type("")
         self.assertEqual(self.actions.calls[-1], ("interval", "SERIAL2", None, "config", False, False))
@@ -470,10 +470,10 @@ class ConfigEditTests(DrivesFixture, unittest.TestCase):
         self.drives(dry_run=True)
         self.app.press("x", "y")
         self.assertEqual(self.actions.calls[-1][-2:], (True, False))
-        self.assertEqual(self.toast, "(dry-run) would exclude slot 1 (SERIAL1) (EXCLUDE_SERIALS).")
+        self.assertEqual(self.toast, "(dry-run) would exclude Drive 1 (SERIAL1) (EXCLUDE_SERIALS).")
         self.app.press("i")
         self.type("30")
-        self.assertEqual(self.toast, "(dry-run) would set slot 1 (SERIAL1) to every 30 days (INTERVAL_OVERRIDES).")
+        self.assertEqual(self.toast, "(dry-run) would set Drive 1 (SERIAL1) to every 30 days (INTERVAL_OVERRIDES).")
 
     def test_real_actions_edit_the_tool_config(self):
         # The real actions.py, writing the fixture's private copy of the config.

@@ -1,10 +1,10 @@
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │    1 Home     │  2 Calendar   │   3 Drives    │   4 Alerts    │  5 Settings  │
-└─ Can't start an extended test on slot 5 (SERIAL5) ───────── smart-scheduler ─┘
+└─ Can't start an extended test on Drive 5 (SERIAL5) ──────── smart-scheduler ─┘
 
   Safety checks for starting a test now:
 
-    BLOCKS        a SMART test is already running on slot 1
+    BLOCKS        a SMART test is already running on Drive 1
     can override  drive busy (160128 KB/s)
 
   A running test, an unhealthy pool, or a drive or identity problem always
@@ -23,6 +23,6 @@
 
 
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ ✗ Can't start an extended test on slot 5 (SERIAL5): a SMART test is already… │
+│ ✗ Can't start an extended test on Drive 5 (SERIAL5): a SMART test is alread… │
 └──────────────────────────────────────────────────────────────────────────────┘
  Esc back  1-5/Tab tabs                                          ? help  q quit

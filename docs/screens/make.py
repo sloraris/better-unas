@@ -40,7 +40,7 @@ class Shots(CalendarFixture, unittest.TestCase):
     def test_shots(self):
         with_history(self.fake)
         self.state = {"alerts": {"test_failed:SERIAL4": {
-            "msg": "Extended SMART test failed on slot 4 (SERIAL4)", "level": "warning",
+            "msg": "Extended SMART test failed on Drive 4 (SERIAL4)", "level": "warning",
             "since": "2026-11-12T03:15:00-07:00", "sent": "2026-11-12T03:15:00-07:00"}}}
         with open(os.path.join(self.home, "VERSION"), "w") as f:
             f.write("v0.2.0\n")

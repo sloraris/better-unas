@@ -56,7 +56,7 @@ class Fake:
 
 
 def rose6():
-    """State in which slot 6's attribute 198 (14 in the fixture) rose and no
+    """State in which Drive 6's attribute 198 (14 in the fixture) rose and no
     clean test has followed: the fixture's warning drive."""
     return {"drives": {"SERIAL6": {"rose": {"at": "2026-11-20T00:00:00-07:00", "ids": ["198"]}}}}
 
@@ -107,7 +107,7 @@ class SchedulingTests(unittest.TestCase):
         self.alerts = ss.Alerts(self.cfg, self.state, True)
         d = self.drives()["SERIAL6"]
         self.assertEqual((d["cause"], d["source"], d["interval"]), ("warning signs", "warning signs", 30))
-        self.assertTrue(d["reason"].startswith("SMART attribute rose since last test: 198 went 12 -> 14"))
+        self.assertTrue(d["reason"].startswith("SMART attribute rose since last test: S198 12->14"))
         self.assertEqual(self.state["drives"]["SERIAL6"]["rose"]["ids"], ["198"])
         # The test it gets starts at 14 and passes with no further rise: back to normal.
         self.state["drives"]["SERIAL6"]["attrs_at_last_test"] = {"198": 14}

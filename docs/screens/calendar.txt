@@ -18,7 +18,7 @@
 
  ── ○ planned  ✓ passed  ✗ failed  ▶ running  ↻ scrub  ⇡ backup ───────────────
  Sunday 22 November   today
-   ▶ Slot 1  extended test running, started 00:10
+   ▶ Drive 1  extended test running, started 00:10
    ! No test tonight: one is already running
 
 

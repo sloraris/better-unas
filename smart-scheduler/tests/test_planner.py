@@ -2,7 +2,7 @@
 
     python3 -m unittest discover -s tests
 
-In the fixture, slot 6 has attribute 198 at 14 (warning, 30-day interval),
+In the fixture, Drive 6 has attribute 198 at 14 (warning, 30-day interval),
 slots 4, 5 and 7 are past OLD_DRIVE_HOURS (60 days), slots 1-3 are healthy
 (90 days) and slots 1 and 2 are busy copying. No drive has a test on record,
 so all of them are due for a baseline. The scrub runs on the last day of each
@@ -81,6 +81,9 @@ class PlannerTests(unittest.TestCase):
         by = {d["serial"]: d for d in self.drives()}
         self.assertEqual(by["SERIAL4"]["cause"], "retry")
         self.assertEqual((by["SERIAL3"]["cause"], by["SERIAL3"]["source"]), ("per-drive interval", "per drive"))
+        self.cfg = config()
+        by = {d["serial"]: d for d in self.drives()}
+        self.assertEqual(by["SERIAL3"]["cause"], "interval")   # a regular test, not a sooner one
 
     def test_hourly_run_starts_what_the_plan_puts_first(self):
         drives = self.drives()
@@ -129,7 +132,7 @@ class PlannerTests(unittest.TestCase):
         self.state["drives"]["SERIAL3"] = {"rose": {"at": "2026-11-20T00:00:00-07:00", "ids": ["5"]}}
         p = self.plan(horizon=at(2027, 2, 1))
         first = [e["serial"] for e in p[:2]]
-        # Both 30-day drives come before every other overdue drive; slot 6 has waited longer.
+        # Both 30-day drives come before every other overdue drive; Drive 6 has waited longer.
         self.assertEqual(first, ["SERIAL6", "SERIAL3"])
         self.assertEqual(p[0]["interval"], 30)
         # The planned test counts as passed with no further rise, so the drive is

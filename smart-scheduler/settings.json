@@ -86,7 +86,7 @@
           "min": 1,
           "max": 255,
           "default": "5,187,197,198",
-          "help": "SMART attributes to watch. A rise since the last test makes that drive due at once; a count that stays the same is ignored. 5 reallocated, 187 reported uncorrectable, 197 pending, 198 offline uncorrectable."
+          "help": "SMART attributes to watch. A rise since the last test makes that drive due at once; a count that stays the same is ignored. S5 reallocated, S187 reported uncorrectable, S197 pending, S198 offline uncorrectable."
         },
         {
           "key": "INTERVAL_OVERRIDES",

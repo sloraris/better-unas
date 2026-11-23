@@ -18,7 +18,7 @@
 
  ── ○ planned  ✓ passed  ✗ failed  ▶ running  ↻ scrub  ⇡ backup ───────────────
  Wednesday 25 November
-   ○ Slot 6  planned 00:00-14:16, baseline
+   ○ Drive 6  planned 00:00-14:16, baseline
 
 
 

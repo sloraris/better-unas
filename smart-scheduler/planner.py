@@ -145,9 +145,9 @@ def assess(cfg, disk, history, attrs, baseline, t, rose=None):
     increased = [k for k, v in attrs.items() if baseline is not None and v > baseline.get(k, 0)]
     if increased:
         rising.append("SMART attribute rose since the last test: " + ", ".join(
-            f"{k} went {baseline.get(k, 0)} -> {attrs[k]}" for k in sorted(increased, key=str)))
+            f"S{k} {baseline.get(k, 0)}->{attrs[k]}" for k in sorted(increased, key=str)))
     elif rose:
-        rising.append(f"SMART attribute {', '.join(map(str, rose.get('ids') or []))} rose; "
+        rising.append(f"SMART attribute {', '.join(f'S{i}' for i in rose.get('ids') or [])} rose; "
                     "no clean test since")
     warn = []                    # UniFi's own verdicts: they stay until UniFi clears them
     if disk.get("riskReasons"):
@@ -179,11 +179,11 @@ def assess(cfg, disk, history, attrs, baseline, t, rose=None):
     elif increased:
         due, cause = t, "warning signs"
         reason = "SMART attribute rose since last test: " + ", ".join(
-            f"{k} went {baseline.get(k, 0)} -> {attrs[k]}" for k in sorted(increased, key=str))
+            f"S{k} {baseline.get(k, 0)}->{attrs[k]}" for k in sorted(increased, key=str))
     else:
         due = parse_time(last_good["finishedAt"]) + dt.timedelta(days=interval)
         reason = f"every {interval} days ({why})"
-        cause = "per-drive interval" if source == "per drive" else "due"
+        cause = "per-drive interval" if source == "per drive" else "interval"
     return {"running": any(is_running(h) for h in history), "interval": interval, "why": why,
             "source": source, "cause": cause, "rose": sorted(increased, key=str), "after_clean": after_clean,
             "due": due, "reason": reason, "last": last_good.get("finishedAt") if last_good else None}
@@ -413,7 +413,7 @@ def plan(storage, drives, state, cfg, now, horizon=None, windows=(), not_before=
                 s.update(s.get("after_clean") or {})     # it passes clean: a rise no longer counts
                 s["due"] = s["busy_until"] + dt.timedelta(days=s["interval"])
                 s["reason"] = f"every {s['interval']} days ({s.get('why', 'after the running test')})"
-                s["cause"] = "per-drive interval" if s.get("source") == "per drive" else "due"
+                s["cause"] = "per-drive interval" if s.get("source") == "per drive" else "interval"
         s["running"] = False
         sim.append(s)
     wanted = {s["serial"] for s in sim if not s.get("excluded") and not s.get("error") and s.get("due")}
@@ -462,7 +462,7 @@ def plan(storage, drives, state, cfg, now, horizon=None, windows=(), not_before=
             end = t + test_length(cfg, d.get("minutes"))
             entries.append({"serial": d["serial"], "slot": d["slot"], "model": d.get("model", "?"),
                             "night": nk, "start": t, "end": end, "due": d["due"],
-                            "interval": d["interval"], "reason": d["reason"], "cause": d.get("cause") or "due",
+                            "interval": d["interval"], "reason": d["reason"], "cause": d.get("cause") or "interval",
                             "delayed_by": delays.pop(d["serial"], [])})
             planned.add(d["serial"])
             starts[nk] = starts.get(nk, 0) + 1
