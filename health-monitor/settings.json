@@ -79,7 +79,7 @@
           "min": 0,
           "max": 100,
           "default": "10",
-          "help": "Warn when an attribute's normalized value is within this much of the manufacturer's threshold."
+          "help": "Warn when an attribute's normalized value has fallen below 100 to within this much of the manufacturer's threshold. Temperatures don't count."
         },
         {
           "key": "PREFAIL_S5",

@@ -25,7 +25,7 @@ It works on its own. It does not need smart-scheduler, and smart-scheduler does 
 
 The first reading becomes the baseline, without alerts, except for drives that are already near failure. Those get a warning at install only. Near failure means either:
 
-- a normalized value within 10 of the manufacturer's threshold, or
+- a normalized value that has fallen below 100 to within 10 of the manufacturer's threshold (temperatures aside; Seagate sets some thresholds just under 100), or
 - a raw count at or above its limit: S5 100, S187 10, S197 10, S198 100 (settings).
 
 ## btrfs

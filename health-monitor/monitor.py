@@ -31,6 +31,12 @@ import datetime as dt
 
 # Raw-count pre-fail limits at install, by attribute (settings).
 PREFAIL_KEYS = {5: "PREFAIL_S5", 187: "PREFAIL_S187", 197: "PREFAIL_S197", 198: "PREFAIL_S198"}
+# Normalized values start at 100 on a healthy drive (some higher). Seagate sets
+# some thresholds just under that (S10 at 97, S184 at 99: one event fails
+# them), so a value only counts as near its threshold once it has fallen
+# below 100. Temperatures are left out: they move with the room, not wear.
+HEALTHY_VALUE = 100
+TEMPERATURE_IDS = (190, 194)
 BTRFS_ERROR = ("corruption_errs",)          # a rise in these is an error, the rest a warning
 BTRFS_WORDS = {"write_io_errs": "write", "read_io_errs": "read", "flush_io_errs": "flush",
                "corruption_errs": "corruption", "generation_errs": "generation"}
@@ -102,6 +108,11 @@ def _smart(cfg, state, readings, t, first):
             continue
         attrs = r.get("attrs") or {}
         name = drive_name(serial, r)
+        # An open close-to-failing warning is checked again each time: it
+        # clears once the drive no longer meets the rule (or the rule changed).
+        if f"prefail:{serial}" in rises and not prefail(cfg, attrs):
+            del state["rises"][f"prefail:{serial}"]
+            out.append(("clear", f"prefail:{serial}", f"{name} no longer looks close to failing ({serial})"))
         now = {str(i): attrs[i]["raw"] for i in watched if i in attrs}
         prev = last.get(serial)
         if prev is None:
@@ -131,14 +142,16 @@ def _smart(cfg, state, readings, t, first):
 
 def prefail(cfg, attrs):
     """Reasons a drive already looks close to failing, from all its attributes:
-    a normalized value within PREFAIL_MARGIN of the manufacturer's threshold,
-    or a raw count at or above its limit."""
+    a normalized value that has fallen below 100 to within PREFAIL_MARGIN of
+    the manufacturer's threshold (temperatures aside), or a raw count at or
+    above its limit."""
     why = []
     margin = cfg["PREFAIL_MARGIN"]
     for i in sorted(attrs):
         a = attrs[i]
         thresh, value = a.get("thresh") or 0, a.get("value")
-        if thresh > 0 and value is not None and value - thresh <= margin:
+        if (thresh > 0 and value is not None and value < HEALTHY_VALUE and value - thresh <= margin
+                and i not in TEMPERATURE_IDS):
             why.append(f"S{i} at {value}, threshold {thresh}")
         elif i in PREFAIL_KEYS and a.get("raw", 0) >= cfg[PREFAIL_KEYS[i]]:
             why.append(f"S{i} at {a['raw']}, limit {cfg[PREFAIL_KEYS[i]]}")

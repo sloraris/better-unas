@@ -143,6 +143,12 @@ real NAS.
   its own pair instead of the shared one, so one tool stopping isn't hidden
   by the other's pings.
 
+- health-monitor: the close-to-failing check at install counts a normalized
+  value only once it has fallen below 100, and leaves temperatures out.
+  Seagate IronWolf drives set S10's threshold at 97 and S184's at 99, so
+  healthy drives at 100 were flagged. Each check now clears an open
+  close-to-failing warning once the drive no longer meets the rule.
+
 ### smart-scheduler
 
 - Shared planner (`planner.py`): the hourly run and the plan in `status` and
