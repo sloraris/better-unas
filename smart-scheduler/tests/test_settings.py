@@ -30,7 +30,7 @@ def load(name, path):
 
 
 ss = load("ss", os.path.join(TOOL, "smart_scheduler.py"))
-S = load("ss_settings", os.path.join(TOOL, "settings.py"))
+S = ss.settings                                                       # core/lib/settings.py
 P = load("core_plugins", os.path.join(ROOT, "core", "plugins.py"))   # tests only: the tool never imports it
 
 SCHEMA = S.load_schema(os.path.join(TOOL, "settings.json"))
@@ -144,21 +144,21 @@ class ConfigLoader(unittest.TestCase):
             "DURATION_FACTOR": "value must be at most 10",
         })
         self.assertIn("INTERVAL_DAYS: value must be at least 1", c.errors)
-        self.assertEqual((c.int("INTERVAL_DAYS"), c.int("MAX_CONCURRENT"), c["DRIVE_USER"]), (90, 1, ""))
+        self.assertEqual((c["INTERVAL_DAYS"], c["MAX_CONCURRENT"], c["DRIVE_USER"]), (90, 1, ""))
         self.assertEqual(c.window, (dt.time(0), dt.time(5)))
-        self.assertEqual(c.float("DURATION_FACTOR"), 1.5)
+        self.assertEqual(c["DURATION_FACTOR"], 1.5)
 
     def test_values_are_canonical(self):
         c = self.config('NOTIFY_SUCCESS=TRUE\nWARN_ATTRIBUTES= 5, 187\nEXCLUDE_SERIALS="A1, B2"\n')
-        self.assertTrue(c.yes("NOTIFY_SUCCESS"))
-        self.assertEqual(c["WARN_ATTRIBUTES"], "5,187")
-        self.assertEqual(c.set_of("EXCLUDE_SERIALS"), {"A1", "B2"})
+        self.assertTrue(c["NOTIFY_SUCCESS"])
+        self.assertEqual(c.values["WARN_ATTRIBUTES"], "5,187")
+        self.assertEqual(set(c["EXCLUDE_SERIALS"]), {"A1", "B2"})
         self.assertEqual(c.typed["WARN_ATTRIBUTES"], [5, 187])
         self.assertEqual(c.errors, [])
 
     def test_line_problems_and_repeats(self):
         c = self.config("INTERVAL_DAYS=10\nnot a setting\nINTERVAL_DAYS=20\n")
-        self.assertEqual(c.int("INTERVAL_DAYS"), 10)   # first wins, as the contract says
+        self.assertEqual(c["INTERVAL_DAYS"], 10)   # first wins, as the contract says
         self.assertEqual(c.errors, ["config line 2: expected KEY=VALUE",
                                     "config line 3: INTERVAL_DAYS repeated; the first value is used"])
 
@@ -268,8 +268,8 @@ class Writer(unittest.TestCase):
         with tempfile.NamedTemporaryFile("w", suffix=".conf", delete=False) as f:
             f.write(new)
         self.addCleanup(os.unlink, f.name)
-        self.assertEqual(ss.Config(f.name, schema).int("EXAMPLE_MARGIN_HOURS"), 3)
-        self.assertEqual(ss.Config("/nonexistent", schema).int("EXAMPLE_MARGIN_HOURS"), 1)
+        self.assertEqual(ss.Config(f.name, schema)["EXAMPLE_MARGIN_HOURS"], 3)
+        self.assertEqual(ss.Config("/nonexistent", schema)["EXAMPLE_MARGIN_HOURS"], 1)
         self.assertEqual(S.defaults(schema)["EXAMPLE_MARGIN_HOURS"], "1")
 
 
@@ -294,7 +294,7 @@ class Save(unittest.TestCase):
                          .replace("INTERVAL_DAYS=90", "INTERVAL_DAYS=45")
                          .replace("MAX_CONCURRENT=1", "MAX_CONCURRENT=2"))
         c = ss.Config(self.path)
-        self.assertEqual((c.int("INTERVAL_DAYS"), c.int("MAX_CONCURRENT")), (45, 2))
+        self.assertEqual((c["INTERVAL_DAYS"], c["MAX_CONCURRENT"]), (45, 2))
         self.assertEqual(c.errors, ["LEGACY: unknown setting"])
         self.assertEqual(os.listdir(self.dir), ["config"])     # no temporary file left behind
 

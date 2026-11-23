@@ -16,13 +16,15 @@ import os
 import re
 import sys
 
+if __name__ == "__main__":       # run as a script: the checkout or home holds core/
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from core.lib import settings as S  # noqa: E402  (the one copy of the value rules)
+
 CONTRACT = 1
 
 NAME_RE = re.compile(r"[a-z0-9][a-z0-9-]*\Z")
 KEY_RE = re.compile(r"[A-Z][A-Z0-9_]*\Z")
 GROUP_ID_RE = re.compile(r"[a-z0-9][a-z0-9-]*\Z")
-SERIAL_RE = r"[A-Za-z0-9._-]+"
-TIME_RE = re.compile(r"([01][0-9]|2[0-3]):([0-5][0-9])\Z")
 
 # Manifest keys (tool.conf). Values: required?
 MANIFEST_KEYS = {
@@ -44,8 +46,6 @@ MANIFEST_DEFAULTS = {"SETUP": "", "SCHEMA": "", "CONFIG": "", "CONFIG_EXAMPLE": 
 SUMMARY_MAX = 60
 LABEL_MAX = 28
 
-TRUE_WORDS = ("yes", "true", "on", "1")
-FALSE_WORDS = ("no", "false", "off", "0")
 
 # Per type: allowed extra attributes beyond the common ones.
 COMMON_ATTRS = {"key", "type", "label", "help", "default", "essential", "on_change"}
@@ -64,15 +64,14 @@ TYPE_ATTRS = {
     "checklist": {"options", "other", "prefix", "min", "max", "required"},
 }
 # Types where an empty value is a valid value (unless "required": true).
-EMPTY_OK = {"text", "url", "serial_list", "int_list", "serial_map", "checklist"}
+EMPTY_OK = S.EMPTY_OK
 
 PLUGIN_REQUIRED = ("summary", "alerts", "status")
 PLUGIN_OPTIONAL = ("screens", "validate", "send_test", "preview")
 # Settings every tool shares, kept in <home>/better-unas.conf (core/notify.py).
 # A tool reads them from there with its own config as a fallback, so they may
 # still sit in a tool's config; that is never an "unknown setting".
-SHARED_KEYS = ("WEBHOOK_URL", "WEBHOOK_FORMAT", "NOTIFY_SUCCESS", "ALERT_REPEAT_HOURS",
-               "HEARTBEAT_URL", "HEARTBEAT_FAIL_URL")
+SHARED_KEYS = S.SHARED_KEYS
 STATES = ("ok", "warn", "error", "off", "unknown")
 TONES = ("normal", "good", "warn", "bad", "dim")
 # Status kinds an item may show as a glyph before its value (core/tui/theme.py STATUS).
@@ -88,8 +87,7 @@ class ContractError(Exception):
         super().__init__("; ".join(self.problems))
 
 
-class FieldError(ValueError):
-    """A value doesn't fit its field. The message is shown next to the field as is."""
+FieldError = S.FieldError      # a value doesn't fit its field; the message sits next to it
 
 
 # --------------------------------------------------------------------- KEY=VALUE files
@@ -345,182 +343,10 @@ def field_map(schema):
 
 # --------------------------------------------------------------------- values
 
-def _range(f, n, what="value"):
-    if "min" in f and n < f["min"]:
-        raise FieldError(f"{what} must be at least {_num(f['min'])}")
-    if "max" in f and n > f["max"]:
-        raise FieldError(f"{what} must be at most {_num(f['max'])}")
-
-
-def _num(x):
-    return str(int(x)) if float(x).is_integer() else str(x)
-
-
-def _split(text):
-    return [x.strip() for x in text.split(",") if x.strip()]
-
-
-def _whole(text, what="a whole number"):
-    if not re.fullmatch(r"-?[0-9]+", text):
-        raise FieldError(f"want {what}, got {text!r}")
-    return int(text)
-
-
-def parse_value(f, text):
-    """Turn config-file text into a typed value, or raise FieldError with a short message.
-
-    Types: int -> int, float -> float, bool -> bool, choice/text/url -> str,
-    time_window -> (datetime.time, datetime.time), serial_list -> [str],
-    int_list -> [int], serial_map -> {serial: int}, checklist -> [str] or [int].
-    """
-    t = f["type"]
-    text = text.strip()
-    if not text:
-        if t not in EMPTY_OK:
-            raise FieldError("a value is required")
-        if f.get("required"):
-            raise FieldError("a value is required")
-        return {"serial_list": [], "int_list": [], "serial_map": {}, "checklist": []}.get(t, "")
-    if t == "int":
-        n = _whole(text)
-        _range(f, n)
-        return n
-    if t == "float":
-        try:
-            n = float(text)
-        except ValueError:
-            raise FieldError(f"want a number, got {text!r}") from None
-        if n != n or n in (float("inf"), float("-inf")):
-            raise FieldError(f"want a number, got {text!r}")
-        _range(f, n)
-        return n
-    if t == "bool":
-        if text.lower() in TRUE_WORDS:
-            return True
-        if text.lower() in FALSE_WORDS:
-            return False
-        raise FieldError(f"want yes or no, got {text!r}")
-    if t == "choice":
-        if text not in f["choices"]:
-            raise FieldError(f"want one of {', '.join(f['choices'])}")
-        return text
-    if t == "time_window":
-        parts = text.split("-")
-        if len(parts) != 2 or not all(TIME_RE.match(x.strip()) for x in parts):
-            raise FieldError("want HH:MM-HH:MM, e.g. 22:00-04:00")
-        a, b = (dt.time.fromisoformat(x.strip()) for x in parts)
-        if a == b:
-            raise FieldError("start and end must differ")
-        return a, b
-    if t == "text":
-        if "max_length" in f and len(text) > f["max_length"]:
-            raise FieldError(f"at most {f['max_length']} characters")
-        if "pattern" in f and not re.fullmatch(f["pattern"], text):
-            raise FieldError("not in the expected form")
-        return text
-    if t == "url":
-        schemes = f.get("schemes", ["http", "https"])
-        m = re.fullmatch(r"([a-zA-Z][a-zA-Z0-9+.-]*)://([^/\s?#]+)(\S*)", text)
-        if not m:
-            raise FieldError("want a full URL, e.g. https://example.com/path")
-        if m.group(1).lower() not in schemes:
-            raise FieldError(f"URL must start with {' or '.join(s + '://' for s in schemes)}")
-        return text
-    if t == "serial_list":
-        items = _split(text)
-        for s in items:
-            if not re.fullmatch(SERIAL_RE, s):
-                raise FieldError(f"{s!r} doesn't look like a serial number")
-        _no_dupes(items)
-        return items
-    if t == "int_list":
-        items = [_whole(s) for s in _split(text)]
-        for n in items:
-            _range(f, n, f"each number ({n})")
-        _no_dupes(items)
-        return items
-    if t == "checklist":
-        return _checklist(f, text)
-    if t == "serial_map":
-        out = {}
-        for item in _split(text):
-            serial, _, n = item.rpartition(":")
-            if not re.fullmatch(SERIAL_RE, serial) or not re.fullmatch(r"[0-9]+", n.strip()):
-                raise FieldError(f"bad entry {item!r} (want SERIAL:{f.get('unit', 'NUMBER').upper()})")
-            if serial in out:
-                raise FieldError(f"{serial} listed twice")
-            out[serial] = int(n)
-            _range(f, out[serial], f"{serial}'s value")
-        return out
-    raise FieldError(f"unknown type {t}")  # check_schema stops this earlier
-
-
-def _no_dupes(items):
-    seen = set()
-    for x in items:
-        if x in seen:
-            raise FieldError(f"{x} listed twice")
-        seen.add(x)
-
-
-def _checklist(f, text):
-    """checklist text -> [str]: the ticked options in schema order, then any
-    other values ("other" fields only) in the order given. With "min" or
-    "max", every value is a whole number in range and the list holds ints."""
-    known = [o["value"] for o in f["options"]]
-    numeric = "min" in f or "max" in f
-    picked = []
-    for s in _split(text):
-        if numeric:
-            n = _whole(s)
-            _range(f, n, f"each number ({n})")
-            s = str(n)
-        if s not in known and not f.get("other"):
-            raise FieldError(f"want some of {', '.join(known)}")
-        picked.append(s)
-    _no_dupes(picked)
-    out = [v for v in known if v in picked] + [v for v in picked if v not in known]
-    return [int(v) for v in out] if numeric else out
-
-
-def format_value(f, value):
-    """The inverse of parse_value: the text to write to the config file."""
-    t = f["type"]
-    if t == "bool":
-        return "yes" if value else "no"
-    if t == "float":
-        return _num(value)
-    if t == "time_window":
-        return f"{value[0]:%H:%M}-{value[1]:%H:%M}"
-    if t in ("serial_list", "int_list", "checklist"):
-        return ",".join(str(x) for x in value)
-    if t == "serial_map":
-        return ",".join(f"{k}:{v}" for k, v in value.items())
-    return str(value)
-
-
-def validate_config(schema, raw):
-    """Check config-file values against the schema.
-
-    raw: {KEY: text} as read from the config file; missing keys take their default.
-    Returns (typed, errors): typed has every schema key (a bad value falls back
-    to its default, so a tool keeps running on a broken line), errors maps
-    KEY -> message. Keys the schema doesn't know are reported under that key,
-    except the shared ones (SHARED_KEYS).
-    """
-    typed, errors = {}, {}
-    known = field_map(schema)
-    for key, f in known.items():
-        text = raw.get(key, f["default"])
-        try:
-            typed[key] = parse_value(f, text)
-        except FieldError as e:
-            errors[key] = str(e)
-            typed[key] = parse_value(f, f["default"])
-    for key in raw:
-        if key not in known and key not in SHARED_KEYS:
-            errors[key] = "unknown setting"
-    return typed, errors
+# The value rules are core/lib/settings.py's, shared with every tool's run.
+parse_value = S.parse_value
+format_value = S.format_value
+validate_config = S.validate       # (typed, errors); unknown keys reported, SHARED_KEYS aside
 
 
 def check_example(schema, path):

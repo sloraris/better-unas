@@ -84,7 +84,7 @@ def night_bounds(cfg, day, tz):
 
 
 def test_length(cfg, minutes):
-    return dt.timedelta(minutes=(minutes or DEFAULT_MINUTES) * cfg.float("DURATION_FACTOR"))
+    return dt.timedelta(minutes=(minutes or DEFAULT_MINUTES) * cfg["DURATION_FACTOR"])
 
 
 # --------------------------------------------------------------------------- per-drive rules
@@ -171,10 +171,10 @@ def assess(cfg, disk, history, attrs, baseline, t, rose=None):
         if serial in cfg.overrides:
             return cfg.overrides[serial], "set in config", "drive"
         if signs:
-            return cfg.int("WARN_INTERVAL_DAYS"), "; ".join(signs), "watch"
-        if (disk.get("powerOnHours") or 0) >= cfg.int("OLD_DRIVE_HOURS"):
-            return cfg.int("OLD_INTERVAL_DAYS"), f"{disk['powerOnHours']:,} power-on hours", "old drive"
-        return cfg.int("INTERVAL_DAYS"), "healthy", "default"
+            return cfg["WARN_INTERVAL_DAYS"], "; ".join(signs), "watch"
+        if (disk.get("powerOnHours") or 0) >= cfg["OLD_DRIVE_HOURS"]:
+            return cfg["OLD_INTERVAL_DAYS"], f"{disk['powerOnHours']:,} power-on hours", "old drive"
+        return cfg["INTERVAL_DAYS"], "healthy", "default"
 
     interval, why, source = pick(rising + warn)
     # After a clean test the rise no longer counts: the plan uses this for the
@@ -182,7 +182,7 @@ def assess(cfg, disk, history, attrs, baseline, t, rose=None):
     after_clean = dict(zip(("interval", "why", "source"), pick(warn)))
 
     if latest is not None and not is_good(latest):
-        due = parse_time(latest["finishedAt"]) + dt.timedelta(days=cfg.int("RETRY_FAILED_DAYS"))
+        due = parse_time(latest["finishedAt"]) + dt.timedelta(days=cfg["RETRY_FAILED_DAYS"])
         reason, cause = f"retrying: last test ended {latest.get('status')}/{latest.get('result')}", "retry"
     elif last_good is None:
         due, reason, cause = t, "never tested; first test sets a baseline", "baseline"
@@ -257,7 +257,7 @@ def scrub_windows(cfg, storage, until, whole_night=False):
     "pool is scrubbing" check takes over. plan() can't see that for future
     nights, so with `whole_night` the window lasts until that night's start
     window closes."""
-    margin = dt.timedelta(hours=cfg.int("SCRUB_MARGIN_HOURS"))
+    margin = dt.timedelta(hours=cfg["SCRUB_MARGIN_HOURS"])
     out = []
     for p in storage["pools"]:
         for t in scrub_runs(p.get("dataScrubbing") or {}, until + margin):
@@ -302,11 +302,11 @@ def gate(cfg, storage, running, starts_tonight, t):
     live pool checks (used for future nights, where we assume pools are fine)."""
     if not in_window(cfg, t):
         return "outside start window"
-    if cfg.int("MAX_STARTS_PER_NIGHT") == 0:
+    if cfg["MAX_STARTS_PER_NIGHT"] == 0:
         return "paused (MAX_STARTS_PER_NIGHT=0 in config)"
-    if starts_tonight >= cfg.int("MAX_STARTS_PER_NIGHT"):
+    if starts_tonight >= cfg["MAX_STARTS_PER_NIGHT"]:
         return "already started tonight's test(s)"
-    if running >= cfg.int("MAX_CONCURRENT"):
+    if running >= cfg["MAX_CONCURRENT"]:
         return "a SMART test is already running"
     if storage is not None:
         return pool_problem(storage)
@@ -344,7 +344,7 @@ def _tick(cfg, drives, t, *, storage, running, starts_tonight, windows, not_befo
     if g:
         return Decision(None, g, due, [])
     skipped = []
-    busy = cfg.int("BUSY_KBPS")
+    busy = cfg["BUSY_KBPS"]
     for d in due:
         if d.get("running"):
             skipped.append((d, "its test is still running"))
@@ -405,7 +405,7 @@ def plan(storage, drives, state, cfg, now, horizon=None, windows=(), not_before=
     Returns a Plan: entries {serial, slot, model, night, start, end, due,
     interval, reason, delayed_by: [reasons]} plus `.skipped` nights.
     """
-    if cfg.int("MAX_STARTS_PER_NIGHT") == 0:
+    if cfg["MAX_STARTS_PER_NIGHT"] == 0:
         return Plan(skipped=[{"night": night_key(cfg, now), "reasons": ["paused (MAX_STARTS_PER_NIGHT=0 in config)"]}])
 
     sim = []
@@ -438,7 +438,7 @@ def plan(storage, drives, state, cfg, now, horizon=None, windows=(), not_before=
     entries, skipped, delays, planned = [], [], {}, set()
     starts = dict(state.get("starts", {}))
     tonight = night_key(cfg, now)
-    max_starts = cfg.int("MAX_STARTS_PER_NIGHT")
+    max_starts = cfg["MAX_STARTS_PER_NIGHT"]
     day = dt.date.fromisoformat(tonight)
     while day <= last_night:
         if horizon is None and wanted <= planned:

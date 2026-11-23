@@ -347,11 +347,11 @@ class PlannerTests(unittest.TestCase):
 class ConfigTests(unittest.TestCase):
     def test_defaults_and_validation(self):
         cfg = ss.Config("/nonexistent")
-        self.assertEqual((cfg["BACKUP_AVOID"], cfg.int("BACKUP_MARGIN_HOURS"), cfg.float("BACKUP_DEFAULT_HOURS"),
-                          cfg.int("BACKUP_UPLOAD_MBPS")), ("yes", 1, 4.0, 0))
+        self.assertEqual((cfg["BACKUP_AVOID"], cfg["BACKUP_MARGIN_HOURS"], cfg["BACKUP_DEFAULT_HOURS"],
+                          cfg["BACKUP_UPLOAD_MBPS"]), (True, 1, 4.0, 0))
         cfg = config(BACKUP_MARGIN_HOURS="x", BACKUP_DEFAULT_HOURS="-1", BACKUP_UPLOAD_MBPS="fast")
         self.assertEqual(len(cfg.errors), 3)
-        self.assertEqual(cfg["BACKUP_UPLOAD_MBPS"], "0")
+        self.assertEqual(cfg["BACKUP_UPLOAD_MBPS"], 0)
 
 
 if __name__ == "__main__":

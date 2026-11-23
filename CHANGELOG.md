@@ -148,6 +148,17 @@ real NAS.
   Seagate IronWolf drives set S10's threshold at 97 and S184's at 99, so
   healthy drives at 100 were flagged. Each check now clears an open
   close-to-failing warning once the drive no longer meets the rule.
+- Core library (`core/lib/`, docs/plugin-contract.md section 11; step 1 of
+  docs/scrub-repair-design.md): settings, config, alerts, webhooks and
+  heartbeats, the run lock, the install manifest, triggers and self-healing
+  now live once in the core, and smart-scheduler, health-monitor and the
+  space-watch example import them. The per-tool copies of `settings.py` and
+  the tests that kept them identical are gone, and so are the core's own
+  copies in `core/configfile.py` and `core/plugins.py`. A tool's `install.sh`
+  and `uninstall.sh` now hand over to its script (`install`, `uninstall`),
+  and the manifest covers every file in the tool's folder. Tools install
+  with the suite only. No change in what the tools do; the next update
+  rewrites each tool's manifest when it re-runs `install.sh`.
 
 ### smart-scheduler
 

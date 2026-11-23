@@ -150,14 +150,14 @@ class Run(unittest.TestCase):
                          "btrfs": {"/dev/mapper/vg-lv": {"mount": "/volume/x", "counters": {"corruption_errs": 0}}},
                          "md": {"md3": {"state": "clean", "degraded": 0, "sync_action": "idle", "mismatch_cnt": 0,
                                         "level": "raid5", "data": True}}}
-        for name, value in (("STATE_FILE", os.path.join(self.dir, "state.json")),
+        for name, value in (("state_file", os.path.join(self.dir, "state.json")),
                             ("verify_manifest", lambda: []), ("heal", lambda dry: []),
-                            ("trigger_problems", lambda: []), ("read_all", lambda: self.readings),
-                            ("ping", self.pings.append)):
-            p = mock.patch.object(hm, name, value)
+                            ("trigger_problems", lambda: []), ("ping", self.pings.append),
+                            ("which", lambda x: "/usr/bin/" + x)):
+            p = mock.patch.object(hm.TOOL, name, value)
             p.start()
             self.addCleanup(p.stop)
-        p = mock.patch.object(hm.shutil, "which", lambda x: "/usr/bin/" + x)
+        p = mock.patch.object(hm, "read_all", lambda: self.readings)
         p.start()
         self.addCleanup(p.stop)
 
@@ -182,7 +182,7 @@ class Run(unittest.TestCase):
     def test_turned_off_removes_the_triggers(self):
         removed = []
         self.cfg.typed["ENABLED"] = False
-        with mock.patch.object(hm, "remove_triggers", lambda dry: removed.append(1) or ["/etc/cron.d/health-monitor"]):
+        with mock.patch.object(hm.TOOL, "remove_triggers", lambda dry: removed.append(1) or ["/etc/cron.d/health-monitor"]):
             self.assertEqual(self.run_once(), 0)
             self.run_once()
         self.assertEqual(removed, [1])                      # once, not every 15 minutes
@@ -190,14 +190,6 @@ class Run(unittest.TestCase):
 
 
 class Settings(unittest.TestCase):
-    def test_settings_module_matches_smart_scheduler(self):
-        def body(path):
-            with open(path) as f:
-                s = f.read()
-            return s[s.index('"""', 3) + 3:]
-        self.assertEqual(body(os.path.join(TOOL, "settings.py")),
-                         body(os.path.join(ROOT, "smart-scheduler", "settings.py")))
-
     def test_schema_and_example(self):
         schema = P.load_schema(os.path.join(TOOL, "settings.json"))
         self.assertEqual(P.check_example(schema, os.path.join(TOOL, "config.example")), [])
@@ -230,7 +222,7 @@ class Card(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.dir)
         self.plugin = load("hm_plugin", os.path.join(TOOL, "plugin.py"))
         self.state_file = os.path.join(self.dir, "state.json")
-        p = mock.patch.object(self.plugin.hm, "STATE_FILE", self.state_file)
+        p = mock.patch.object(self.plugin.hm.TOOL, "state_file", self.state_file)
         p.start()
         self.addCleanup(p.stop)
 

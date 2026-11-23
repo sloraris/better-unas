@@ -21,6 +21,9 @@ Commands:
   include <drive|serial>     undo exclude
   interval <drive|serial> <days|default>
            this drive's interval (INTERVAL_OVERRIDES); default removes it
+  install  what install.sh runs: config, manifest, triggers, self-check
+  uninstall [--purge]
+           what uninstall.sh runs: remove the triggers (--purge: the folder too)
 
 Options:
   --dry-run   change nothing: no tests, no healing, no alerts, no state writes
@@ -28,72 +31,44 @@ Options:
   --note      with snooze: why, shown by status
   --override  with run-now: start despite checks that can be overridden
 
-Standard library only. Python 3 ships in the UniFi OS firmware image and
-UniFi's base packages depend on it.
+Standard library only, plus better-unas's core library (core/lib). Python 3
+ships in the UniFi OS firmware image and UniFi's base packages depend on it.
 """
 
 import argparse
 import datetime as dt
-import fcntl
-import hashlib
 import json
 import os
 import re
-import shutil
-import socket
-import subprocess
 import sys
 import syslog
-import time
 import urllib.error
 import urllib.parse
 import urllib.request
 
 BASE = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0, BASE)
+sys.path.insert(1, os.path.dirname(BASE))   # the suite home, for core.lib
 import planner  # noqa: E402  (lives next to this file)
 import backups  # noqa: E402
-import settings  # noqa: E402
+from core.lib import alerts as lib_alerts  # noqa: E402
+from core.lib import config as lib_config  # noqa: E402
+from core.lib import notify, settings, util  # noqa: E402
+from core.lib.tool import Tool  # noqa: E402
 if __name__ == "__main__":
     # actions.py imports this module by name; give it this copy, not a second one.
     sys.modules.setdefault("smart_scheduler", sys.modules[__name__])
-CONFIG_FILE = os.path.join(BASE, "config")
-# The suite's shared settings (webhook, heartbeat, alert repeat) are in the
-# home's better-unas.conf; this tool's config is the fallback (Config below).
-CORE_CONFIG_FILE = os.path.join(os.path.dirname(BASE), "better-unas.conf")
-STATE_FILE = os.path.join(BASE, "state.json")
-MANIFEST_FILE = os.path.join(BASE, "manifest.sha256")
-LOCK_FILE = os.path.join(BASE, ".lock")
-TEMPLATE_DIR = os.path.join(BASE, "triggers")
 
 API = "http://127.0.0.1:16080/api/v2"
 NAME = "smart-scheduler"
-
-# Installed trigger files: template name -> path on the NAS.
-TRIGGERS = {
-    "smart-scheduler.service": "/etc/systemd/system/smart-scheduler.service",
-    "smart-scheduler.timer": "/etc/systemd/system/smart-scheduler.timer",
-    "smart-scheduler.cron": "/etc/cron.d/smart-scheduler",
-}
-TIMER_UNIT = "smart-scheduler.timer"
+TOOL = Tool(NAME, __file__, required=("smartctl", "lsblk", "runuser", "psql", "systemctl"))
+CONFIG_FILE = TOOL.config_file
 
 # Every setting, its default, type and range live in settings.json (the
 # plugin contract's settings schema). Adding a setting means adding it there.
-SCHEMA_FILE = os.path.join(BASE, "settings.json")
-SCHEMA = settings.load_schema(SCHEMA_FILE)
+SCHEMA = TOOL.schema
 DEFAULTS = settings.defaults(SCHEMA)
-# The shared settings as the core's schema has them (core/settings.json),
-# minus the help text. Tools don't import the core, so they're repeated here.
-SHARED_SCHEMA = {"contract": 1, "groups": [{"id": "notifications", "title": "Notifications", "fields": [
-    {"key": "WEBHOOK_URL", "type": "url", "label": "Webhook URL", "default": "", "secret": True},
-    {"key": "WEBHOOK_FORMAT", "type": "choice", "label": "Webhook format",
-     "choices": ["text", "json", "slack", "discord"], "default": "text"},
-    {"key": "NOTIFY_SUCCESS", "type": "bool", "label": "Notify on success", "default": "no"},
-    {"key": "ALERT_REPEAT_HOURS", "type": "int", "label": "Repeat alerts every", "min": 1, "default": "72"},
-    {"key": "HEARTBEAT_URL", "type": "url", "label": "Heartbeat URL", "default": "", "secret": True},
-    {"key": "HEARTBEAT_FAIL_URL", "type": "url", "label": "Heartbeat URL on failure", "default": "",
-     "secret": True},
-]}]}
+SHARED_SCHEMA = lib_config.SHARED_SCHEMA
 
 RUNNING_STATUSES = planner.RUNNING_STATUSES
 
@@ -101,41 +76,17 @@ RUNNING_STATUSES = planner.RUNNING_STATUSES
 # --------------------------------------------------------------------------- helpers
 
 def now():
-    return dt.datetime.now().astimezone()
+    return util.now()
 
 
 parse_time = planner.parse_time
+sh = util.sh
+heartbeat_urls = notify.heartbeat_urls
+RESOLVED_KEEP = lib_alerts.RESOLVED_KEEP
 
 
 def log(msg, level=syslog.LOG_INFO):
-    print(msg, flush=True)
-    try:
-        syslog.openlog(NAME)
-        syslog.syslog(level, msg)
-    except Exception:
-        pass
-
-
-def sha256(path):
-    with open(path, "rb") as f:
-        return hashlib.sha256(f.read()).hexdigest()
-
-
-def write_atomic(path, data, mode=0o644):
-    tmp = path + ".tmp-" + NAME
-    with open(tmp, "w") as f:
-        f.write(data)
-    os.chmod(tmp, mode)
-    os.replace(tmp, path)
-
-
-def sh(*cmd, timeout=60, env=None):
-    """Run a command; return (exit code, stdout). Never raises for a missing tool."""
-    try:
-        p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=env)
-        return p.returncode, p.stdout.strip()
-    except (OSError, subprocess.TimeoutExpired) as e:
-        return 127, str(e)
+    TOOL.log(msg, level)
 
 
 class ApiError(Exception):
@@ -170,61 +121,23 @@ def api(method, path, user_id=None, body=None, timeout=15):
 
 # --------------------------------------------------------------------------- config and state
 
-class Config:
-    """The config file, checked against settings.json (see settings.py), plus
-    the suite's shared settings (SHARED_SCHEMA): each read from
-    better-unas.conf when it sets the key, else from this config.
-
-    values holds each setting's text in canonical form ("yes", "5,187");
-    typed holds the parsed values. A bad or unknown line is reported in errors
-    ("KEY: message") and the default is used instead.
-    """
+class Config(lib_config.Config):
+    """The config file plus the suite's shared settings (core.lib.config).
+    cfg[KEY] is the parsed value; overrides and window are shortcuts the
+    planner uses."""
 
     def __init__(self, path, schema=None, core_path=None):
-        self.schema = schema or SCHEMA
-        raw, problems = settings.read(path)
-        self.typed, self.field_errors = settings.validate(self.schema, raw)
-        self.errors = [f"config {p}" for p in problems]
-        core, core_problems = settings.read(core_path or CORE_CONFIG_FILE)
-        self.errors += [f"better-unas.conf {p}" for p in core_problems]
-        shared_raw = {k: core[k] if k in core else raw[k]
-                      for k in settings.SHARED_KEYS if k in core or k in raw}
-        shared, shared_errors = settings.validate(SHARED_SCHEMA, shared_raw)
-        self.typed.update(shared)
-        self.field_errors.update(shared_errors)
-        self.errors += [f"{k}: {m}" for k, m in self.field_errors.items()]
-        self.values = {f["key"]: settings.format_value(f, self.typed[f["key"]])
-                       for f in settings.fields(self.schema) + settings.fields(SHARED_SCHEMA)}
+        super().__init__(schema or SCHEMA, path, core_path or TOOL.core_config_file)
         self.overrides = dict(self.typed["INTERVAL_OVERRIDES"])
         self.window = self.typed["START_WINDOW"]
 
-    def __getitem__(self, k):
-        return self.values[k]
-
-    def int(self, k):
-        return int(self.values[k])
-
-    def float(self, k):
-        return float(self.values[k])
-
-    def yes(self, k):
-        return self.values[k].lower() in ("yes", "true", "1", "on")
-
-    def set_of(self, k):
-        return {x.strip() for x in self.values[k].split(",") if x.strip()}
-
 
 def load_state():
-    try:
-        with open(STATE_FILE) as f:
-            return json.load(f)
-    except (OSError, ValueError):
-        return {}
+    return TOOL.load_state()
 
 
 def save_state(state, dry):
-    if not dry:
-        write_atomic(STATE_FILE, json.dumps(state, indent=1, sort_keys=True), 0o600)
+    TOOL.save_state(state, dry)
 
 
 # --------------------------------------------------------------------------- snoozes
@@ -290,158 +203,11 @@ def clear_snooze(state, serial):
 
 # --------------------------------------------------------------------------- alerts
 
-class Alerts:
-    """Deduplicated alerts with an outbox, so nothing is lost while the webhook is down."""
-
-    def __init__(self, cfg, state, dry):
-        self.cfg, self.state, self.dry = cfg, state, dry
-        self.active = state.setdefault("alerts", {})
-        self.outbox = state.setdefault("outbox", [])
-        self.host = socket.gethostname()
-
-    def raise_(self, key, msg, level="error"):
-        t = now()
-        a = self.active.get(key)
-        repeat = dt.timedelta(hours=self.cfg.int("ALERT_REPEAT_HOURS"))
-        if a and a["msg"] == msg and t - parse_time(a["sent"]) < repeat:
-            return
-        log(f"[{level}] {msg}", syslog.LOG_ERR if level == "error" else syslog.LOG_WARNING)
-        self.active[key] = {"msg": msg, "level": level, "sent": t.isoformat(),
-                            "since": (a or {}).get("since", t.isoformat())}
-        self._queue(level, msg)
-
-    def clear(self, key, msg=None):
-        a = self.active.pop(key, None)
-        if a:
-            # Kept so the TUI's Alerts screen can list recent alerts with resolve times.
-            recent = self.state.setdefault("resolved", [])
-            recent.append({"key": key, "msg": a["msg"], "level": a["level"],
-                           "since": a.get("since", a["sent"]), "sent": a["sent"],
-                           "resolved": now().isoformat()})
-            del recent[:-RESOLVED_KEEP]
-            text = msg or f"Resolved: {a['msg']}"
-            log(f"[resolved] {text}")
-            self._queue("resolved", text)
-
-    def info(self, msg):
-        log(f"[info] {msg}")
-        self._queue("info", msg)
-
-    def has_errors(self):
-        return any(a["level"] == "error" for a in self.active.values())
-
-    def _queue(self, level, msg):
-        self.outbox.append({"level": level, "msg": msg, "at": now().isoformat()})
-        del self.outbox[:-50]
-
-    def flush(self):
-        url = self.cfg["WEBHOOK_URL"]
-        if self.dry:
-            for m in self.outbox:
-                print(f"(dry-run) would notify: [{m['level']}] {m['msg']}")
-            return
-        if not url:
-            self.outbox.clear()
-            return
-        while self.outbox:
-            m = self.outbox[0]
-            if not self._send(url, m):
-                log(f"webhook unreachable; {len(self.outbox)} message(s) kept for the next run",
-                    syslog.LOG_WARNING)
-                return
-            self.outbox.pop(0)
-
-    def _send(self, url, m):
-        return send_webhook(url, self.cfg["WEBHOOK_FORMAT"], m, self.host) is None
-
-
-RESOLVED_KEEP = 20       # resolved alerts kept in state for the TUI's Alerts screen
-
-
-def webhook_request(url, fmt, m, host):
-    """The POST for one outbox message m ({level, msg, at}) in WEBHOOK_FORMAT fmt.
-    core/notify.py builds the TUI's test the same way."""
-    title = f"{host} {NAME}: {m['level']}"
-    fmt = (fmt or "text").lower()
-    if fmt == "json":
-        body, ctype = json.dumps({"host": host, "source": NAME, "level": m["level"],
-                                  "message": m["msg"], "at": m["at"]}), "application/json"
-    elif fmt == "slack":
-        body, ctype = json.dumps({"text": f"*{title}*\n{m['msg']}"}), "application/json"
-    elif fmt == "discord":
-        body, ctype = json.dumps({"content": f"**{title}**\n{m['msg']}"}), "application/json"
-    else:  # plain text; works with ntfy, Gotify-style relays and most generic receivers
-        body, ctype = f"{title}\n{m['msg']}", "text/plain; charset=utf-8"
-    req = urllib.request.Request(url, data=body.encode(), method="POST")
-    req.add_header("Content-Type", ctype)
-    req.add_header("Title", title)
-    return req
-
-
-def http_error(e):
-    """A short description of a failed request, for the journal and the TUI."""
-    if isinstance(e, urllib.error.HTTPError):
-        return f"HTTP {e.code} {e.reason}".strip()
-    if isinstance(e, urllib.error.URLError):
-        e = e.reason
-    if isinstance(e, socket.timeout) or "timed out" in str(e):
-        return "timed out"
-    return str(e) or type(e).__name__
-
-
-# Some hosts (Discord, others behind Cloudflare) refuse urllib's default
-# "Python-urllib/3.x" with HTTP 403, so webhooks and pings name themselves.
-USER_AGENT = f"{NAME} (better-unas)"
-
-
-def open_url(req, timeout=10):
-    """Fetch req (a URL or Request). Returns None on a 2xx answer, else a short error."""
-    if isinstance(req, str):
-        req = urllib.request.Request(req)
-    if not req.has_header("User-agent"):
-        req.add_header("User-Agent", USER_AGENT)
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            r.read()
-            if 200 <= r.status < 300:
-                return None
-            return f"HTTP {r.status} {r.reason}".strip()
-    except urllib.error.HTTPError as e:
-        # The answer's first line, when it's short text, says why a host refused
-        # (Cloudflare's "error code: 1010").
-        try:
-            first = (e.read(200).decode("utf-8", "replace").strip().splitlines() or [""])[0].strip()
-        except Exception:
-            first = ""
-        why = http_error(e)
-        return why + (f" ({first})" if first and len(first) <= 60 and not first.startswith(("<", "{", "[")) else "")
-    except (urllib.error.URLError, OSError, ValueError) as e:
-        return http_error(e)
-
-
-def send_webhook(url, fmt, m, host=None, timeout=10):
-    """POST one message to the webhook. Returns None if it was accepted, else why not."""
-    try:
-        req = webhook_request(url, fmt, m, host or socket.gethostname())
-    except ValueError as e:      # not a URL urllib can use
-        return str(e)
-    return open_url(req, timeout)
-
-
-def heartbeat_urls(cfg):
-    """(ok URL, failure URL): the tool's own pair when OWN_HEARTBEAT_URL is
-    set, else the shared pair from Notifications."""
-    if cfg["OWN_HEARTBEAT_URL"]:
-        return cfg["OWN_HEARTBEAT_URL"], cfg["OWN_HEARTBEAT_FAIL_URL"]
-    return cfg["HEARTBEAT_URL"], cfg["HEARTBEAT_FAIL_URL"]
-
-
-def ping(url):
-    if not url:
-        return
-    err = open_url(url)
-    if err:
-        log(f"heartbeat ping failed: {err}", syslog.LOG_WARNING)
+def Alerts(cfg, state, dry):
+    """core.lib.alerts.Alerts for this tool; it reads now() and log() through
+    this module so tests can swap them."""
+    return lib_alerts.Alerts(cfg, state, dry, NAME, now=lambda: now(),
+                             log=lambda msg, level=syslog.LOG_INFO: log(msg, level))
 
 
 # --------------------------------------------------------------------------- NAS facts
@@ -616,85 +382,8 @@ is_good = planner.is_good
 
 # --------------------------------------------------------------------------- self-check and healing
 
-def verify_manifest():
-    """Return a list of problems with this folder's own files."""
-    try:
-        with open(MANIFEST_FILE) as f:
-            lines = [l.split() for l in f if l.strip()]
-    except OSError:
-        return ["manifest.sha256 is missing (re-run install.sh)"]
-    problems = []
-    for digest, name in lines:
-        path = os.path.join(BASE, name)
-        if not os.path.exists(path):
-            problems.append(f"{name} is missing")
-        elif sha256(path) != digest:
-            problems.append(f"{name} changed since install")
-    return problems
-
-
-def render(template):
-    with open(os.path.join(TEMPLATE_DIR, template)) as f:
-        return f.read().replace("@BASE@", BASE)
-
-
 def trigger_problems():
-    problems = []
-    for template, path in TRIGGERS.items():
-        try:
-            with open(path) as f:
-                if f.read() != render(template):
-                    problems.append(f"{path} differs from the copy in {TEMPLATE_DIR}")
-        except FileNotFoundError:
-            problems.append(f"{path} is missing")
-    rc, out = sh("systemctl", "is-enabled", TIMER_UNIT)
-    if out != "enabled":
-        problems.append(f"{TIMER_UNIT} is not enabled ({out or 'unknown'})")
-    rc, out = sh("systemctl", "is-active", TIMER_UNIT)
-    if out != "active":
-        problems.append(f"{TIMER_UNIT} is not active ({out or 'unknown'})")
-    return problems
-
-
-def heal(dry):
-    """Rewrite missing or changed trigger files and re-enable the timer. Returns what was fixed."""
-    fixed = []
-    units_changed = False
-    for template, path in TRIGGERS.items():
-        want = render(template)
-        try:
-            with open(path) as f:
-                have = f.read()
-        except FileNotFoundError:
-            have = None
-        if have != want:
-            fixed.append(f"{'restored' if have is None else 'rewrote'} {path}")
-            if not dry:
-                write_atomic(path, want, 0o644)
-            units_changed |= path.startswith("/etc/systemd/")
-    rc_en, en = sh("systemctl", "is-enabled", TIMER_UNIT)
-    rc_ac, ac = sh("systemctl", "is-active", TIMER_UNIT)
-    if units_changed or en != "enabled" or ac != "active":
-        if not units_changed:
-            fixed.append(f"re-enabled {TIMER_UNIT}")
-        if not dry:
-            sh("systemctl", "daemon-reload")
-            sh("systemctl", "enable", "--now", TIMER_UNIT)
-    return fixed
-
-
-def remove_triggers(dry):
-    removed = []
-    if not dry:
-        sh("systemctl", "disable", "--now", TIMER_UNIT)
-    for path in TRIGGERS.values():
-        if os.path.exists(path):
-            removed.append(path)
-            if not dry:
-                os.remove(path)
-    if not dry:
-        sh("systemctl", "daemon-reload")
-    return removed
+    return TOOL.trigger_problems()
 
 
 # --------------------------------------------------------------------------- scheduling
@@ -707,8 +396,8 @@ start_gate = planner.start_gate
 
 def evaluate_drives(cfg, storage, user_id, state, alerts, report=True):
     """Gather per-drive facts and work out when each one is due."""
-    attr_ids = {int(x) for x in cfg.set_of("WARN_ATTRIBUTES") if x.isdigit()}
-    excluded = cfg.set_of("EXCLUDE_SERIALS")
+    attr_ids = set(cfg["WARN_ATTRIBUTES"])
+    excluded = set(cfg["EXCLUDE_SERIALS"])
     devices = serial_to_device()
     drives_state = state.setdefault("drives", {})
     t = now()
@@ -761,7 +450,7 @@ def evaluate_drives(cfg, storage, user_id, state, alerts, report=True):
             if not is_good(h):
                 alerts.raise_(f"test:{key}", f"Extended SMART test on Drive {slot} ({serial}, {info['model']}) "
                                              f"ended {h.get('status')}/{h.get('result')} at {h.get('finishedAt')}.")
-            elif cfg.yes("NOTIFY_SUCCESS"):
+            elif cfg["NOTIFY_SUCCESS"]:
                 alerts.info(f"Extended SMART test on Drive {slot} ({serial}) passed.")
 
         rose = planner.rise_state(history, attrs, baseline, ds.get("rose"), t)
@@ -838,7 +527,7 @@ def backup_windows(cfg, t, until, alerts=None):
     """(planner.Windows for UniFi backup tasks between t and until, read_backups result).
 
     With `alerts`, problems are raised as warnings and cleared once they go away."""
-    if not cfg.yes("BACKUP_AVOID"):
+    if not cfg["BACKUP_AVOID"]:
         if alerts:
             for key in [k for k in alerts.active if k.startswith("backups:")]:
                 alerts.clear(key)
@@ -861,40 +550,9 @@ def scrub_conflict(cfg, storage, minutes, t):
 
 # --------------------------------------------------------------------------- commands
 
-def self_check(cfg, state, alerts, dry, heal_ok=True):
+def self_check(cfg, state, alerts, dry):
     """Check our own files, triggers, tools, API and user. Returns (storage, user_id) or (None, None)."""
-    for e in cfg.errors:
-        alerts.raise_(f"config:{e}", f"Config problem: {e}", "warning")
-
-    # Our own files. Only heal triggers from templates we can trust.
-    own = verify_manifest()
-    if own:
-        alerts.raise_("manifest", "Files in " + BASE + " don't match the install manifest: "
-                      + "; ".join(own) + ". Not self-healing until install.sh is re-run.")
-        heal_ok = False
-    else:
-        alerts.clear("manifest")
-
-    if heal_ok:
-        fixed = heal(dry)
-        if fixed:
-            alerts.info("Self-heal: " + "; ".join(fixed) + ".")
-    problems = trigger_problems() if not dry else []
-    if problems and heal_ok:
-        alerts.raise_("triggers", "Triggers still broken after self-heal: " + "; ".join(problems))
-    elif problems:
-        alerts.raise_("triggers", "Triggers broken (not healed): " + "; ".join(problems))
-    else:
-        alerts.clear("triggers")
-
-    # Tools we rely on but do not own: never install, only report.
-    missing = [tool for tool in ("smartctl", "lsblk", "runuser", "psql", "systemctl")
-               if not shutil.which(tool)]
-    if missing:
-        alerts.raise_("tools", "Missing tools on the NAS: " + ", ".join(missing)
-                      + ". Not installing anything; a firmware update may have removed them.")
-    else:
-        alerts.clear("tools")
+    TOOL.self_check(cfg, alerts, dry)
 
     # Firmware / Drive version change.
     v = versions()
@@ -946,21 +604,14 @@ def cmd_run(cfg, args):
     alerts = Alerts(cfg, state, dry)
     t = now()
 
-    if not cfg.yes("ENABLED"):
-        if not state.get("disabled"):
-            removed = remove_triggers(dry)
-            alerts.info("Turned off (ENABLED=no): removed the hourly timer and cron line ("
-                        + (", ".join(removed) or "none") + "). Turn Enabled back on in Settings to restart it.")
-            state["disabled"] = True
+    if TOOL.turned_off(cfg, state, alerts, dry, "the hourly timer and cron line"):
         alerts.flush()
         save_state(state, dry)
         return 0
-    state.pop("disabled", None)
 
     # The cron line is only a backup: if the timer is healthy and ran recently, just heal and leave.
     if args.source == "cron":
-        last = parse_time(state.get("last_tick"))
-        if last and t - last < dt.timedelta(hours=2) and not trigger_problems():
+        if TOOL.cron_can_skip(state, t, dt.timedelta(hours=2)):
             return 0
         log("cron backup running a full tick (timer missing or late)")
 
@@ -987,9 +638,7 @@ def cmd_run(cfg, args):
                         if not alerts.has_errors() else "Self-check after the update found problems (see alerts).")
     state["last_tick"] = t.isoformat()
     alerts.flush()
-    if not dry:
-        ok_url, fail_url = heartbeat_urls(cfg)
-        ping(fail_url if alerts.has_errors() else ok_url)
+    TOOL.heartbeat(cfg, alerts, dry)
     save_state(state, dry)
     return 1 if alerts.has_errors() else 0
 
@@ -1066,7 +715,7 @@ def cmd_status(cfg, args):
         print()
     print_backups(cfg, backup_info, t)
     gate = start_gate(cfg, storage, drives, state, t)
-    print(f"Tests start between {cfg['START_WINDOW'].replace('-', ' and ')}.")
+    print(f"Tests start between {cfg.values['START_WINDOW'].replace('-', ' and ')}.")
     print(f"Right now: {gate or 'a test could start'}.")
     for p in storage["pools"]:
         sc = p.get("dataScrubbing") or {}
@@ -1081,7 +730,7 @@ def cmd_status(cfg, args):
 
 
 def print_backups(cfg, info, t):
-    if not cfg.yes("BACKUP_AVOID") or info is None:
+    if not cfg["BACKUP_AVOID"] or info is None:
         print("UniFi backup tasks: not avoided (BACKUP_AVOID=no).\n")
         return
     if not info["tasks"] and not info["problems"]:
@@ -1123,11 +772,11 @@ def cmd_check(cfg, args):
     print("Self-check\n")
     for e in cfg.errors:
         line(False, "config", e)
-    own = verify_manifest()
+    own = TOOL.verify_manifest()
     line(not own, "own files", "; ".join(own))
     trig = trigger_problems()
     line(not trig, "timer and cron triggers", "; ".join(trig))
-    missing = [t for t in ("smartctl", "lsblk", "runuser", "psql", "systemctl") if not shutil.which(t)]
+    missing = TOOL.missing_tools()
     line(not missing, "required tools", "missing " + ", ".join(missing) if missing else "")
     v = versions()
     print(f"  INFO  firmware {v['firmware']}, Drive {v['drive']}")
@@ -1147,13 +796,19 @@ def cmd_check(cfg, args):
 
 
 def cmd_heal(cfg, args):
-    own = verify_manifest()
-    if own and not args.force:
-        print("Not healing; own files don't match the manifest: " + "; ".join(own))
-        return 1
-    fixed = heal(args.dry_run)
-    print("\n".join(fixed) or "Triggers already OK.")
-    return 0
+    return TOOL.cmd_heal(args.dry_run, force=args.force)
+
+
+def cmd_install(args):
+    return TOOL.install(
+        lambda: cmd_check(Config(CONFIG_FILE), args),
+        after=(lambda: cmd_status(Config(CONFIG_FILE), args),),
+        done=("Installed. It checks hourly and starts tests only inside START_WINDOW.",
+              "See the schedule any time:  better-unas smart-scheduler status",
+              "Logs:                       journalctl -t smart-scheduler"),
+        failed=("If the identity check failed and DRIVE_USER is set in config, that account must",
+                "be a UniFi OS admin with Drive management. Clear DRIVE_USER to use the console owner."),
+        off_note="Running tests finish.")
 
 
 def resolve_drive(target, storage):
@@ -1288,25 +943,15 @@ def cmd_config_edit(cfg, args):
 
 
 def take_lock(wait):
-    """The run lock, held until the returned file is closed, or None if it
-    stayed busy for `wait` seconds. Anything that writes state takes it."""
-    lock = open(LOCK_FILE, "w")
-    deadline = time.monotonic() + wait
-    while True:
-        try:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            return lock
-        except BlockingIOError:
-            if time.monotonic() >= deadline:
-                lock.close()
-                return None
-            time.sleep(1)
+    """The run lock (core.lib.tool), held until the returned file is closed,
+    or None if it stayed busy for `wait` seconds. Anything that writes state takes it."""
+    return TOOL.take_lock(wait)
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("command", choices=("run", "status", "check", "heal", "snooze", "unsnooze",
-                                        "run-now", "exclude", "include", "interval"))
+                                        "run-now", "exclude", "include", "interval", "install", "uninstall"))
     ap.add_argument("target", nargs="?", help=argparse.SUPPRESS)
     ap.add_argument("date", nargs="?", help=argparse.SUPPRESS)
     ap.add_argument("--note", default="", help=argparse.SUPPRESS)
@@ -1314,7 +959,12 @@ def main():
     ap.add_argument("--source", default="manual", choices=("timer", "cron", "manual"))
     ap.add_argument("--force", action="store_true", help=argparse.SUPPRESS)
     ap.add_argument("--override", action="store_true", help=argparse.SUPPRESS)
+    ap.add_argument("--purge", action="store_true", help=argparse.SUPPRESS)
     args = ap.parse_args()
+    if args.command == "install":
+        return cmd_install(args)
+    if args.command == "uninstall":
+        return TOOL.uninstall(args.purge, "Tests already running on a drive are left to finish.")
     if os.geteuid() != 0:
         print("Run as root.", file=sys.stderr)
         return 2

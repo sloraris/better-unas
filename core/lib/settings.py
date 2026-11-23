@@ -1,20 +1,16 @@
-"""smart-scheduler's settings: read, validate and write the config file.
+"""Settings for the suite and its tools: read, validate and write config files.
 
-Standard library only, and no import from better-unas's core, so the hourly
-run keeps working without the TUI. The rules come from settings.json, the
-settings schema of the plugin contract (docs/plugin-contract.md section 3), so
-adding a setting means adding it there and nothing else: its default, type and
-range drive smart_scheduler.py's Config, this module's writer and the TUI's
-Settings form alike.
-
-parse_value / format_value / validate behave exactly like core/plugins.py's
-functions of the same names (tests/test_settings.py checks that field by
-field), so the TUI and the hourly run never disagree about a value. Only the
-types the contract defines are handled; check the schema itself with
-`python3 core/plugins.py check smart-scheduler`.
+The one implementation of the plugin contract's settings types
+(docs/plugin-contract.md section 3). Tools read their config through it
+(core.lib.config), the TUI's Settings form parses and saves through it, and
+core/plugins.py's contract check uses its parse_value / format_value. The
+rules come from each tool's settings.json, so adding a setting means adding
+it there and nothing else.
 
 The writer (save / apply_edits) changes only the edited keys and keeps
 comments, blank lines, order, line endings and lines it doesn't understand.
+
+Standard library only.
 """
 
 import datetime as dt
@@ -246,9 +242,9 @@ def format_value(f, value):
     return str(value)
 
 
-# Settings every better-unas tool shares (core/notify.py). They live in
-# <home>/better-unas.conf; one left in this tool's config is a fallback, not
-# an "unknown setting". Same list as core/plugins.py's SHARED_KEYS.
+# Settings every better-unas tool shares (the Notifications group of
+# core/settings.json). They live in <home>/better-unas.conf; one left in a
+# tool's config is a fallback, not an "unknown setting".
 SHARED_KEYS = ("WEBHOOK_URL", "WEBHOOK_FORMAT", "NOTIFY_SUCCESS", "ALERT_REPEAT_HOURS",
                "HEARTBEAT_URL", "HEARTBEAT_FAIL_URL")
 
@@ -257,10 +253,9 @@ def validate(schema, raw):
     """(typed, errors) for {KEY: text} as read from a config file.
 
     typed has every schema key; a missing key takes its default and a bad
-    value falls back to it, so the hourly run keeps going on a broken line.
+    value falls back to it, so a scheduled run keeps going on a broken line.
     errors maps KEY -> message, including "unknown setting" for keys the
-    schema doesn't know (SHARED_KEYS aside). Same contract as
-    core/plugins.py's validate_config.
+    schema doesn't know (SHARED_KEYS aside).
     """
     typed, errors = {}, {}
     known = field_map(schema)
@@ -450,7 +445,7 @@ def save(path, edits, schema):
 
     Raises ValidationError, before touching anything, if an edit is invalid.
     A missing file is created. The caller holds the tool's lock (ctx.lock()
-    in the TUI) so the hourly run never reads a half-made change; the file
+    in the TUI) so a scheduled run never reads a half-made change; the file
     itself is replaced in one rename, so it is never half-written either.
     Returns the new text.
     """

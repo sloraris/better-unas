@@ -8,7 +8,6 @@ snapshots in core/tests/snapshots/.
 """
 
 import fcntl
-import importlib.util
 import json
 import os
 import stat
@@ -46,14 +45,6 @@ LEGACY_THING=keep me
 # --- Notifications ---------------------------------------------------------------
 QUIET_HOURS=22:00-07:00
 """
-
-
-def load_ss_settings():
-    spec = importlib.util.spec_from_file_location(
-        "ss_settings_for_core_tests", os.path.join(ROOT, "smart-scheduler", "settings.py"))
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
 
 
 
@@ -483,39 +474,23 @@ class EditBoxTests(Fixture, unittest.TestCase):
 
 
 class WriterTests(unittest.TestCase):
-    """core/configfile.py is a copy of smart-scheduler's writer: same output."""
-
-    EDITS = [
-        {"INTERVAL_DAYS": "35"},
-        {"INTERVAL_DAYS": 35, "ENABLED": False, "START_WINDOW": "23:00 - 05:00"},
-        {"DRIVE_USER": "ops", "BACKUP_AVOID": "no"},
-        {"EXCLUDE_SERIALS": " AAA1, BBB2 ", "INTERVAL_OVERRIDES": "AAA1:7"},
-        {"DURATION_FACTOR": "1.50", "MAX_CONCURRENT": None},
-        {"BACKUP_AVOID": "true"},
-    ]
+    """core/configfile.py is core/lib/settings.py's writer, the one tools use."""
 
     def setUp(self):
-        self.ss = load_ss_settings()
         self.schema = P.load_schema(SS_SCHEMA)
         with open(SS_EXAMPLE) as f:
             self.example = f.read()
 
-    def test_same_output_as_smart_schedulers_writer(self):
-        texts = [self.example, "", "# only a comment\r\nINTERVAL_DAYS = '28'\r\n",
-                 "\n".join(ln for ln in self.example.splitlines() if not ln.startswith("BACKUP"))]
-        for text in texts:
-            for edits in self.EDITS:
-                with self.subTest(text=text[:30], edits=edits):
-                    self.assertEqual(configfile.apply_edits(text, edits, self.schema),
-                                     self.ss.apply_edits(text, edits, self.schema))
+    def test_one_writer(self):
+        from core.lib import settings as S
+        self.assertIs(configfile.apply_edits, S.apply_edits)
+        self.assertIs(configfile.ValidationError, S.ValidationError)
 
-    def test_same_refusals(self):
+    def test_refusals_per_field(self):
         bad = {"INTERVAL_DAYS": "0", "NOPE": "1", "START_WINDOW": "x"}
-        with self.assertRaises(configfile.ValidationError) as core_err:
+        with self.assertRaises(configfile.ValidationError) as e:
             configfile.apply_edits(self.example, bad, self.schema)
-        with self.assertRaises(self.ss.ValidationError) as ss_err:
-            self.ss.apply_edits(self.example, bad, self.schema)
-        self.assertEqual(core_err.exception.errors, ss_err.exception.errors)
+        self.assertEqual(set(e.exception.errors), set(bad))
 
     def test_only_the_edited_line_changes(self):
         out = configfile.apply_edits(self.example, {"INTERVAL_DAYS": "35"}, self.schema)

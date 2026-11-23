@@ -52,7 +52,7 @@ class SendTestTests(unittest.TestCase):
                 self.assertEqual(got["headers"]["Title"], "nas better-unas: info")
                 # smart-scheduler's scheduled run builds the same request, with its own name.
                 m = {"level": "info", "msg": N.TEST_MESSAGE, "at": "X"}
-                tool = ss.webhook_request("http://x/", fmt, m, "nas")
+                tool = ss.notify.webhook_request("http://x/", fmt, m, "nas", "smart-scheduler")
                 self.assertEqual(got["headers"]["Content-Type"], tool.get_header("Content-type"))
                 body = got["body"].replace("better-unas: info", "smart-scheduler: info") \
                                   .replace('"source": "better-unas"', '"source": "smart-scheduler"')
@@ -77,10 +77,10 @@ class SendTestTests(unittest.TestCase):
         N.send_test(self.values(), "HEARTBEAT_URL")
         self.assertEqual([r["headers"].get("User-Agent") for r in self.ep.requests],
                          ["better-unas", "better-unas"])
-        self.assertIsNone(ss.open_url(self.ep.url("/ping")))
+        self.assertIsNone(ss.TOOL.ping(self.ep.url("/ping")))
         self.assertEqual(self.ep.requests[-1]["headers"].get("User-Agent"), "smart-scheduler (better-unas)")
         m = {"level": "info", "msg": "x", "at": "X"}
-        self.assertIsNone(ss.send_webhook(self.ep.url(), "slack", m, "nas"))
+        self.assertIsNone(ss.notify.send_webhook(self.ep.url(), "slack", m, "nas", "smart-scheduler"))
         self.assertEqual(self.ep.requests[-1]["headers"].get("User-Agent"), "smart-scheduler (better-unas)")
 
     def test_a_refusal_says_why(self):
@@ -88,9 +88,9 @@ class SendTestTests(unittest.TestCase):
         with self.assertRaises(N.SendError) as e:
             N.send_test(self.values(), "WEBHOOK_URL")
         self.assertEqual(str(e.exception), "HTTP 403 Forbidden (error code: 1010)")
-        self.assertEqual(ss.open_url(self.ep.url()), "HTTP 403 Forbidden (error code: 1010)")
+        self.assertEqual(ss.notify.open_url(self.ep.url()), "HTTP 403 Forbidden (error code: 1010)")
         self.ep.body = b"<html>long page</html>"                 # markup isn't a reason
-        self.assertEqual(ss.open_url(self.ep.url()), "HTTP 403 Forbidden")
+        self.assertEqual(ss.notify.open_url(self.ep.url()), "HTTP 403 Forbidden")
 
     def test_errors(self):
         self.ep.status = 404

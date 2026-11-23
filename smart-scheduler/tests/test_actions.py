@@ -42,7 +42,7 @@ class Base(unittest.TestCase):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         self.dir = tmp.name
-        patch(self, ss, "LOCK_FILE", os.path.join(self.dir, ".lock"))
+        patch(self, ss.TOOL, "lock_file", os.path.join(self.dir, ".lock"))
         patch(self, ss, "CONFIG_FILE", os.path.join(self.dir, "config"))
         patch(self, ss, "now", lambda: NIGHT)
         patch(self, ss, "resolve_identity", lambda cfg: ("uid", "the console owner", None))
@@ -61,7 +61,7 @@ class Base(unittest.TestCase):
         return take
 
     def lock_is_held(self):
-        with open(ss.LOCK_FILE, "a") as f:
+        with open(ss.TOOL.lock_file, "a") as f:
             try:
                 fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
             except BlockingIOError:
@@ -234,7 +234,7 @@ class RunNowTests(Base):
         self.assertEqual(held, [True])
 
     def test_busy_lock_raises_and_starts_nothing(self):
-        with open(ss.LOCK_FILE, "a") as other:
+        with open(ss.TOOL.lock_file, "a") as other:
             fcntl.flock(other, fcntl.LOCK_EX)
             with self.assertRaises(actions.LockBusy):
                 actions.run_now("6", "quick", cfg=self.cfg, wait=0)
@@ -362,7 +362,7 @@ class ConfigEditTests(Base):
 
     def test_busy_lock_writes_nothing(self):
         before = self.text()
-        with open(ss.LOCK_FILE, "a") as other:
+        with open(ss.TOOL.lock_file, "a") as other:
             fcntl.flock(other, fcntl.LOCK_EX)
             with self.assertRaises(actions.LockBusy):
                 actions.exclude("SERIAL3", True, wait=0)

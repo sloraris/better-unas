@@ -171,17 +171,17 @@ def _gather(slot, kind, cfg, t, state):
             checks.append(_block("running", f"a SMART test is already running on Drive {d['slotId']} "
                                             f"(started outside UniFi Drive, {left}% left)"))
 
-    busy = cfg.int("BUSY_KBPS")
+    busy = cfg["BUSY_KBPS"]
     kbps = (disk.get("readKBPS") or 0) + (disk.get("writeKBPS") or 0)
     if busy and kbps > busy:
         checks.append(_soft("busy", f"drive busy ({kbps:g} KB/s)"))
     if not ss.in_window(cfg, t):
-        checks.append(_soft("window", f"outside the start window ({cfg['START_WINDOW']})"))
+        checks.append(_soft("window", f"outside the start window ({cfg.values['START_WINDOW']})"))
 
     minutes = QUICK_MINUTES
     if kind == "extended":
         dev = ss.serial_to_device().get(disk["serial"])
-        attr_ids = {int(x) for x in cfg.set_of("WARN_ATTRIBUTES") if x.isdigit()}
+        attr_ids = set(cfg["WARN_ATTRIBUTES"])
         minutes, attrs = ss.smart_facts(dev, attr_ids) if dev else (None, {})
         ctx["attrs"] = attrs
     ctx["minutes"] = minutes

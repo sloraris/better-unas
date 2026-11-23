@@ -163,23 +163,27 @@ tested.
 
 ## Shared conventions
 
-Every tool follows these, so they behave alike and can be installed alone:
+Every tool follows these, so they behave alike:
 
-- **Self-contained folder.** A tool lives in `/persistent/better-unas/<tool>/`
-  with its own `install.sh`, `uninstall.sh`, `config.example`, README and
-  tests, and a `tool.conf` manifest: name, summary, CLI script, what it
-  changes on the NAS (`CHANGES`), any UniFi UI step (`SETUP`), and where its
-  settings schema (`SCHEMA`, `CONFIG`) and plugin module (`PLUGIN`) are. See
-  the [plugin contract](docs/plugin-contract.md).
-- **Installed through better-unas.** The setup wizard, a tool's page in Settings and
-  `better-unas install` copy the tool from the release and run its own
-  `install.sh`. No tool depends on another.
-- **Works without the app.** The scheduled run and the tool's CLI never
-  import `core/`. The core loads the tool's `settings.json` (forms) and
-  `plugin.py` (Home card, alerts, its own screens); removing them doesn't
-  break the tool. Where a tool needs the core's rules at run time (reading
-  and writing its config), it carries its own copy and its tests check that
-  copy against the core's.
+- **One folder per tool.** A tool lives in `/persistent/better-unas/<tool>/`
+  with its own logic, `settings.json`, `config.example`, README and tests,
+  thin `install.sh` and `uninstall.sh` hooks, and a `tool.conf` manifest:
+  name, summary, CLI script, what it changes on the NAS (`CHANGES`), any
+  UniFi UI step (`SETUP`), and where its settings schema (`SCHEMA`, `CONFIG`)
+  and plugin module (`PLUGIN`) are. See the
+  [plugin contract](docs/plugin-contract.md).
+- **Shared plumbing lives in the core library.** Settings, config, alerts,
+  webhooks and heartbeats, the run lock, the install manifest and the
+  self-healing timer are in `core/lib/`, which every tool imports. A tool
+  keeps only what is its own.
+- **Installed through better-unas.** The setup wizard, a tool's page in
+  Settings and `better-unas install` copy the tool from the release, next to
+  the core, and run its `install.sh`. Tools are installed with the suite
+  only. No tool depends on another.
+- **Works without the app.** The scheduled run and the tool's CLI import the
+  core library, never the TUI. The TUI loads the tool's `settings.json`
+  (forms) and `plugin.py` (Home card, alerts, its own screens); removing
+  `plugin.py` doesn't break the tool.
 - **Firmware-only dependencies.** Python 3 standard library plus tools already
   in the firmware. No `apt`, no pip, no binaries.
 - **The config file is the source of truth.** Plain `KEY=VALUE`, still

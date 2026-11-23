@@ -90,7 +90,7 @@ class SharedSettingsTests(unittest.TestCase):
         self.write(self.core, "WEBHOOK_URL=https://ntfy.sh/nas\nWEBHOOK_FORMAT=slack\n")
         c = self.config()
         self.assertEqual((c["WEBHOOK_URL"], c["WEBHOOK_FORMAT"]), ("https://ntfy.sh/nas", "slack"))
-        self.assertEqual(c.int("ALERT_REPEAT_HOURS"), 12)        # not in better-unas.conf: the tool's
+        self.assertEqual(c["ALERT_REPEAT_HOURS"], 12)        # not in better-unas.conf: the tool's
         self.assertEqual(c.errors, [])
 
     def test_an_empty_value_there_still_counts(self):
@@ -100,8 +100,8 @@ class SharedSettingsTests(unittest.TestCase):
 
     def test_defaults_and_bad_values(self):
         c = self.config()
-        self.assertEqual((c["WEBHOOK_URL"], c["WEBHOOK_FORMAT"], c.yes("NOTIFY_SUCCESS"),
-                          c.int("ALERT_REPEAT_HOURS")), ("", "text", False, 72))
+        self.assertEqual((c["WEBHOOK_URL"], c["WEBHOOK_FORMAT"], c["NOTIFY_SUCCESS"],
+                          c["ALERT_REPEAT_HOURS"]), ("", "text", False, 72))
         self.write(self.core, "WEBHOOK_FORMAT=teams\n")
         c = self.config()
         self.assertEqual(c["WEBHOOK_FORMAT"], "text")
@@ -122,13 +122,12 @@ class SharedSettingsTests(unittest.TestCase):
 
 class AlertsTests(unittest.TestCase):
     class Cfg(dict):
-        def int(self, k):
-            return int(self[k])
+        pass
 
     def setUp(self):
         self.ep = FakeEndpoint()
         self.addCleanup(self.ep.close)
-        self.cfg = self.Cfg(WEBHOOK_URL=self.ep.url(), WEBHOOK_FORMAT="discord", ALERT_REPEAT_HOURS="24")
+        self.cfg = self.Cfg(WEBHOOK_URL=self.ep.url(), WEBHOOK_FORMAT="discord", ALERT_REPEAT_HOURS=24)
         self.log = []
         self.orig_log = ss.log
         ss.log = lambda msg, level=None: self.log.append(msg)
