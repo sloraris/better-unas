@@ -21,8 +21,9 @@ EXCLUDE_SERIALS=
 
 # --- Close to failing, checked at install ------------------------------------------
 # The first check warns only about drives already near these limits: a
-# normalized value within PREFAIL_MARGIN of the manufacturer's threshold, or a
-# raw count at or above its limit.
+# normalized value that has fallen below 100 to within PREFAIL_MARGIN of the
+# manufacturer's threshold (temperatures aside), or a raw count at or above its
+# limit. Each check clears a warning once the drive no longer meets them.
 PREFAIL_MARGIN=10
 PREFAIL_S5=100
 PREFAIL_S187=10

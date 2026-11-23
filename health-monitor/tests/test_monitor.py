@@ -134,6 +134,36 @@ class PreFail(unittest.TestCase):
         a[3] = {"raw": 0, "value": 40, "thresh": 21}
         self.assertEqual(M.prefail(CFG, a), ["S1 at 15, threshold 6"])
 
+    def test_seagate_thresholds_just_under_100_are_healthy(self):
+        # IronWolf (ST4000VN006): S10 threshold 97 and S184 threshold 99, both at 100.
+        a = attrs(S5=0)
+        a[10] = {"raw": 0, "value": 100, "thresh": 97}
+        a[184] = {"raw": 0, "value": 100, "thresh": 99}
+        self.assertEqual(M.prefail(CFG, a), [])
+        a[10]["value"] = 99                                   # one spin retry: now it counts
+        self.assertEqual(M.prefail(CFG, a), ["S10 at 99, threshold 97"])
+
+    def test_temperatures_are_left_out(self):
+        a = {190: {"raw": 52, "value": 48, "thresh": 40}, 194: {"raw": 52, "value": 52, "thresh": 45}}
+        self.assertEqual(M.prefail(CFG, a), [])
+
+    def test_open_warning_clears_when_the_drive_no_longer_qualifies(self):
+        state = {"baselined": T0.isoformat(), "smart": {"SER1": {"5": 0}},
+                 "rises": {"prefail:SER1": {"msg": "Drive 1 looks close to failing: S10 at 100, threshold 97 (SER1)",
+                                            "level": "warning", "opened": T0.isoformat(), "last": T0.isoformat()}}}
+        healthy = drive(1, S5=0)
+        healthy["attrs"][10] = {"raw": 0, "value": 100, "thresh": 97}
+        out = M.sample(CFG, state, {"smart": {"SER1": healthy}}, T0 + dt.timedelta(minutes=15))
+        self.assertEqual(out, [("clear", "prefail:SER1", "Drive 1 no longer looks close to failing (SER1)")])
+        self.assertNotIn("prefail:SER1", state["rises"])
+
+    def test_open_warning_stays_while_the_drive_still_qualifies(self):
+        state = {}
+        M.sample(CFG, state, {"smart": {"SER4": drive(4, S5=120)}}, T0)
+        out = M.sample(CFG, state, {"smart": {"SER4": drive(4, S5=120)}}, T0 + dt.timedelta(hours=1))
+        self.assertEqual(out, [])
+        self.assertIn("prefail:SER4", state["rises"])
+
     def test_prefail_alert_clears_after_quiet_days(self):
         state = {}
         M.sample(CFG, state, {"smart": {"SER4": drive(4, S197=10)}}, T0)

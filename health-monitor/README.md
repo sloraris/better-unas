@@ -30,10 +30,17 @@ The first check records every counter as it stands, without alerting, except
 for drives that are already close to failing. Those get a warning at install
 only. Close to failing means either:
 
-- a normalized SMART value within `PREFAIL_MARGIN` (10) of the
-  manufacturer's threshold, or
+- a normalized SMART value that has fallen below 100 to within
+  `PREFAIL_MARGIN` (10) of the manufacturer's threshold, or
 - a raw count at or above its limit: S5 100, S187 10, S197 10, S198 100.
 
+A value still at 100 doesn't count, however close its threshold: Seagate
+sets some thresholds just under the healthy value (IronWolf S10 at 97, S184
+at 99), so one event fails them, and 100 means it has never happened.
+Temperature attributes (S190, S194) don't count either.
+
+Each check tests an open close-to-failing warning again and clears it once
+the drive no longer meets the rule. Otherwise it clears after `QUIET_DAYS`.
 A drive added later gets a quiet baseline.
 
 ### Not watched
