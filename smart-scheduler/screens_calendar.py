@@ -139,9 +139,9 @@ def gather(ss, ctx):
         for d in _dates(w.start, w.end):
             day(d)["blocks"].append({
                 "kind": "backup", "past": False, "short": "backup " + _hm(w.start + dt.timedelta(
-                    hours=cfg.int("BACKUP_MARGIN_HOURS"))),
+                    hours=cfg["BACKUP_MARGIN_HOURS"])),
                 "text": f"{w.label}. No test may be running {_hm(w.start, d)} to {_hm(w.end, d)} "
-                        f"(including the {cfg.int('BACKUP_MARGIN_HOURS')} h margin)."})
+                        f"(including the {cfg['BACKUP_MARGIN_HOURS']} h margin)."})
     names = {task["id"]: backups.label(task) for task in (info or {}).get("tasks", [])}
     for r in (info or {}).get("runs", []):
         start = r["started"].astimezone(tz)
@@ -152,7 +152,7 @@ def gather(ss, ctx):
         day(start.date())["blocks"].append({
             "kind": "backup", "past": True, "short": f"backup {start:%H:%M}",
             "text": f"{names[r['task_id']]} {ran} ({r.get('status') or 'no status'})."})
-    margin = cfg.int("SCRUB_MARGIN_HOURS")
+    margin = cfg["SCRUB_MARGIN_HOURS"]
     for p in storage["pools"]:
         sc = p.get("dataScrubbing") or {}
         name = p.get("number", p.get("id"))
@@ -195,7 +195,7 @@ def gather(ss, ctx):
         "drives": drives,
         "snoozes": snoozes,
         "problems": problems,
-        "max_starts": cfg.int("MAX_STARTS_PER_NIGHT"),
+        "max_starts": cfg["MAX_STARTS_PER_NIGHT"],
     }
 
 

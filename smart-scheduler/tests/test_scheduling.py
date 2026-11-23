@@ -243,8 +243,8 @@ class SchedulingTests(unittest.TestCase):
     def test_busy_drives_are_visible(self):
         # In the fixture, slots 1 and 2 were mid-copy at ~155 MB/s.
         drives = self.drives()
-        self.assertGreater(drives["SERIAL1"]["kbps"], self.cfg.int("BUSY_KBPS"))
-        self.assertLess(drives["SERIAL6"]["kbps"], self.cfg.int("BUSY_KBPS"))
+        self.assertGreater(drives["SERIAL1"]["kbps"], self.cfg["BUSY_KBPS"])
+        self.assertLess(drives["SERIAL6"]["kbps"], self.cfg["BUSY_KBPS"])
 
     def test_start_posts_extended_and_limits_per_night(self):
         drive = self.drives()["SERIAL6"]
@@ -331,7 +331,7 @@ class ConfigTests(unittest.TestCase):
             "NOPE: unknown setting"])
         # A bad entry rejects the whole setting (the schema rule), so the default applies.
         self.assertEqual(c.overrides, {})
-        self.assertEqual(c.int("INTERVAL_DAYS"), 90)
+        self.assertEqual(c["INTERVAL_DAYS"], 90)
         self.assertTrue(ss.in_window(c, NIGHT.replace(hour=23)))
         self.assertEqual(ss.night_key(c, NIGHT.replace(hour=2)), "2026-11-21")
 

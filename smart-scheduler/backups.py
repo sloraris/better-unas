@@ -279,7 +279,7 @@ def estimate(cfg, task, runs, size_bytes=None):
     if size_bytes and speed:
         length = dt.timedelta(seconds=size_bytes / speed)
         return length, f"{size_bytes / 1e9:.1f} GB at {source}: {_fmt(length)}"
-    hours = cfg.float("BACKUP_DEFAULT_HOURS")
+    hours = cfg["BACKUP_DEFAULT_HOURS"]
     return dt.timedelta(hours=hours), f"no run history; default {hours:g} h"
 
 
@@ -311,7 +311,7 @@ def windows(cfg, tasks, runs, start, until, sizes=None):
     Also covers a run that is going on right now (started, not finished), from
     its real start. Overlapping windows of one task are merged, so a task that
     repeats every hour makes one window per day, not twenty-four."""
-    margin = dt.timedelta(hours=cfg.int("BACKUP_MARGIN_HOURS"))
+    margin = dt.timedelta(hours=cfg["BACKUP_MARGIN_HOURS"])
     out = []
     for task in tasks:
         if not task["enabled"] or schedule_problem(task):

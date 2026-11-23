@@ -4,9 +4,9 @@
     python3 space_watch.py status     show the current reading
     python3 space_watch.py run        take a reading and remember the peak
 
-It only reads disk usage, so it is safe anywhere. It keeps its own tiny
-config reader on purpose: a tool's scheduled run must work without the
-better-unas core.
+It only reads disk usage, so it is safe anywhere. Its config comes through
+better-unas's core library (core/lib, docs/plugin-contract.md section 11),
+which also reads the suite's shared settings from better-unas.conf.
 """
 
 import datetime as dt
@@ -16,36 +16,22 @@ import shutil
 import sys
 
 BASE = os.path.dirname(os.path.realpath(__file__))
-CONFIG_FILE = os.path.join(BASE, "config")
-# The suite's shared settings (the webhook) live in the home's better-unas.conf;
-# a key set there wins over the same key in this tool's config.
-CORE_CONFIG_FILE = os.path.join(os.path.dirname(BASE), "better-unas.conf")
-SHARED = ("WEBHOOK_URL",)
-STATE_FILE = os.path.join(BASE, "state.json")
-DEFAULTS = {"ENABLED": "yes", "WATCH_PATH": "/", "WARN_PERCENT": "90",
-            "WEBHOOK_URL": "", "QUIET_HOURS": "22:00-07:00"}
+# An installed tool sits next to core/ (<home>/<tool>/), so its parent is
+# enough. This example also runs from docs/examples/ in a checkout, so it
+# looks further up for the folder that holds core/lib.
+_up = BASE
+while os.path.dirname(_up) != _up and not os.path.isfile(os.path.join(_up, "core", "lib", "__init__.py")):
+    _up = os.path.dirname(_up)
+sys.path.insert(1, _up)
+from core.lib.tool import Tool  # noqa: E402
+
+TOOL = Tool("space-watch", __file__)
+STATE_FILE = TOOL.state_file
 
 
-def read_keyvalue(path):
-    values = {}
-    try:
-        with open(path) as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#") and "=" in line:
-                    k, v = line.split("=", 1)
-                    values[k.strip()] = v.strip()
-    except FileNotFoundError:
-        pass
-    return values
-
-
-def read_config(path=CONFIG_FILE, core_path=CORE_CONFIG_FILE):
-    values = dict(DEFAULTS)
-    values.update(read_keyvalue(path))
-    core = read_keyvalue(core_path)
-    values.update({k: core[k] for k in SHARED if k in core})
-    return values
+def read_config(path=None, core_path=None):
+    """The config file plus the shared settings (core.lib.config); cfg[KEY] is the parsed value."""
+    return TOOL.config(path, core_path)
 
 
 def measure(path):
@@ -81,7 +67,7 @@ def main(argv):
             state.update(peak=pct, peak_at=dt.datetime.now().astimezone().isoformat())
             save_state(state)
     print(f"{cfg['WATCH_PATH']}: {pct}% used (warn above {cfg['WARN_PERCENT']}%)")
-    return 1 if pct > int(cfg["WARN_PERCENT"]) else 0
+    return 1 if pct > cfg["WARN_PERCENT"] else 0
 
 
 if __name__ == "__main__":

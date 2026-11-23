@@ -68,7 +68,7 @@ backup and replication tasks as busy windows, the same way it treats scrubs.
 - **Snoozes live in the tool's state, not its config.** The hourly run honors them. They're visible and removable on the Drives and Calendar screens.
 - **The planner is shared.** The calendar's projection uses the same scheduling code as the hourly run (`smart-scheduler/planner.py`), simulated night by night (one start per night, skipping scrub days, backup windows and snoozes), so the calendar and the real schedule can't drift apart.
 - **Reads are live and writes are guarded.** Screens read the NAS directly (Drive API, smartctl, state). Saves and actions take the same flock as the hourly run (`<tool>/.lock`), so they never collide.
-- **Tools don't import the core.** The scheduled run and CLI work without the app. smart-scheduler keeps its own copy of the value rules and config writer (`settings.py`), tested against the core's.
+- **Tools import the core library, not the app.** The scheduled run and CLI work without the TUI. Settings, config, alerts, notifications, the lock and the triggers live once in `core/lib/` (plugin-contract.md section 11).
 - **Colors** use the terminal's own background (light or dark). Green means good or done, yellow means planned or warning, red means failed or alert, and dim means past or disabled. `NO_COLOR` is respected.
 - **Rejected:** mouse support and auto-update.
 

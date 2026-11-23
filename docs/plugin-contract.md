@@ -31,8 +31,9 @@ python3 core/plugins.py check docs/examples/space-watch
   runs on the firmware's Python (3.13 today); tools should not need anything
   newer than 3.8 for their tests to run on any machine.
 - **The tool keeps working without the TUI.** The scheduled run and the CLI
-  never import the core. The plugin module and schema are an extra layer the
-  TUI reads; removing them must not break the tool.
+  import the core library (`core/lib/`, section 11), never the TUI. The
+  plugin module is an extra layer the TUI reads; removing it must not break
+  the tool.
 - **The config file stays the source of truth** and stays hand-editable. The
   schema describes it; it never replaces it.
 - **Reads are live and writes are guarded.** Anything that changes the tool's
@@ -88,8 +89,7 @@ with a letter. Every key is optional; a missing key means its default.
 A tool's own loader reads it at run time. The TUI reads it through the schema
 (`Tool.read_config()` in `core/plugins.py`), and writes it with a writer that
 changes only the edited keys and keeps comments, order and unknown lines
-(built in #7; the core's copy is `core/configfile.py`, the tool's own is
-`smart-scheduler/settings.py`). An edited key that isn't in the file yet is
+(built in #7; it is `core/lib/settings.py`, which tools and the TUI share). An edited key that isn't in the file yet is
 appended under its group's comment heading if the writer can find it,
 otherwise at the end.
 
@@ -113,9 +113,9 @@ health-monitor use `OWN_HEARTBEAT_URL` and `OWN_HEARTBEAT_FAIL_URL`). When
 its own URL is set the tool pings its own pair, whole, instead of the shared
 one, so each tool can have a check with its own period.
 
-A tool doesn't import the core, so it reads these from
-`<home>/better-unas.conf` itself (a plain `KEY=VALUE` file, the folder above
-the tool's): a key set there wins, a key that isn't falls back to the same
+A tool reads these through `core.lib.config.Config` from
+`<home>/better-unas.conf` (a plain `KEY=VALUE` file, the folder above the
+tool's): a key set there wins, a key that isn't falls back to the same
 key in the tool's own config, then to the default above. A tool's schema
 doesn't list them. The core never calls one of them an unknown setting in a
 tool's config (`SHARED_KEYS` in `core/plugins.py`), so an old config that
@@ -563,8 +563,8 @@ exits 1 if any tool fails. Each tool's tests should include the same check
 [smart-scheduler/settings.json](../smart-scheduler/settings.json)
 covers every key in `smart-scheduler/config.example`, grouped like it, and the
 tests check it against that file (keys and defaults). It started here as a
-worked example and moved into the tool in #7, where `smart-scheduler/settings.py`
-also drives the tool's own config loader and writer from it. Summary:
+worked example and moved into the tool in #7. The tool's config loader and
+writer (`core/lib/settings.py`) take every rule from it. Summary:
 
 | Group | Key | Type | Constraints | Essential |
 |---|---|---|---|---|
@@ -605,12 +605,62 @@ Notes for #7:
 - `ENABLED=no` has side effects on the next run (triggers removed). The
   Settings screen should say so when it is turned off, through the field's help.
 
+## 11. The core library
+
+`core/lib/` is what a tool's scheduled run and CLI import. It holds the
+plumbing every tool needs, once, so a tool keeps only its own logic. It never
+imports the TUI and is standard library only.
+
+| Module | What it gives a tool |
+|---|---|
+| `settings` | The settings types (section 3): parse, format, validate, read a config file, and the comment-keeping writer. The TUI and `core/plugins.py` use the same functions. |
+| `config` | `Config(schema, path, core_path)`: the tool's config plus the shared settings. `cfg[KEY]` is the parsed value, `cfg.values[KEY]` its canonical text, `cfg.errors` the problems. |
+| `alerts` | `Alerts`: deduplicated alerts with an outbox, kept in the tool's state (`alerts`, `resolved`, `outbox`). |
+| `notify` | Webhook messages in every `WEBHOOK_FORMAT`, heartbeat pings, `heartbeat_urls(cfg)` for the own-or-shared pair. |
+| `tool` | `Tool(name, script, required=...)`: the tool folder's paths, state file, run lock, install manifest, triggers, self-healing, the checks a run starts with, and the `install` and `uninstall` steps. |
+| `util` | Time, logging to syslog under the tool's name, commands, atomic writes. |
+
+A tool's script finds it from its own folder: the tool sits in
+`<home>/<tool>/` and the core in `<home>/core/`, in a checkout and on the
+NAS alike.
+
+```python
+BASE = os.path.dirname(os.path.realpath(__file__))
+sys.path.insert(0, BASE)                     # the tool's own modules
+sys.path.insert(1, os.path.dirname(BASE))    # the suite home, for core.lib
+from core.lib.tool import Tool
+
+TOOL = Tool("space-watch", __file__, required=("df",))
+```
+
+**Triggers** come from the tool's `triggers/` folder: `<name>.service` and
+`<name>.timer` go to `/etc/systemd/system/`, `<name>.cron` to
+`/etc/cron.d/<name>`, with `@BASE@` replaced by the tool's folder. The timer
+is `<name>.timer`.
+
+**install.sh and uninstall.sh** stay, because the suite runs them, but they
+only hand over to the tool's script, which calls `TOOL.install(...)` and
+`TOOL.uninstall(...)`:
+
+```sh
+exec python3 "$(dirname "$0")/space_watch.py" install
+```
+
+`install` creates `config` from `config.example`, removes the triggers and
+stops when `ENABLED=no`, writes `manifest.sha256` (every file in the folder
+except `config`, `state.json`, `.lock` and caches), heals the triggers, runs
+the tool's self-check and prints what the tool asks for. Self-healing
+rewrites triggers only while the folder matches that manifest.
+
+Tools are installed with the suite only: `bootstrap.sh` and every update put
+the core in place first, then each tool, then run each tool's `install.sh`.
+
 ## Where each part was built
 
 - **#4** (`core/tui/`) implements the context, canvas (curses and headless), widgets and
   the tab placement rules above, and loads tools with `discover()`.
 - **#7** adds smart-scheduler's `settings.json` and the comment-keeping
-  config writer (`smart-scheduler/settings.py`: `save(path, edits, schema)`),
+  config writer (`save(path, edits, schema)`, now `core/lib/settings.py`),
   and shares validation between the tool's `Config` loader and the writer
   (see open question 2). smart-scheduler's `plugin.py` came in #10 and #11.
 - **#12** renders schemas as forms, calls `validate()` and `preview()`, and
@@ -624,14 +674,12 @@ Notes for #7:
    tool, and updates go by it (`core/updates.py`). A `tool.conf` `VERSION` is
    informational; now that the old root `install.sh` is gone, it can be
    dropped in a later contract version.
-2. **Sharing the validator with the scheduled run.** Decided in #7 for
-   smart-scheduler: the tool keeps a copy of the value rules
-   (`smart-scheduler/settings.py`) so the hourly run never imports the core,
-   and its tests check that copy against `core/plugins.py` field by field and
-   value by value, so the two can't drift. Inside the tool, the loader and the
-   writer share it and take every rule from `settings.json`. The schema is
-   therefore part of smart-scheduler itself, not an optional layer: it is in
-   the install manifest and the tool won't start without it.
+2. **Sharing the validator with the scheduled run.** First decided in #7 as
+   a copy of the value rules in each tool, tested against the core's. Replaced
+   by the core library (section 11): there is one copy, `core/lib/settings.py`,
+   which the scheduled run, the TUI and `core/plugins.py` all use. The schema
+   is part of each tool, not an optional layer: it is in the install manifest
+   and the tool won't start without it.
 3. **Conditional fields.** Some settings only matter when another is set
    (`WEBHOOK_FORMAT` without `WEBHOOK_URL`). Version 1 has no `show_if`; the
    form shows every field. Add it if the Settings screen feels cluttered.

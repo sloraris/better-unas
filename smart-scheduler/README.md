@@ -168,9 +168,8 @@ and `START_WINDOW`, after better-unas's own webhook URL and format.
 
 `settings.json` is the settings schema: every key's type, default, allowed
 values and help text. The Settings tab builds its forms from it, and
-`smart_scheduler.py` reads its own defaults and rules from it too (through
-`settings.py`, its own copy of the core's value rules, so the hourly run never
-imports better-unas's core). See the
+`smart_scheduler.py` reads its own defaults and rules from it too, through
+better-unas's core library (`core/lib/`), never the TUI. See the
 [plugin contract](../docs/plugin-contract.md).
 
 ## What it puts on the NAS

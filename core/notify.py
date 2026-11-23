@@ -1,9 +1,9 @@
 """Notifications: the suite's shared webhook and heartbeat (docs/tui-style.md §6).
 
 The settings live in better-unas.conf (core/settings.json, group
-"notifications"). Tools don't import the core: each reads these keys from
-<home>/better-unas.conf, a plain KEY=value file, and falls back to its own
-config (docs/plugin-contract.md, "Shared settings").
+"notifications"). Tools read these keys from <home>/better-unas.conf through
+core.lib.config, falling back to their own config (docs/plugin-contract.md,
+"Shared settings").
 
     KEYS          the shared keys
     send_test     Settings › Notifications' `t`: one test through a URL setting
@@ -11,20 +11,18 @@ config (docs/plugin-contract.md, "Shared settings").
     sent_to       where alerts go, for the Alerts header
     migrate       moves the keys a tool's config still holds into better-unas.conf
 
-The payloads match smart-scheduler's webhook_request(), so a test looks like
-a real alert.
+Messages are built and sent by core/lib/notify.py, the same code a tool's run
+uses, so a test looks like a real alert.
 """
 
 import datetime as dt
-import json
 import os
 import socket
-import urllib.error
 import urllib.parse
-import urllib.request
 
 from . import install as I
 from . import plugins as P
+from .lib import notify as lib_notify
 
 KEYS = P.SHARED_KEYS
 URL_KEYS = ("WEBHOOK_URL", "HEARTBEAT_URL", "HEARTBEAT_FAIL_URL")
@@ -32,70 +30,17 @@ SOURCE = "better-unas"
 TEST_MESSAGE = "Test message from better-unas. If you can read this, alerts will arrive here."
 
 
-# Some hosts (Discord, others behind Cloudflare) refuse urllib's default
-# "Python-urllib/3.x" with HTTP 403, so every request names itself.
-USER_AGENT = "better-unas"
-
-
-def _with_agent(req):
-    if isinstance(req, str):
-        req = urllib.request.Request(req)
-    if not req.has_header("User-agent"):
-        req.add_header("User-Agent", USER_AGENT)
-    return req
-
-
-def _why(e):
-    """'HTTP 403 Forbidden', plus the answer's first line when it's short text
-    (Cloudflare's "error code: 1010" says why a host refused)."""
-    out = f"HTTP {e.code} {e.reason}".strip()
-    try:
-        body = e.read(200).decode("utf-8", "replace").strip().splitlines()
-    except Exception:
-        body = []
-    first = body[0].strip() if body else ""
-    if first and len(first) <= 60 and not first.startswith(("<", "{", "[")):
-        out += f" ({first})"
-    return out
-
-
 class SendError(Exception):
     """A test send failed; the message is shown as is (e.g. "HTTP 404 Not Found")."""
 
 
 def webhook_request(url, fmt, level, msg, at, host):
-    title = f"{host} {SOURCE}: {level}"
-    fmt = (fmt or "text").lower()
-    if fmt == "json":
-        body, ctype = json.dumps({"host": host, "source": SOURCE, "level": level,
-                                  "message": msg, "at": at}), "application/json"
-    elif fmt == "slack":
-        body, ctype = json.dumps({"text": f"*{title}*\n{msg}"}), "application/json"
-    elif fmt == "discord":
-        body, ctype = json.dumps({"content": f"**{title}**\n{msg}"}), "application/json"
-    else:
-        body, ctype = f"{title}\n{msg}", "text/plain; charset=utf-8"
-    req = urllib.request.Request(url, data=body.encode(), method="POST")
-    req.add_header("Content-Type", ctype)
-    req.add_header("Title", title)
-    return req
+    return lib_notify.webhook_request(url, fmt, {"level": level, "msg": msg, "at": at}, host, SOURCE)
 
 
 def open_url(req, timeout=10):
     """None on a 2xx answer, else a short reason."""
-    try:
-        with urllib.request.urlopen(_with_agent(req), timeout=timeout) as r:
-            r.read()
-            if 200 <= r.status < 300:
-                return None
-            return f"HTTP {r.status} {r.reason}".strip()
-    except urllib.error.HTTPError as e:
-        return _why(e)
-    except (urllib.error.URLError, OSError, ValueError) as e:
-        e = getattr(e, "reason", e)
-        if isinstance(e, socket.timeout) or "timed out" in str(e):
-            return "timed out"
-        return str(e) or type(e).__name__
+    return lib_notify.open_url(req, timeout, SOURCE)
 
 
 def send_test(values, key, host=None, timeout=10):

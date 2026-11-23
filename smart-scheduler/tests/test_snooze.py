@@ -130,8 +130,9 @@ class SnoozeCliTests(unittest.TestCase):
         self.fake = Fake()
         self.fake.install()
         tmp = tempfile.mkdtemp()
-        patch(self, "STATE_FILE", os.path.join(tmp, "state.json"))
-        patch(self, "LOCK_FILE", os.path.join(tmp, ".lock"))
+        for name, value in (("state_file", os.path.join(tmp, "state.json")), ("lock_file", os.path.join(tmp, ".lock"))):
+            self.addCleanup(setattr, ss.TOOL, name, getattr(ss.TOOL, name))
+            setattr(ss.TOOL, name, value)
         patch(self, "CONFIG_FILE", os.path.join(tmp, "config"))
         patch(self, "get_storage", lambda: self.fake.storage)
         patch(self, "now", lambda: NIGHT)
@@ -144,7 +145,7 @@ class SnoozeCliTests(unittest.TestCase):
         return rc, out.getvalue() + err.getvalue()
 
     def state(self):
-        with open(ss.STATE_FILE) as f:
+        with open(ss.TOOL.state_file) as f:
             return json.load(f)
 
     def test_round_trip_by_slot_and_serial(self):
@@ -166,13 +167,13 @@ class SnoozeCliTests(unittest.TestCase):
         rc, out = self.main("snooze", "6", "2026-11-01")
         self.assertEqual(rc, 1)
         self.assertIn("isn't after today", out)
-        self.assertFalse(os.path.exists(ss.STATE_FILE))
+        self.assertFalse(os.path.exists(ss.TOOL.state_file))
 
     def test_dry_run_writes_nothing(self):
         rc, out = self.main("snooze", "6", "2026-12-01", "--dry-run")
         self.assertEqual(rc, 0)
         self.assertTrue(out.startswith("(dry-run) would snooze Drive 6"))
-        self.assertFalse(os.path.exists(ss.STATE_FILE))
+        self.assertFalse(os.path.exists(ss.TOOL.state_file))
 
     def test_unsnooze_a_removed_drive_while_the_api_is_down(self):
         ss.save_state({"snoozes": {"GONE1": {"until": "2026-12-01"}}}, False)
@@ -195,7 +196,7 @@ class SnoozeCliTests(unittest.TestCase):
             rc, out = self.main("snooze", "6", "2026-12-01")
         take.assert_called_once_with(120)
         self.assertEqual((rc, out.strip()), (1, "Another run is in progress; skipping this one."))
-        self.assertFalse(os.path.exists(ss.STATE_FILE))
+        self.assertFalse(os.path.exists(ss.TOOL.state_file))
 
 
 if __name__ == "__main__":
