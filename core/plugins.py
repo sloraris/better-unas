@@ -61,9 +61,10 @@ TYPE_ATTRS = {
     "serial_list": {"required"},
     "int_list": {"min", "max", "required"},
     "serial_map": {"min", "max", "unit", "required"},
+    "checklist": {"options", "other", "prefix", "min", "max", "required"},
 }
 # Types where an empty value is a valid value (unless "required": true).
-EMPTY_OK = {"text", "url", "serial_list", "int_list", "serial_map"}
+EMPTY_OK = {"text", "url", "serial_list", "int_list", "serial_map", "checklist"}
 
 PLUGIN_REQUIRED = ("summary", "alerts", "status")
 PLUGIN_OPTIONAL = ("screens", "validate", "send_test", "preview")
@@ -281,6 +282,18 @@ def _check_field(f, where, seen_keys):
             p.append(f"{where}: \"choices\" must be a non-empty list of strings")
         elif len(set(ch)) != len(ch):
             p.append(f"{where}: \"choices\" has duplicates")
+    if t == "checklist":
+        opts = f.get("options")
+        if not isinstance(opts, list) or not opts or not all(
+                isinstance(o, dict) and set(o) <= {"value", "label"}
+                and isinstance(o.get("value"), str) and o["value"].strip() == o["value"] != ""
+                and "," not in o["value"] and isinstance(o.get("label", ""), str) for o in opts):
+            p.append(f"{where}: \"options\" must be a non-empty list of {{\"value\", \"label\"}} objects")
+        elif len({o["value"] for o in opts}) != len(opts):
+            p.append(f"{where}: \"options\" has duplicate values")
+        for k in ("other", "prefix"):
+            if k in f and not (isinstance(f[k], str) and f[k]):
+                p.append(f"{where}: {k!r} must be a non-empty string")
     if "pattern" in f:
         try:
             re.compile(f["pattern"])
@@ -358,7 +371,7 @@ def parse_value(f, text):
 
     Types: int -> int, float -> float, bool -> bool, choice/text/url -> str,
     time_window -> (datetime.time, datetime.time), serial_list -> [str],
-    int_list -> [int], serial_map -> {serial: int}.
+    int_list -> [int], serial_map -> {serial: int}, checklist -> [str] or [int].
     """
     t = f["type"]
     text = text.strip()
@@ -367,7 +380,7 @@ def parse_value(f, text):
             raise FieldError("a value is required")
         if f.get("required"):
             raise FieldError("a value is required")
-        return {"serial_list": [], "int_list": [], "serial_map": {}}.get(t, "")
+        return {"serial_list": [], "int_list": [], "serial_map": {}, "checklist": []}.get(t, "")
     if t == "int":
         n = _whole(text)
         _range(f, n)
@@ -426,6 +439,8 @@ def parse_value(f, text):
             _range(f, n, f"each number ({n})")
         _no_dupes(items)
         return items
+    if t == "checklist":
+        return _checklist(f, text)
     if t == "serial_map":
         out = {}
         for item in _split(text):
@@ -448,6 +463,26 @@ def _no_dupes(items):
         seen.add(x)
 
 
+def _checklist(f, text):
+    """checklist text -> [str]: the ticked options in schema order, then any
+    other values ("other" fields only) in the order given. With "min" or
+    "max", every value is a whole number in range and the list holds ints."""
+    known = [o["value"] for o in f["options"]]
+    numeric = "min" in f or "max" in f
+    picked = []
+    for s in _split(text):
+        if numeric:
+            n = _whole(s)
+            _range(f, n, f"each number ({n})")
+            s = str(n)
+        if s not in known and not f.get("other"):
+            raise FieldError(f"want some of {', '.join(known)}")
+        picked.append(s)
+    _no_dupes(picked)
+    out = [v for v in known if v in picked] + [v for v in picked if v not in known]
+    return [int(v) for v in out] if numeric else out
+
+
 def format_value(f, value):
     """The inverse of parse_value: the text to write to the config file."""
     t = f["type"]
@@ -457,7 +492,7 @@ def format_value(f, value):
         return _num(value)
     if t == "time_window":
         return f"{value[0]:%H:%M}-{value[1]:%H:%M}"
-    if t in ("serial_list", "int_list"):
+    if t in ("serial_list", "int_list", "checklist"):
         return ",".join(str(x) for x in value)
     if t == "serial_map":
         return ",".join(f"{k}:{v}" for k, v in value.items())

@@ -12,7 +12,7 @@ headless canvas.
     Form            a settings schema as a form, one field widget per type:
                     TextField (text, url, int, float, int_list), ToggleField
                     (bool), ChoiceField, TimeWindowField, SerialListField,
-                    SerialMapField
+                    SerialMapField, ChecklistField
 
 While a field is being edited it registers itself as the active editor; the
 app then sends every key to the screen first (so typing "q" or "2" into a
@@ -1106,11 +1106,121 @@ class SerialMapField(_ItemsField):
             canvas.text(0, 21 + min(8, len(number.text or "_") + (part == 1)) + 1, unit, "dim")
 
 
+class ChecklistField(Field):
+    """checklist: named options to tick, plus (with `other`) a line for values
+    the schema doesn't name. Enter opens the list; Space or Enter ticks an
+    option, Enter on the last row edits the other values, u undoes, Esc
+    closes. `prefix` goes before every value shown (S for S197)."""
+
+    edit_hints = [("Enter", "choose")]
+
+    def __init__(self, spec, text=None):
+        super().__init__(spec, text)
+        self.list, self.before, self.row_edit = None, None, None
+        self.ticked, self.others = set(), []
+
+    @property
+    def known(self):
+        return [o["value"] for o in self.spec["options"]]
+
+    def name(self, v):
+        return f"{self.spec.get('prefix', '')}{v}"
+
+    def _split(self, text):
+        """(ticked, others) from text, normalized when it parses."""
+        try:
+            items = [str(x) for x in P.parse_value(self.spec, text)]
+        except P.FieldError:
+            items = [s.strip() for s in text.split(",") if s.strip()]
+        return {s for s in items if s in self.known}, [s for s in items if s not in self.known]
+
+    def display(self, symbols):
+        v = self.value
+        if v is None:
+            return self.text, "bad"
+        if not v:
+            return "(none)", "dim"
+        return ", ".join(self.name(x) for x in v), "normal"
+
+    def _rows(self):
+        w = max(len(self.name(v)) for v in self.known)
+        rows = [f"{'[x]' if o['value'] in self.ticked else '[ ]'} {self.name(o['value']):<{w}}  {o.get('label', '')}".rstrip()
+                for o in self.spec["options"]]
+        if self.spec.get("other"):
+            rows.append(f"{self.spec['other']}: {', '.join(self.name(x) for x in self.others) or '(none)'}")
+        return rows
+
+    def _sync(self):
+        self.text = ",".join([v for v in self.known if v in self.ticked] + self.others)
+        self.list.set_items(self._rows())
+
+    @property
+    def _on_other(self):
+        return self.list is not None and self.list.index == len(self.known)
+
+    def keys(self):
+        if self.row_edit is not None:
+            return [("Enter", "save"), ("Esc", "cancel")]
+        first = ("Enter", "edit") if self._on_other else ("Space", "tick")
+        return [first, ("u", "undo"), ("Esc", "done")]
+
+    def key(self, k):
+        if not self.editing:
+            if k != "enter":
+                return False
+            self.before = self.text
+            self.ticked, self.others = self._split(self.text)
+            self.list = ListView(self._rows())
+            self.begin()
+            return True
+        if self.row_edit is not None:
+            if k == "esc":
+                self.row_edit = None
+            elif k == "enter":
+                self.others = [s.strip() for s in self.row_edit.text.split(",") if s.strip()]
+                self.row_edit = None
+                self._sync()
+            else:
+                self.row_edit.key(k)
+            return True
+        if self._on_other and k == "enter":
+            numeric = "min" in self.spec or "max" in self.spec
+            self.row_edit = LineEdit(", ".join(self.others),
+                                     (lambda ch: ch.isdigit() or ch in ", ") if numeric else None)
+        elif k in (" ", "enter") and not self._on_other:
+            v = self.known[self.list.index]
+            self.ticked ^= {v}
+            self._sync()
+        elif k == "u":
+            self.ticked, self.others = self._split(self.before)
+            self._sync()
+        elif k == "esc":
+            self.finish()
+        else:
+            self.list.key(k)
+        return True
+
+    def popup_size(self):
+        rows = self._rows()
+        return min(len(rows), 10) + 2, max(40, max(len(r) for r in rows) + 6, len(self.label) + 6)
+
+    def render_popup(self, canvas):
+        canvas.box(0, 0, canvas.height, canvas.width, self.label)
+        inner = canvas.sub(1, 1, canvas.height - 2, canvas.width - 2)
+        self.list.render(inner)
+        if self.row_edit is not None:
+            row = self.list.index - self.list.scroll.top
+            lead = f"{self.spec['other']}: "
+            inner.fill(row, 0, 1, inner.width)
+            inner.text(row, 2, lead, "label")
+            self.row_edit.render(inner, row, 2 + len(lead), max(1, inner.width - 3 - len(lead)))
+
+
 FIELD_TYPES = {
     "int": TextField, "float": TextField, "text": TextField, "url": TextField,
     "int_list": TextField, "bool": ToggleField, "choice": ChoiceField,
     "time_window": TimeWindowField, "serial_list": SerialListField,
-    "serial_map": SerialMapField,
+    "serial_map": SerialMapField, "checklist": ChecklistField,
 }
 
 

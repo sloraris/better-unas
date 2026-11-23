@@ -81,12 +81,21 @@
         },
         {
           "key": "WARN_ATTRIBUTES",
-          "type": "int_list",
+          "type": "checklist",
           "label": "Warning attributes",
+          "options": [
+            {"value": "5", "label": "reallocated sectors"},
+            {"value": "187", "label": "reported uncorrectable"},
+            {"value": "197", "label": "pending sectors"},
+            {"value": "198", "label": "offline uncorrectable"},
+            {"value": "199", "label": "interface CRC (often a cable)"}
+          ],
+          "other": "Other IDs",
+          "prefix": "S",
           "min": 1,
           "max": 255,
           "default": "5,187,197,198",
-          "help": "SMART attributes to watch. A rise since the last test makes that drive due at once; a count that stays the same is ignored. S5 reallocated, S187 reported uncorrectable, S197 pending, S198 offline uncorrectable."
+          "help": "SMART attributes to watch. A rise since the last test makes that drive due at once; a count that stays the same is ignored."
         },
         {
           "key": "INTERVAL_OVERRIDES",

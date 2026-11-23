@@ -1,0 +1,20 @@
+General
+  Enabled                     [x] yes
+  UniFi OS account            ┌─ Warning attributes ──────────────────────┐
+                              │  [x] S5    reallocated sectors            │
+How often each drive gets an e│  [ ] S187  reported uncorrectable         │
+  Healthy drive               │  [x] S197  pending sectors                │
+  Drive with warning signs    │  [x] S198  offline uncorrectable          │
+  Old drive                   │  [x] S199  interface CRC (often a cable)  │
+  Old-drive age               │› Other IDs: S12, S190                     │
+  Retry after a failure       └───────────────────────────────────────────┘
+* Warning attributes          S5, S197, S198, S199, S12, S190
+  Per-drive intervals         (none)
+  Never test                  (none)
+
+When tests may start                                                           ↓
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ SMART attributes to watch. A rise since the last test makes that drive due   │
+│ at once; a count that stays the same is ignored.                             │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
