@@ -268,6 +268,20 @@ class Tool:
         """The other tools' busy windows that haven't ended by t."""
         return busy.read(self.home, t, exclude=self.name)
 
+    def nudge(self, tools, dry=False):
+        """Start the other tools' services now (not waiting for their timers),
+        so a lower-tier job notices it must give way. Returns the tools nudged."""
+        out = []
+        for name in tools:
+            if name == self.name or not busy.NAME_RE.match(name):
+                continue
+            if dry:
+                print(f"(dry-run) would start {name}.service so it gives way")
+            else:
+                self.sh("systemctl", "start", "--no-block", f"{name}.service")
+            out.append(name)
+        return out
+
     def cron_can_skip(self, state, t, within):
         """The cron line is only a backup: True when the timer ran within
         `within` (a timedelta) and the triggers are healthy."""

@@ -8,7 +8,7 @@
   ┌─ smart-scheduler 0.1.1 ────────────────────────────────────── ! warning ──┐
   │ 7 drives scheduled, 4 due now                                             │
   │ Running       ▶ Drive 1 (SERIAL1)                               › Drive 1 │
-  │ Next test     ○ Mon 23 Nov, Drive 4 (SERIAL4)                             │
+  │ Next test     ○ Sun 22 Nov, Drive 4 (SERIAL4)                             │
   │ Last result   ✗ failed, Drive 4, Thu 12 Nov                     › Drive 4 │
   │ Next scrub    ↻ Mon 30 Nov, pool 2 scrub 02:30                            │
   └───────────────────────────────────────────────────────────────────────────┘

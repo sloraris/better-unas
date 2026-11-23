@@ -18,7 +18,8 @@ When a file on the volume is damaged, scrub-repair finds it, finds a good copy i
 ## Finding damaged files
 
 - **Passive, the default.** Every 15 minutes, scrub-repair reads the new btrfs checksum lines in the kernel log, from a saved cursor (sequence number plus boot ID). Each line is resolved to a path. So a damaged file turns up as soon as anything reads it: Jellyfin, a backup run, a copy. Lines logged before a reboot are lost, and the scheduled scrub covers that gap.
-- **Scheduled btrfs scrub, off by default.** When it's turned on, it runs a read-only scrub (`btrfs scrub start -r`). It runs only inside a night window, pausing at the end of the window and resuming the next night until done.
+- **Scheduled btrfs scrub, off by default.** When it's turned on, it runs a read-only scrub (`btrfs scrub start -r`). It runs only inside a night window, pausing at the end of the window and resuming the next night until done. It's a scheduled-tier job, and it pauses when a higher-tier job needs the disks.
+- **Urgent scrub.** Checksum errors in the kernel log, or a parity mismatch from UniFi's scrub, start an urgent read-only scrub at once, outside the night window.
   - Defaults: every quarter, a 01:00–07:00 window.
   - Frequency, start day and window are all settings.
   - Its nights go in the busy registry, so smart-scheduler stays clear of them, and it stays clear of the others' nights.
@@ -79,7 +80,8 @@ Each tool keeps only its own logic, `plugin.py` and `settings.json`. The copied 
 
 ### 2. Calendar in core, and the busy registry
 
-- **Busy registry:** each tool lists its planned jobs and busy windows in one shared registry in the core library. Each tool's own planner reads the others' windows and stays clear of them. smart-scheduler keeps its per-drive planner. UniFi's scrubs and backup tasks are listed there too, read once for every tool: smart-scheduler publishes them as it reads them. scrub-repair's scrub nights are firm windows, so it avoids the others' firm windows and may ignore smart-scheduler's planned tests, which then move out of its way.
+- **Busy registry:** each tool lists its planned jobs and busy windows in one shared registry in the core library. Each tool's own planner reads the others' windows and stays clear of them. smart-scheduler keeps its per-drive planner. UniFi's scrubs and backup tasks are listed there too, read once for every tool: smart-scheduler publishes them as it reads them.
+- **Tiers:** every job has one, highest first: UniFi's own jobs (fixed), manual, urgent, scheduled, routine. A job avoids its own tier and above and ignores lower ones. A lower job already running gives way to a higher one: a scrub pauses, a SMART test stops and is planned again. scrub-repair's quarterly scrub is scheduled; a scrub after checksum errors or parity mismatches is urgent and starts at once, outside its night window.
 - **Calendar:** core draws the month from the registry. It uses a full box grid: lines between every day and every week, two lines per day (the day number with its scrub and backup glyphs, then chips). The selected day gets heavy side bars. The grid takes the whole body, and day details open on Enter.
 
 ### 3. scrub-repair

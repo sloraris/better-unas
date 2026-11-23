@@ -101,7 +101,9 @@ def gather(ss, ctx):
             problems.append(f"Drive {d['slot']}: {d.get('reason', 'history unavailable')}")
             continue
         try:
-            history = ss.get_history(d["slot"], d["serial"], user_id, d.get("current_test"))
+            yielded = ss.yielded_ids(state, d["serial"])
+            history = [h for h in ss.get_history(d["slot"], d["serial"], user_id, d.get("current_test"))
+                       if str(h.get("id")) not in yielded]
         except ss.ApiError as e:
             problems.append(f"Drive {d['slot']}: history unavailable ({e.detail})")
             continue

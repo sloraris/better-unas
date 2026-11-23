@@ -194,7 +194,7 @@ def _gather(slot, kind, cfg, t, state):
         checks.append(_soft("backup", c))
     for _, msg in (info or {}).get("problems", ()):
         checks.append(_soft("backup", f"can't tell when backups run: {msg}"))
-    c = ss.planner.conflict(cfg, ss.busy_windows(t), minutes, t)
+    c = ss.planner.conflict(cfg, ss.busy_windows(t), minutes, t, "manual")
     if c:
         checks.append(_soft("others", c))
     return checks, ctx
@@ -239,10 +239,15 @@ def run_now(slot, kind, override=False, cfg=None, dry_run=False, lock=True, wait
         how = " (override: " + "; ".join(c.reason for c in soft) + ")" if soft else ""
         ss.log(f"started {kind} test on {label} by hand{how}")
         if kind == "extended":
-            # Same baseline the run records, for "attribute rose since last test".
             state = ss.load_state()
-            state.setdefault("drives", {}).setdefault(disk["serial"], {})["attrs_at_last_test"] = ctx.get("attrs", {})
+            ds = state.setdefault("drives", {}).setdefault(disk["serial"], {})
+            # Same baseline the run records, for "attribute rose since last test".
+            ds["attrs_at_last_test"] = ctx.get("attrs", {})
+            ds["running_tier"] = "manual"          # other tools' lower-tier jobs give way to it
             ss.save_state(state, False)
+            t = t or ss.now()
+            end = t + ss.planner.test_length(cfg or ss.Config(ss.CONFIG_FILE), ctx.get("minutes"))
+            ss.TOOL.nudge(ss.busy.in_the_way(ss.TOOL.others_busy(t), t, end, "manual"))
         return Result(True, checks, f"Started a {kind} test on {label}.")
 
 

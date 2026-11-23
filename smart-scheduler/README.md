@@ -42,6 +42,7 @@ normal interval; if they rose again, it stays on 30 days.
 The most urgent due drive gets a test only when all of these hold:
 
 - the time is inside `START_WINDOW` (00:00–05:00 by default), and tonight's test hasn't started yet
+  (an urgent test skips this and the next rule, see below)
 - no other SMART test is running
 - every pool is fully operational: not degraded, rebuilding, resyncing or scrubbing
 - the test, at the drive's own estimated length × 1.5, would end at least 2 hours before the next scheduled scrub
@@ -56,15 +57,34 @@ backup task, followed by the backup tasks it avoids. The plan
 comes from `planner.py`, the same code the hourly run uses to decide whether to
 start a test, so the two always agree as long as nothing on the NAS changes.
 
+### Urgent tests
+
+A test is urgent when a watched SMART count rose since the drive's last test
+(Why `warning signs`) or the last test failed and its retry is due (`retry`).
+An urgent test starts on the next hourly run, day or night: it ignores
+`START_WINDOW`, `MAX_STARTS_PER_NIGHT` (and doesn't use up the night's start)
+and `MAX_CONCURRENT`. It still waits for a pool problem, a UniFi scrub or
+backup, and `MAX_STARTS_PER_NIGHT=0` (paused). The plan books urgent tests
+first, hour by hour from now.
+
 ### Other tools' jobs: the busy registry
 
 Each run publishes this tool's windows to `busy.json` in its folder: the
 running test, the planned tests and, for the next 31 days, UniFi's scrubs and
 backup windows as this tool reads them (labelled "UniFi ..."). It reads the
 other tools' `busy.json` files the same way and plans around their windows
-like a backup task, so a night another tool has booked shows as skipped with
-its reason (`would overlap scrub-repair scrub`). Turning the tool off or
-uninstalling it withdraws its windows (docs/plugin-contract.md section 11).
+by tier (docs/plugin-contract.md section 11): a routine test avoids every
+other job, an urgent one only urgent, manual and UniFi jobs. A night another
+tool has booked shows as skipped with its reason (`would overlap
+scrub-repair scrub`). Turning the tool off or uninstalling it withdraws its
+windows.
+
+When another tool's higher-tier job needs the disks while a test is
+running (an urgent scrub during a routine test), the run stops the test with
+`smartctl -X`, sends an info alert and plans it again. UniFi Drive's record of
+the stopped test isn't counted as a failure. A test started in UniFi Drive or
+with `run-now` counts as manual and is only stopped for UniFi's own jobs,
+which never ask.
 
 ### Backups and replication
 

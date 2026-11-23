@@ -707,23 +707,39 @@ the core in place first, then each tool, then run each tool's `install.sh`.
 
 **The busy registry** keeps tools' disk-heavy jobs apart. Each tool writes
 its own `busy.json` with `TOOL.publish_busy(windows, now)`, where a window is
-`(start, end, label, kind)`, and reads everyone else's with
-`TOOL.others_busy(now)`, which returns `Busy(start, end, label, kind, tool)`
-tuples that haven't ended. Its planner then treats them like its own
-blocking windows. `label` is said in reasons ("would overlap scrub-repair
-scrub"), so it reads on its own.
+`(start, end, label, kind, tier)`, and reads everyone else's with
+`TOOL.others_busy(now)`, which returns `Busy(start, end, label, kind, tool,
+tier)` tuples that haven't ended. `label` is said in reasons ("would overlap
+scrub-repair scrub"), so it reads on its own. `kind` is `running`,
+`planned`, `scrub` or `backup`.
 
-- `kind` is `running`, `planned`, `scrub` or `backup`. `planned` windows
-  are a flexible tool's guesses; the others are firm. A tool whose own jobs
-  are firm (a scheduled scrub) avoids the others' firm windows and may ignore
-  their `planned` ones; the flexible planners then move out of its way. That
-  keeps two planners from chasing each other.
+`tier` says how much a job matters, highest first:
+
+| Tier | Jobs |
+|---|---|
+| `fixed` | UniFi's own scrubs, backups and rebuilds. Nothing here can move them, so nothing runs into them. |
+| `manual` | Started by hand: `run-now`, a scrub you start. |
+| `urgent` | Trouble: a watched SMART count rose, a failed test's retry, a scrub after checksum errors or parity mismatches. Starts at once, outside the night window. |
+| `scheduled` | Work on a calendar: scrub-repair's quarterly scrub. |
+| `routine` | Interval work: a SMART test that is simply due. |
+
+- A job stays clear of every window at its own tier or above
+  (`busy.blocking(windows, tier)`) and ignores lower ones. Equal tiers plan
+  around each other, first come first served.
+- A lower job already running when a higher one needs the disks (it has
+  started or starts within 15 minutes, `busy.must_yield`) gives way: it
+  pauses if it can (a scrub), else stops and is planned again (a SMART test),
+  and the tool says so in an info alert.
+- A tool starting a job nudges the tools whose lower-tier running jobs are in
+  the way (`busy.in_the_way`, then `TOOL.nudge(tools)`, which starts their
+  services), so they give way at once instead of at their next timer run.
 - A file not rewritten for two days is ignored. Turning a tool off and
   uninstalling it withdraw its windows; updates keep the file.
-- smart-scheduler publishes its running and planned tests, and UniFi's
-  scrubs and backup windows as it reads them (with its margins, labelled
-  "UniFi ..."), for 31 days ahead. A tool that runs beside it needn't read
-  UniFi itself.
+- smart-scheduler publishes its running and planned tests (urgent for a rise
+  or a retry, routine otherwise; a test started by hand or outside it counts
+  as manual), and UniFi's scrubs and backup windows as it reads them (with
+  its margins, labelled "UniFi ...", tier `fixed`), for 31 days ahead. A tool
+  that runs beside it needn't read UniFi itself.
 
 ## Where each part was built
 

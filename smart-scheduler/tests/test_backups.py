@@ -336,7 +336,7 @@ class PlannerTests(unittest.TestCase):
         patch(self, "self_check", lambda *a, **k: (self.fake.storage, "uid"))
         patch(self, "load_state", lambda: {})
         monday = at(2026, 11, 23, 1)
-        scrub = busy.Busy(at(2026, 11, 23, 0), at(2026, 11, 23, 7), "scrub-repair scrub", "scrub", "scrub-repair")
+        scrub = busy.Busy(at(2026, 11, 23, 0), at(2026, 11, 23, 7), "scrub-repair scrub", "scrub", "scrub-repair", "scheduled")
         self.addCleanup(setattr, ss.TOOL, "others_busy", ss.TOOL.others_busy)
         ss.TOOL.others_busy = lambda t: [scrub]
 

@@ -169,9 +169,12 @@ class CalendarScreenTests(CalendarFixture, unittest.TestCase):
         self.assertEqual([x["outcome"] for x in days[dt.date(2026, 11, 3)]["tests"]], ["passed"])
         self.assertEqual([x["outcome"] for x in days[dt.date(2026, 11, 12)]["tests"]], ["failed"])
         self.assertEqual([x["outcome"] for x in days[dt.date(2026, 11, 22)]["tests"]], ["running"])
-        # Drive 1's running test holds tonight; the plan starts tomorrow, most urgent first.
-        self.assertIn("a SMART test is already running", days[dt.date(2026, 11, 22)]["skipped"])
-        self.assertEqual(self.planned()[0], ("2026-11-23", "SERIAL6"))
+        # Drive 4's last test failed, so its retry is urgent: it starts now, beside
+        # Drive 1's running test. Routine tests wait for tomorrow night.
+        tonight = days[dt.date(2026, 11, 22)]["planned"]
+        self.assertEqual([(e["serial"], e["tier"], e["start"]) for e in tonight], [("SERIAL4", "urgent", NIGHT)])
+        self.assertEqual(days[dt.date(2026, 11, 22)]["skipped"], [])
+        self.assertEqual(self.planned()[:2], [("2026-11-22", "SERIAL4"), ("2026-11-23", "SERIAL6")])
         # The plan runs until every drive has a test (Drive 3's is in February);
         # short-interval drives come round again before that.
         self.assertEqual({s for _, s in self.planned()}, {f"SERIAL{i}" for i in range(1, 8)})
@@ -183,8 +186,8 @@ class CalendarScreenTests(CalendarFixture, unittest.TestCase):
         self.assertIn("│ ✓3       │", lines[10])                       # chips: a glyph and the slot
         self.assertIn("│ ✗4       │", lines[13])
         self.assertIn("│ 21       ┃ 22 today ┃", lines[15])            # selected: heavy sides; today: tagged
-        self.assertIn("┃ ▶1       ┃", lines[16])
-        self.assertIn("│ ○6       │ ○4       │ ○7       │ ○2       │", lines[19])
+        self.assertIn("┃ ○4 ▶1    ┃", lines[16])
+        self.assertIn("│ ○6       │ ○7       │ ○2       │", lines[19])
         self.assertEqual(lines[20], " ├" + "┼".join(["─" * 10] * 7) + "┤")   # a line between weeks
         self.assertRegex(lines[23], r"^ └─ ○ planned ─ ✓ passed ─ ✗ failed ─ ▶ running ─ ↻ scrub ─ ⇡ backup ─+┘$")
         self.assertNotIn("S1", text)
@@ -249,7 +252,7 @@ class CalendarScreenTests(CalendarFixture, unittest.TestCase):
 
     def test_other_tools_windows_hold_the_night(self):
         from core.lib import busy
-        scrub = busy.Busy(at(2026, 11, 23, 0), at(2026, 11, 23, 9), "scrub-repair scrub", "scrub", "scrub-repair")
+        scrub = busy.Busy(at(2026, 11, 23, 0), at(2026, 11, 23, 9), "scrub-repair scrub", "scrub", "scrub-repair", "scheduled")
         self.addCleanup(setattr, ss.TOOL, "others_busy", ss.TOOL.others_busy)
         ss.TOOL.others_busy = lambda t: [scrub]
         self.calendar()
@@ -303,7 +306,7 @@ class CalendarScreenTests(CalendarFixture, unittest.TestCase):
         text = self.app.press("2")
         self.assertIn("+3", text)
         self.assertIn("x4", text)
-        self.assertIn("| o6       | o4       |", text)
+        self.assertIn("| o6       | o7       |", text)
         self.assertIn("+- o planned - + passed - x failed - > running - s scrub - b backup ---", text)
         self.assertIn("# 22 today #", text)
         self.assertTrue(all(ord(ch) < 128 for ch in text.split("\n", 2)[2].rsplit("\n", 3)[0]))
@@ -391,7 +394,7 @@ class PluginTests(CalendarFixture, unittest.TestCase):
         self.assertEqual(sm["headline"], "7 drives scheduled, 4 due now")
         self.assertEqual({i["label"]: i["value"] for i in sm["items"]}, {
             "Running": "Drive 1 (SERIAL1)",
-            "Next test": "Mon 23 Nov, Drive 4 (SERIAL4)",
+            "Next test": "Sun 22 Nov, Drive 4 (SERIAL4)",
             "Last result": "failed, Drive 4, Thu 12 Nov",
             "Next scrub": "Mon 30 Nov, pool 2 scrub 02:30",
             "Snoozed": "Drive 6 until Wed 25 Nov",
