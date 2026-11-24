@@ -1,7 +1,7 @@
 # better-unas TUI: design
 
-Status: built for v0.2.0 (issues #2-#16), tested against fixtures, not yet
-run on a NAS. It replaced the old root `install.sh` menu installer. The
+Status: built for v0.2.0 (issues #2-#16), tested on a UNAS Pro. It
+replaced the old root `install.sh` menu installer. The
 contract between the core and a tool is in
 [plugin-contract.md](plugin-contract.md). How screens look and read (text
 roles, layout, selection, wording) is in [tui-style.md](tui-style.md); rows

@@ -1,6 +1,6 @@
 # scrub-repair design
 
-Agreed design for scrub-repair (#19). It also covers two pieces of core work that come first: a shared core library and a core Calendar. All three are built: steps 1 and 2 in the core (docs/plugin-contract.md §4 and §11), scrub-repair in [scrub-repair/](../scrub-repair/README.md). None has run on a NAS yet.
+Agreed design for scrub-repair (#19). It also covers two pieces of core work that come first: a shared core library and a core Calendar. All three are built: steps 1 and 2 in the core (docs/plugin-contract.md §4 and §11), scrub-repair in [scrub-repair/](../scrub-repair/README.md). All three are tested on a UNAS Pro.
 
 ## What it is
 

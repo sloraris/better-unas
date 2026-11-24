@@ -6,7 +6,7 @@ webhook when one rises. It keeps no history: `state.json` holds each
 counter's last value and the open alerts. The agreed design is in
 [docs/health-monitor-design.md](../docs/health-monitor-design.md).
 
-Built and tested against fixtures; not yet run on a NAS.
+Tested on a UNAS Pro.
 
 ## What it watches
 

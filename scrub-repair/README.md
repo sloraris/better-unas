@@ -6,7 +6,7 @@ repairs anything by guessing: a file without a verified good copy is
 reported and left as it is. The agreed design is in
 [docs/scrub-repair-design.md](../docs/scrub-repair-design.md).
 
-Built and tested against fixtures; not yet run on a NAS.
+Tested on a UNAS Pro.
 
 ## How it finds damaged files
 
