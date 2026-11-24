@@ -1,6 +1,6 @@
 # health-monitor design
 
-Agreed design for health-monitor (#18), built in `health-monitor/` (see its README for what it reads on the NAS). Not yet run on a NAS.
+Agreed design for health-monitor (#18), built in `health-monitor/` (see its README for what it reads on the NAS). Tested on a UNAS Pro.
 
 ## What it is
 

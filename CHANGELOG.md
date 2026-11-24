@@ -2,8 +2,8 @@
 
 ## v0.2.0 (2026-11-23)
 
-The first release with one version for the whole suite. Not yet run on a
-real NAS.
+The first release with one version for the whole suite. Tested on a UNAS
+Pro.
 
 ### better-unas
 
