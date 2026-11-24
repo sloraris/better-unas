@@ -203,6 +203,7 @@ class CalendarScreen:
         elif k in ("t", "home"):
             self.sel = self.data["today"]
         elif k == "r":
+            self.ctx.app.forget_cache()      # recalculate from live reads, not the shared cache
             self.show()
         elif k == "enter" and not self.data["error"]:
             self.ctx.push(DayScreen(self.ctx, self.data, self.sel))

@@ -36,6 +36,7 @@ ships in the UniFi OS firmware image and UniFi's base packages depend on it.
 """
 
 import argparse
+import concurrent.futures
 import datetime as dt
 import json
 import os
@@ -299,36 +300,44 @@ def serial_to_device():
     return devices
 
 
-def smart_facts(device, attr_ids):
-    """Return (extended test minutes or None, {attr id: raw value})."""
+def read_smart(device, attr_ids):
+    """One `smartctl -j -A -c` read: (extended test minutes or None,
+    {attr id: raw value}, percent left of a self-test the drive says is
+    running or None).
+
+    UniFi Drive's history only lists tests started through Drive. A test
+    started another way (smartctl -t long, another tool) shows up only in
+    the drive's own self-test status."""
     rc, out = sh("smartctl", "-j", "-A", "-c", device, timeout=30)
     try:
         d = json.loads(out)
     except ValueError:
-        return None, {}
-    minutes = d.get("ata_smart_data", {}).get("self_test", {}).get("polling_minutes", {}).get("extended")
+        return None, {}, None
+    if not isinstance(d, dict):
+        return None, {}, None
+    self_test = (d.get("ata_smart_data") or {}).get("self_test") or {}
+    minutes = (self_test.get("polling_minutes") or {}).get("extended")
     attrs = {}
-    for a in d.get("ata_smart_attributes", {}).get("table", []):
+    for a in (d.get("ata_smart_attributes") or {}).get("table") or []:
         if a.get("id") in attr_ids:
-            attrs[str(a["id"])] = a.get("raw", {}).get("value", 0)
-    return minutes, attrs
+            attrs[str(a["id"])] = (a.get("raw") or {}).get("value", 0)
+    status = self_test.get("status")
+    value = status.get("value") if isinstance(status, dict) else None
+    left = None
+    if isinstance(value, int) and value >> 4 == 0xF:     # 0xF_: in progress, low nibble = tenths left
+        pct = status.get("remaining_percent")
+        left = pct if isinstance(pct, int) else (value & 0xF) * 10
+    return minutes, attrs, left
+
+
+def smart_facts(device, attr_ids):
+    """Return (extended test minutes or None, {attr id: raw value})."""
+    return read_smart(device, attr_ids)[:2]
 
 
 def self_test_progress(device):
-    """Percent remaining of a self-test the drive itself says is running, else None.
-
-    UniFi Drive's history only lists tests started through Drive. A test
-    started another way (smartctl -t long, another tool) shows up only here."""
-    rc, out = sh("smartctl", "-j", "-c", device, timeout=30)
-    try:
-        status = json.loads(out).get("ata_smart_data", {}).get("self_test", {}).get("status", {})
-    except (ValueError, AttributeError):
-        return None
-    value = status.get("value") if isinstance(status, dict) else None
-    if not isinstance(value, int) or value >> 4 != 0xF:   # 0xF_: in progress, low nibble = tenths left
-        return None
-    pct = status.get("remaining_percent")
-    return pct if isinstance(pct, int) else (value & 0xF) * 10
+    """Percent remaining of a self-test the drive itself says is running, else None."""
+    return read_smart(device, ())[2]
 
 
 def get_storage():
@@ -394,31 +403,62 @@ night_key = planner.night_key
 start_gate = planner.start_gate
 
 
+# How many drives are read at once: each read is a smartctl run and an API call.
+READ_THREADS = 8
+
+
+def parallel(fn, items):
+    """[fn(item)] in order, run in threads (the reads wait on smartctl and
+    the API, not the CPU)."""
+    items = list(items)
+    if len(items) < 2:
+        return [fn(x) for x in items]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(READ_THREADS, len(items))) as pool:
+        return list(pool.map(fn, items))
+
+
+def read_drives(disks, devices, attr_ids, excluded, user_id):
+    """[(read_smart result, history or None, ApiError or None)] per disk, read in parallel."""
+    def one(d):
+        serial = d["serial"]
+        smart = read_smart(devices[serial], attr_ids) if serial in devices else (None, {}, None)
+        if serial in excluded:
+            return smart, None, None
+        try:
+            return smart, get_history(d.get("slotId"), serial, user_id, d.get("smartTest")), None
+        except ApiError as e:
+            return smart, None, e
+    return parallel(one, disks)
+
+
 def evaluate_drives(cfg, storage, user_id, state, alerts, report=True):
-    """Gather per-drive facts and work out when each one is due."""
+    """Gather per-drive facts and work out when each one is due. Each drive
+    record carries its UniFi Drive test history ("history") for the callers
+    that show it."""
     attr_ids = set(cfg["WARN_ATTRIBUTES"])
     excluded = set(cfg["EXCLUDE_SERIALS"])
     devices = serial_to_device()
     drives_state = state.setdefault("drives", {})
     t = now()
     result = []
-    for d in storage["disks"]:
+    disks = [d for d in storage["disks"] if d.get("serial") and d.get("smartTestSupported")]
+    for d, (smart, fetched, failed) in zip(disks, read_drives(disks, devices, attr_ids, excluded, user_id)):
         serial, slot = d.get("serial"), d.get("slotId")
-        if not serial or not d.get("smartTestSupported"):
-            continue
         info = {"slot": slot, "serial": serial, "model": d.get("model", "?"),
                 "excluded": serial in excluded, "running": False, "current_test": d.get("smartTest"),
                 "kbps": (d.get("readKBPS") or 0) + (d.get("writeKBPS") or 0)}
         result.append(info)
-        left = self_test_progress(devices[serial]) if serial in devices else None
+        minutes, attrs, left = smart
         if info["excluded"]:
             info["reason"] = "excluded in config"
             _mark_outside_test(info, left)
             continue
         try:
+            if failed:
+                raise failed
             yielded = yielded_ids(state, serial)
-            history = [h for h in get_history(slot, serial, user_id, d.get("smartTest"))
-                       if str(h.get("id")) not in yielded]
+            history = [h for h in fetched if str(h.get("id")) not in yielded]
+            info["history"] = history
             alerts.clear(f"history:{serial}")
         except ApiError as e:
             if not report:
@@ -434,9 +474,6 @@ def evaluate_drives(cfg, storage, user_id, state, alerts, report=True):
         finished = sorted((h for h in extended if not is_running(h)),
                           key=lambda h: h.get("finishedAt") or "", reverse=True)
 
-        minutes, attrs = (None, {})
-        if serial in devices:
-            minutes, attrs = smart_facts(devices[serial], attr_ids)
         info["minutes"] = minutes or 720
         info["attrs"] = attrs
         ds = drives_state.setdefault(serial, {})

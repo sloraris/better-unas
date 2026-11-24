@@ -195,6 +195,10 @@ real NAS.
   downloads), read-only psql and the console-owner lookup, for tools that
   read what Drive knows.
 - README: the tools table listed health-monitor twice.
+- Faster pages: a tool can keep a slow read for a minute with `ctx.cached`
+  (docs/plugin-contract.md section 6), so switching between Home, the
+  Calendar and a tool's tab reuses it. `r` on Home or the Calendar reads
+  everything live again.
 
 ### smart-scheduler
 
@@ -221,6 +225,11 @@ real NAS.
   night's start or waiting for `MAX_CONCURRENT`.
 - Drives tab: per-drive schedule, SMART values and UniFi test history, with
   run now, snooze, exclude and interval (#11).
+- Pages open faster. One read of the drives is shared by Home, the Calendar
+  and Drives for a minute (`r`, or any change from the Drives tab, reads
+  live). Each drive is read with one `smartctl` instead of two, its UniFi
+  Drive history is fetched once instead of twice, and the drives are read in
+  parallel. The hourly run gets the same fewer, parallel reads.
 
 ## smart-scheduler 0.1.x (untagged)
 

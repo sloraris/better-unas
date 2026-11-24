@@ -70,7 +70,23 @@ def _hm(t, ref=None):
     return f"{t:%H:%M}"
 
 
+# How long one read is shared by the pages that open after it (Home, the
+# Calendar, Drives). `r` reads live again; so does any change made from the TUI.
+CACHE_SECONDS = 60
+
+
 def gather(ss, ctx):
+    """Everything the calendar shows (read_all), shared for CACHE_SECONDS
+    through ctx.cached when the context has it. A different set of settings
+    (a Settings preview) is a different read."""
+    cached = getattr(ctx, "cached", None)
+    if not callable(cached):
+        return read_all(ss, ctx)
+    key = ("gather", json.dumps(ctx.config(), sort_keys=True, default=str))
+    return cached(key, lambda: read_all(ss, ctx), CACHE_SECONDS)
+
+
+def read_all(ss, ctx):
     """Everything the calendar shows, read live. Raises CalendarError when
     there is nothing to show; smaller problems are listed in "problems"."""
     planner, backups = ss.planner, ss.backups
@@ -100,12 +116,8 @@ def gather(ss, ctx):
         if d.get("error"):
             problems.append(f"Drive {d['slot']}: {d.get('reason', 'history unavailable')}")
             continue
-        try:
-            yielded = ss.yielded_ids(state, d["serial"])
-            history = [h for h in ss.get_history(d["slot"], d["serial"], user_id, d.get("current_test"))
-                       if str(h.get("id")) not in yielded]
-        except ss.ApiError as e:
-            problems.append(f"Drive {d['slot']}: history unavailable ({e.detail})")
+        history = d.get("history")              # read once, by evaluate_drives
+        if history is None:
             continue
         for h in history:
             if str(h.get("type")).lower() != "extended":
@@ -191,6 +203,7 @@ def gather(ss, ctx):
     planned = {e["serial"] for e in plan}
     return {
         "now": t,
+        "storage": storage,
         "today": _night(planner, cfg, t),
         "days": days,
         "plan_until": max((dt.date.fromisoformat(e["night"]) for e in plan), default=None),

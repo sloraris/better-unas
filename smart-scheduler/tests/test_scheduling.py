@@ -52,6 +52,9 @@ class Fake:
         ss.serial_to_device = lambda: {d["serial"]: "/dev/" + d["serial"] for d in self.storage["disks"]}
         ss.smart_facts = lambda dev, ids: (571, self.attrs.get(dev[5:], {}))
         ss.self_test_progress = lambda dev: self.progress.get(dev[5:])
+        # The run reads both with one smartctl (read_smart); built from the two
+        # fakes above, looked up per call so a test can swap either.
+        ss.read_smart = lambda dev, ids: tuple(ss.smart_facts(dev, ids)) + (ss.self_test_progress(dev),)
         ss.log = lambda *a, **k: None
 
 
