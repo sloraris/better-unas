@@ -385,6 +385,7 @@ class HomeScreen:
         elif k == "a":
             self.jump("Alerts")
         elif k == "r":
+            self.app.forget_cache()          # read every tool live again
             self.show()
         else:
             return False

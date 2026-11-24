@@ -25,6 +25,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 from test_scheduling import NIGHT, TZ, Fake, ext, rose6, ss
 
@@ -37,6 +38,7 @@ if ROOT not in sys.path:
 from core import plugins as P                    # noqa: E402
 from core.tui import calendar                     # noqa: E402
 from core.tui import widgets as W                # noqa: E402
+from core.tui import app as app_module           # noqa: E402
 from core.tui.app import App                     # noqa: E402
 from core.tui.terminal import HeadlessTerminal   # noqa: E402
 from core.tui.theme import Theme                 # noqa: E402
@@ -317,15 +319,22 @@ class CalendarScreenTests(CalendarFixture, unittest.TestCase):
         self.app.press("pgdn")
         self.assertEqual(self.screen.sel, dt.date(2027, 2, 28))
 
-    def test_recalculated_each_time_it_opens(self):
-        self.calendar()
-        self.assertEqual(self.planned()[0], ("2026-11-22", "SERIAL6"))
-        self.state["snoozes"] = {"SERIAL6": {"until": "2026-12-01", "set": "2026-11-21T10:00:00-07:00"}}
-        self.app.press("1", "2")
-        self.assertEqual(self.planned()[0], ("2026-11-22", "SERIAL4"))
-        self.fake.history["4"] = [ext(41, "successful", "optimal", "2026-11-21T10:00:00-07:00")]
-        self.app.press("r")
-        self.assertNotIn(("2026-11-22", "SERIAL4"), self.planned())
+    def test_one_read_is_shared_then_recalculated(self):
+        clock = [1000.0]
+        with mock.patch.object(app_module.time, "monotonic", lambda: clock[0]):
+            self.calendar()
+            self.assertEqual(self.planned()[0], ("2026-11-22", "SERIAL6"))
+            self.state["snoozes"] = {"SERIAL6": {"until": "2026-12-01", "set": "2026-11-21T10:00:00-07:00"}}
+            calls = len(self.fake.calls)
+            self.app.press("1", "2")                    # Home and back within the minute: the same read
+            self.assertEqual(len(self.fake.calls), calls)
+            self.assertEqual(self.planned()[0], ("2026-11-22", "SERIAL6"))
+            clock[0] += self.plugin.calendar_data.CACHE_SECONDS  # a minute later: read again on opening
+            self.app.press("1", "2")
+            self.assertEqual(self.planned()[0], ("2026-11-22", "SERIAL4"))
+            self.fake.history["4"] = [ext(41, "successful", "optimal", "2026-11-21T10:00:00-07:00")]
+            self.app.press("r")                         # r always reads live
+            self.assertNotIn(("2026-11-22", "SERIAL4"), self.planned())
 
     def test_api_problem_is_shown_not_raised(self):
         self.fake.api = lambda *a, **k: (500, None)
@@ -440,6 +449,7 @@ class PluginTests(CalendarFixture, unittest.TestCase):
     def test_summary_reports_api_problem(self):
         self.make_app()
         ss.api = lambda *a, **k: (500, None)
+        self.ctx.forget()                                # Home's read is shared; read live
         sm = self.plugin.summary(self.ctx)
         self.assertEqual(P.check_summary(sm), [])
         self.assertEqual(sm["state"], "error")

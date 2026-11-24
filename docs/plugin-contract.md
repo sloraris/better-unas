@@ -522,6 +522,8 @@ function and screen. In tests, a small fake stands in for it (see
 | `ctx.theme` | The theme (section 7). Screens usually just pass tone names to the canvas. |
 | `ctx.log(text)` | Appends to the TUI's own log (not the journal) for debugging. Never pass secrets. |
 | `ctx.LockBusy` | The exception `ctx.lock()` raises, so a screen can catch it without importing the core. |
+| `ctx.cached(key, fn, ttl=60)` | `fn()`'s result, kept for `ttl` seconds under this tool and `key`, so one slow read is shared by the pages that open one after another (Home, the Calendar, a tool's tab). Put anything the result depends on, such as the settings, in `key`. `r` on Home or the Calendar forgets every tool's reads. |
+| `ctx.forget()` | Drops this tool's cached reads: call it on a screen's own `r`, and after an action changes something, so the next read is live. |
 | `ctx.widgets` | The core's widget module (`core/tui/widgets.py`): `ListView`, `Table`, `ScrollText`, `Form`, `panel`, `KeyValue` and the rest, so a plugin uses them without relying on `sys.path`. A `Table` cell is a string, a `(text, tone)` pair, or `("status", kind, text[, aside])` for a status glyph and text in the kind's tone with a dim aside after it (kind `None`: plain text, no glyph). |
 
 The core implements this context (#4). Functions beyond this list are the

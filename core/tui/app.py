@@ -95,6 +95,17 @@ class Context:
     def log(self, text):
         self.app.log(f"[{self.tool.name if self.tool else 'core'}] {text}")
 
+    def cached(self, key, fn, ttl=60):
+        """fn()'s result, kept for ttl seconds under (this tool, key), so a
+        slow read is shared by the pages that open one after another. `r` on
+        Home or the Calendar forgets everything; a tool's own screens call
+        forget() on their `r` and after an action changes something."""
+        return self.app.cached((self.tool.name if self.tool else None, key), fn, ttl)
+
+    def forget(self):
+        """Drop this tool's cached reads."""
+        self.app.forget_cache(self.tool.name if self.tool else None)
+
     # --- core business
     def with_values(self, values):
         """A copy whose config() always returns these values: a screen built
@@ -138,6 +149,7 @@ class App:
         self.core_ctx = Context(self)
         self.owners = {}                       # id(screen) -> tool name, for the header
         self.typed_ahead = []                  # keys pressed during a slow read or lock wait
+        self.cache = {}                        # (tool name, key) -> (monotonic time, value): ctx.cached
 
         tool_tabs = [(title, title, self.core_ctx, make) for title, make in extra_tabs]
         for tool in self.tools:
@@ -288,6 +300,24 @@ class App:
             return w.result
         finally:
             self.overlay = prev
+
+    def cached(self, key, fn, ttl):
+        hit = self.cache.get(key)
+        now = time.monotonic()
+        if hit and now - hit[0] < ttl:
+            return hit[1]
+        value = fn()
+        self.cache[key] = (time.monotonic(), value)
+        return value
+
+    def forget_cache(self, tool=False):
+        """Drop one tool's cached reads (its name, or None for the core's),
+        or everything with no argument."""
+        if tool is False:
+            self.cache.clear()
+        else:
+            for k in [k for k in self.cache if k[0] == tool]:
+                del self.cache[k]
 
     def run_slow(self, fn, label):
         box = {}

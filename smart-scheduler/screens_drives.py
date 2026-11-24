@@ -49,11 +49,9 @@ def gather(env, ctx):
     ss, _, cal = env()
     try:
         data = cal.gather(ss, ctx)
-        storage = ss.get_storage()
     except cal.CalendarError as e:
         raise DrivesError(str(e))
-    except ss.ApiError as e:
-        raise DrivesError(f"UniFi Drive API problem: {e.detail}")
+    storage = data["storage"]
     cfg = cal.config_from(ss, ctx.config())
     disks = {d.get("serial"): d for d in storage["disks"]}
     nxt = {}
@@ -94,6 +92,8 @@ def details(env, ctx, drive):
     user_id = user_id or state.get("user_id")
     if not user_id:
         out["history_error"] = f"can't read it as {who}: {err or 'it no longer exists'}"
+    elif drive.get("history") is not None:
+        out["history"] = drive["history"]        # read with the list (one cached read)
     else:
         try:
             out["history"] = ss.get_history(drive["slot"], drive["serial"], user_id, drive.get("current_test"))
@@ -619,7 +619,7 @@ class DrivesScreen:
         self.data = None
         self.error = None
         self.table = ctx.widgets.Table(self.COLUMNS, empty="No SMART-capable drives.")
-        self.actions = Actions(ctx, env, self.load)
+        self.actions = Actions(ctx, env, lambda: self.load(fresh=True))
 
     def keys(self):
         if self.actions.busy:
@@ -632,7 +632,11 @@ class DrivesScreen:
         self.actions.cancel()
         self.load()
 
-    def load(self):
+    def load(self, fresh=False):
+        """Read the drives: the shared read (calendar_data.gather), or a live
+        one with fresh (`r`, and after an action changed something)."""
+        if fresh and callable(getattr(self.ctx, "forget", None)):
+            self.ctx.forget()
         try:
             self.data = self.ctx.run_slow(lambda: gather(self.env, self.ctx), "Reading drives")
             self.error = None
@@ -678,7 +682,7 @@ class DrivesScreen:
         if self.actions.busy:
             return self.actions.key(k, self.current)
         if k == "r":
-            self.load()
+            self.load(fresh=True)
         elif k == "enter" and self.current:
             self.ctx.push(DriveScreen(self.ctx, self.env, self.current["serial"]))
         elif self.table.key(k):
@@ -731,7 +735,7 @@ class DriveScreen:
         self.now = ctx.now()
         self.history = ctx.widgets.Table([("Type", 9), ("Started", 17), ("Took", 7), ("Result", None)],
                                          selectable=False, empty="No tests on record.")
-        self.actions = Actions(ctx, env, self.load)
+        self.actions = Actions(ctx, env, lambda: self.load(fresh=True))
 
     def keys(self):
         if self.actions.busy:
@@ -742,7 +746,11 @@ class DriveScreen:
         self.actions.cancel()
         self.load()
 
-    def load(self):
+    def load(self, fresh=False):
+        """Read the drives: the shared read (calendar_data.gather), or a live
+        one with fresh (`r`, and after an action changed something)."""
+        if fresh and callable(getattr(self.ctx, "forget", None)):
+            self.ctx.forget()
         def read():
             data = gather(self.env, self.ctx)
             d = next((x for x in data["drives"] if x["serial"] == self.serial), None)
@@ -765,7 +773,7 @@ class DriveScreen:
         if self.actions.busy:
             return self.actions.key(k, self.drive)
         if k == "r":
-            self.load()
+            self.load(fresh=True)
             return True
         if self.history.key(k):
             return True
