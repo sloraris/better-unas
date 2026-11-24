@@ -1,0 +1,120 @@
+{
+  "contract": 1,
+  "groups": [
+    {
+      "id": "general",
+      "title": "General",
+      "fields": [
+        {
+          "key": "ENABLED",
+          "type": "bool",
+          "label": "Enabled",
+          "default": "yes",
+          "on_change": "install",
+          "help": "The check every 15 minutes. Off: saving removes its timer; a scrub already running carries on (stop it with `scrub cancel`). On: saving puts the timer back."
+        },
+        {
+          "key": "MODE",
+          "type": "choice",
+          "label": "When a file is damaged",
+          "choices": ["stage", "auto", "alert"],
+          "default": "stage",
+          "essential": true,
+          "help": "stage: alert, find and verify a good copy, then wait for you to restore it. auto: swap in any copy that passes the check, then report. alert: only alert; finding a copy and restoring both wait for you."
+        }
+      ]
+    },
+    {
+      "id": "sources",
+      "title": "Where copies come from",
+      "help": "Tried in order, newest copy first; a copy must match every readable block.",
+      "fields": [
+        {
+          "key": "USE_UNIFI_BACKUPS",
+          "type": "bool",
+          "label": "UniFi Cloud backups",
+          "default": "yes",
+          "help": "Look in your UniFi Cloud backup versions through UniFi Drive. Drive does the signing in; no credential is read."
+        },
+        {
+          "key": "FOLDER_SOURCES",
+          "type": "text",
+          "label": "Folder sources",
+          "default": "",
+          "pattern": "/[^,]*(\\s*,\\s*/[^,]*)*",
+          "max_length": 2000,
+          "help": "Folders on the NAS that hold copies, comma-separated: a USB backup drive, a share a replication task copies into, a mount from another machine. Each is tried as <folder>/<share>/<path> and <folder>/<path>."
+        }
+      ]
+    },
+    {
+      "id": "scrub",
+      "title": "Scrubs",
+      "help": "A read-only scrub reads every block to find damage; it changes nothing.",
+      "fields": [
+        {
+          "key": "URGENT_SCRUB",
+          "type": "bool",
+          "label": "Scrub after errors",
+          "default": "yes",
+          "help": "New checksum errors in the kernel log, or a parity mismatch from UniFi's data scrubbing, start an urgent scrub at once. It stops for manual jobs and UniFi's own, then carries on."
+        },
+        {
+          "key": "SCRUB_SCHEDULE",
+          "type": "bool",
+          "label": "Scheduled scrub",
+          "default": "no",
+          "help": "Scrub on a calendar too, inside the night window, stopping at the end of each night and carrying on the next until it's done."
+        },
+        {
+          "key": "SCRUB_FREQUENCY",
+          "type": "choice",
+          "label": "How often",
+          "choices": ["monthly", "quarterly", "half-yearly", "yearly"],
+          "default": "quarterly",
+          "help": "Periods start in January. Quarterly: January, April, July and October."
+        },
+        {
+          "key": "SCRUB_START_DAY",
+          "type": "int",
+          "label": "Start day",
+          "unit": "of the month",
+          "min": 1,
+          "max": 28,
+          "default": "1",
+          "help": "The first night of each period. It runs every night from then until it's done."
+        },
+        {
+          "key": "SCRUB_WINDOW",
+          "type": "time_window",
+          "label": "Night window",
+          "default": "01:00-07:00",
+          "help": "Local time. A scheduled scrub runs only inside it. Urgent and manual scrubs don't wait for it."
+        }
+      ]
+    },
+    {
+      "id": "heartbeat",
+      "title": "Heartbeat",
+      "help": "Empty: the shared heartbeat URLs in Notifications are used.",
+      "fields": [
+        {
+          "key": "OWN_HEARTBEAT_URL",
+          "type": "url",
+          "label": "Own heartbeat URL",
+          "default": "",
+          "secret": true,
+          "help": "Pinged after every check that ends without errors, so this tool has its own check (a 15-minute period) apart from the others."
+        },
+        {
+          "key": "OWN_HEARTBEAT_FAIL_URL",
+          "type": "url",
+          "label": "Own heartbeat URL on failure",
+          "default": "",
+          "secret": true,
+          "help": "Pinged instead when a check ends with errors (an open damaged file is one). Used only with the own heartbeat URL."
+        }
+      ]
+    }
+  ]
+}

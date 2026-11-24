@@ -1,0 +1,9 @@
+# Installed by scrub-repair. Restored automatically if removed or changed.
+[Unit]
+Description=Find damaged files and restore verified copies
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 @BASE@/scrub_repair.py run --source timer
+Nice=10
+IOSchedulingClass=idle

@@ -1,6 +1,6 @@
 # scrub-repair design
 
-Agreed design for scrub-repair (#19). It also covers two pieces of core work that come first: a shared core library and a core Calendar. Steps 1 and 2 are built (docs/plugin-contract.md §4 and §11); scrub-repair itself isn't yet.
+Agreed design for scrub-repair (#19). It also covers two pieces of core work that come first: a shared core library and a core Calendar. All three are built: steps 1 and 2 in the core (docs/plugin-contract.md §4 and §11), scrub-repair in [scrub-repair/](../scrub-repair/README.md). None has run on a NAS yet.
 
 ## What it is
 
@@ -12,14 +12,15 @@ When a file on the volume is damaged, scrub-repair finds it, finds a good copy i
 - **btrfs data checksums are on.** The volume is mounted without `nodatasum`, so every data block has a checksum. When a read fails one, the kernel logs a `csum failed` line with the inode, which resolves to a path.
 - **Kernel messages are not in the journal** on this firmware: they are only in the kernel ring buffer (dmesg). scrub-repair reads `/dev/kmsg` itself.
 - **Drive has its own restore.** It has a `remote_backup_restorations` table and restore code for every backup type. UniFi Cloud backups can be read one file at a time: `/tasks/:taskId/ucs/versions/:version/drives/:driveId/files/:itemId/content`.
-- **UNAS-to-UNAS replication runs on rsync.** Its single-file restore route isn't mapped yet. It will be mapped during the build by watching the requests the UniFi web UI makes when you open its restore browser, which only reads. Until then, files that only a replication task has go to the folder sources.
+- **UNAS-to-UNAS replication runs on rsync.** Drive's web UI has no single-file restore route for it: its routes cover UniFi Cloud backups (`/remote-backup/tasks/:taskId/ucs/...`), snapshots and whole-task restores. Replicated copies are plain files on the other UNAS, so a folder source (a mount of the replica) covers them.
+- **A file's id in a UniFi Cloud backup** is the unpadded base64url of `<backup drive id>:/<path in the share>`, and each version lists its backed-up drives by name. The tool asks each version for the file directly; it doesn't walk folders.
 - **Snapshots don't help.** A UniFi snapshot shares the damaged blocks, so its copy is damaged too.
 
 ## Finding damaged files
 
 - **Passive, the default.** Every 15 minutes, scrub-repair reads the new btrfs checksum lines in the kernel log, from a saved cursor (sequence number plus boot ID). Each line is resolved to a path. So a damaged file turns up as soon as anything reads it: Jellyfin, a backup run, a copy. Lines logged before a reboot are lost, and the scheduled scrub covers that gap.
 - **Scheduled btrfs scrub, off by default.** When it's turned on, it runs a read-only scrub (`btrfs scrub start -r`). It runs only inside a night window, pausing at the end of the window and resuming the next night until done. It's a scheduled-tier job, and it pauses when a higher-tier job needs the disks.
-- **Urgent scrub.** Checksum errors in the kernel log, or a parity mismatch from UniFi's scrub, start an urgent read-only scrub at once, outside the night window.
+- **Urgent scrub.** New checksum errors in the kernel log, or a parity mismatch from UniFi's scrub, start an urgent read-only scrub at once, outside the night window (`URGENT_SCRUB`, on). The same damaged file or parity count doesn't start another.
   - Defaults: every quarter, a 01:00–07:00 window.
   - Frequency, start day and window are all settings.
   - Its nights go in the busy registry, so smart-scheduler stays clear of them, and it stays clear of the others' nights.
@@ -58,9 +59,9 @@ When a file on the volume is damaged, scrub-repair finds it, finds a good copy i
 
 ## Settings
 
-- General: Enabled, plus Mode (alert and stage, auto-restore or alert only).
+- General: Enabled, plus Mode (`stage`, `auto` or `alert`).
 - Sources: folder sources (paths), and whether to use UniFi's backups (on).
-- Scrub: scheduled scrub (off), frequency (quarterly), start day, night window (01:00–07:00).
+- Scrub: scrub after errors (on), scheduled scrub (off), frequency (quarterly), start day, night window (01:00–07:00).
 - Heartbeat: its own heartbeat URL pair, the same as the other tools.
 
 ## Core work that comes first
@@ -92,6 +93,6 @@ Built on the two above.
 
 1. The core library, with smart-scheduler and health-monitor ported to it. One PR.
 2. The Calendar in core, plus the busy registry. One PR.
-3. scrub-repair, with the replication restore route mapped during the build. One PR.
+3. scrub-repair. One PR. (Replication needs no route of its own: see above.)
 
 Each one lands and gets tested before the next starts.
