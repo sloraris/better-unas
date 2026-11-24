@@ -24,39 +24,46 @@ plain commands for scripts.
 
 ## Install
 
-SSH into your UNAS if you haven't already:
+You need root SSH on the UNAS:
 
-1. Go to UniFi Drive Settings -> Management -> SSH
-2. Enable SSH and set a password
-3. Log in as `root@<YOUR_UNAS_IP>`
+1. Go to UniFi Drive Settings -> Management -> SSH.
+2. Enable SSH and set a password.
+3. Log in with `ssh root@<YOUR_UNAS_IP>`.
 
-Run this on the UNAS:
+Then run this on the UNAS, in that SSH session:
 
 ```bash
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/sloraris/better-unas/main/bootstrap.sh)"
 ```
 
-> Until v0.2.0 is published as a release, add `--ref main` at the end:
-> `sh -c "$(curl -fsSL https://raw.githubusercontent.com/sloraris/better-unas/main/bootstrap.sh)" --ref main`
-
-It checks that the box is a UNAS with what better-unas needs (root, Python 3
-with curses, `curl`, `tar`), downloads the latest release to a temporary
-folder and opens the setup wizard:
+The bootstrap first checks the box: that you're root, that it's a UNAS
+(`/usr/lib/version`), and that Python 3 with curses, `curl` and `tar` are
+there. It then downloads the latest release into a temporary folder and
+opens the setup wizard from it:
 
 1. **Pick tools.** Tick the ones you want.
-2. **Essential settings.** The few settings worth a look before the first
-   run, with the defaults filled in. Everything else is on the Settings tab.
+2. **Essential settings.** First the webhook every tool sends alerts to, then
+   the few settings per tool worth a look before the first run, with the
+   defaults filled in. Everything else is on the Settings tab later.
 3. **Review.** Exactly what will change: the files copied, each tool's
    config, the timers and triggers it sets up, and the `better-unas` command.
 4. **Install.** Only now is anything written.
 
-Quitting before you confirm the review leaves the box as it was. Options go
-after the command's closing `)`: `--dry-run` walks through the wizard and
-shows the review without changing anything, `--ref <tag|branch>` picks a
-version, and `--force` continues on a box that doesn't identify as a UNAS.
-Running the one-liner again on a box that's set up just opens the app.
+Quitting before you confirm the review leaves the box as it was, and the
+temporary folder is removed either way. Options go after the command's
+closing `)`:
 
-Prefer to read it before running it as root?
+| Option | What it does |
+|---|---|
+| `--ref <tag\|branch>` | Install that version instead of the latest release (`--ref main` for the development version). |
+| `--dry-run` | Walk through the wizard and show the review; change nothing. |
+| `--force` | Continue on a box that doesn't identify as a UNAS. |
+
+Running the one-liner again on a box that's set up just opens the app.
+Updates are done from the app (see [Updating](#updating)), not by running
+the one-liner again.
+
+Prefer to read the script before running it as root?
 
 ```bash
 curl -fsSLo /tmp/better-unas-bootstrap.sh https://raw.githubusercontent.com/sloraris/better-unas/main/bootstrap.sh
@@ -65,27 +72,33 @@ sh /tmp/better-unas-bootstrap.sh
 ```
 
 Everything goes in `/persistent/better-unas/` (the `/persistent` partition
-survives firmware updates). `better-unas` is linked from `/usr/local/bin`.
+survives firmware updates), and the `better-unas` command is linked from
+`/usr/local/bin/better-unas`.
 
 ## The app
 
 Run `better-unas` to open it. Tabs along the top switch with the number keys
 or Tab, arrows and Enter work within a screen, Esc goes back, `?` lists the
-keys and `q` quits. The terminal needs to be at least 80x28; the app asks a smaller one to grow
-where the terminal allows it. Colors follow
-your terminal (green good, yellow planned or warning, red failed, dim past),
-the words always say the same thing, and `NO_COLOR` is respected.
+keys and `q` quits. The terminal needs to be at least 80x28; the app asks a
+smaller one to grow where the terminal allows it. Colors follow your
+terminal (green good, yellow planned or warning, red failed, dim past), the
+words always say the same thing, and `NO_COLOR` is respected. The tabs depend
+on which tools are installed: with all three you get Home, Calendar, Damaged,
+Drives, Alerts and Settings. The sample below and the captures show
+smart-scheduler alone.
 
 ```
- 1 Home │ 2 Calendar │ 3 Drives │ 4 Alerts │ 5 Settings
- Home ────────────────────────────────────────────────────────────────────────
+┌──────────────────────────────────────────────────────────────────────────────┐
+│    1 Home     │  2 Calendar   │   3 Drives    │   4 Alerts    │  5 Settings  │
+└──────────────────────────────────────────────────────────────────────────────┘
+
  › ! 1 active alert
      ! smart-scheduler: Extended SMART test failed on Drive 4 (…  12 Nov 03:15
 
   ┌─ smart-scheduler 0.1.1 ────────────────────────────────────── ! warning ──┐
   │ 7 drives scheduled, 4 due now                                             │
   │ Running       ▶ Drive 1 (SERIAL1)                               › Drive 1 │
-  │ Next test     ○ Mon 23 Nov, Drive 6 (SERIAL6)                             │
+  │ Next test     ○ Sun 22 Nov, Drive 4 (SERIAL4)                             │
   │ Last result   ✗ failed, Drive 4, Thu 12 Nov                     › Drive 4 │
   │ Next scrub    ↻ Mon 30 Nov, pool 2 scrub 02:30                            │
   └───────────────────────────────────────────────────────────────────────────┘
@@ -94,14 +107,16 @@ the words always say the same thing, and `NO_COLOR` is respected.
 | Tab | What's on it | Capture |
 |---|---|---|
 | Home | An update notice when there is one, active alerts, and a card per tool. Each card is one stop that opens the tool; an item that leads elsewhere, like the last failed test's drive, is a stop of its own. | [home](docs/screens/home.txt) |
-| Calendar | One month from every tool with a calendar: smart-scheduler's past and planned tests, scrub and backup days. Enter shows why a night has or hasn't got a test. | [month](docs/screens/calendar.txt), [day](docs/screens/calendar-day.txt) |
+| Calendar | One month from every tool with a calendar: smart-scheduler's past and planned tests, scrub and backup days, and scrub-repair's scrub nights and the days damaged files were found or restored. Enter shows why a night has or hasn't got a test. | [month](docs/screens/calendar.txt), [day](docs/screens/calendar-day.txt) |
+| Damaged | scrub-repair's damaged files: how and when each was found and the state of its best copy. Enter restores a staged copy (after a confirm), `r` looks again, `a` restores every staged copy, `x` forgets a file, `s` starts a scrub. | |
 | Drives | Every drive's last and next test, temperature and interval, with the selected drive explained under the list. Enter opens one drive (schedule, health counts, UniFi test history); `t` runs a test now, `z` snoozes, `x` excludes, `i` sets its interval. | [list](docs/screens/drives.txt), [drive](docs/screens/drive.txt) |
 | Alerts | Active and recent alerts, and where they're sent. | [alerts](docs/screens/alerts.txt) |
 | Settings | **better-unas**: version, update (`u`), check (`c`), developer mode, remove (`R`). **Notifications**: the webhook and heartbeat every tool shares; `t` sends a test. **Each tool**, installed or not: its settings as a form, checked as you type (`s` saves, Esc offers to discard, `p` previews the calendar), plus install (`i`) and uninstall (`x`). | [list](docs/screens/settings-list.txt), [better-unas](docs/screens/settings-better-unas.txt), [notifications](docs/screens/settings-notifications.txt), [smart-scheduler](docs/screens/settings.txt) |
 
 The Calendar is the core's, drawn from each tool's calendar hook; Drives
-comes from smart-scheduler's plugin. A tool without either just gets a Home
-card and a Settings section. The captures are the
+comes from smart-scheduler's plugin and Damaged from scrub-repair's.
+health-monitor has neither, so it gets a Home card, its alerts and a Settings
+section. The captures are the
 real app at 80x28 against the test fixtures (`python3 docs/screens/make.py`
 regenerates them).
 
