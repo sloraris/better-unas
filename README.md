@@ -33,17 +33,13 @@ You need root SSH on the UNAS:
 Then run this on the UNAS, in that SSH session:
 
 ```bash
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/sloraris/better-unas/main/bootstrap.sh)" --ref main
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/sloraris/better-unas/main/bootstrap.sh)"
 ```
-
-> **`--ref main` is needed for now.** No release is published yet, and
-> without `--ref` the bootstrap installs the latest release. Once v0.2.0 is
-> out, drop `--ref main` to get the latest release.
 
 The bootstrap first checks the box: that you're root, that it's a UNAS
 (`/usr/lib/version`), and that Python 3 with curses, `curl` and `tar` are
-there. It then downloads that version into a temporary folder and opens the
-setup wizard from it:
+there. It then downloads the latest release into a temporary folder and
+opens the setup wizard from it:
 
 1. **Pick tools.** Tick the ones you want.
 2. **Essential settings.** First the webhook every tool sends alerts to, then
@@ -72,7 +68,7 @@ Prefer to read the script before running it as root?
 ```bash
 curl -fsSLo /tmp/better-unas-bootstrap.sh https://raw.githubusercontent.com/sloraris/better-unas/main/bootstrap.sh
 less /tmp/better-unas-bootstrap.sh
-sh /tmp/better-unas-bootstrap.sh --ref main
+sh /tmp/better-unas-bootstrap.sh
 ```
 
 Everything goes in `/persistent/better-unas/` (the `/persistent` partition
